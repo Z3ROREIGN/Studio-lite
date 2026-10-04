@@ -107,27 +107,47 @@ function convertClientInstances(instances){
  all.forEach(n=>{if(n.parent&&!valid.has(n.parent))n.parent=null});
  return all;
 }
-async function parseBinary(file){
- const buf=await file.arrayBuffer();
- let lastError=null;
- try{
-   statusText("Processando o RBXL no seu navegador…");
-   const mod=await import("https://cdn.jsdelivr.net/npm/rbx-reader-rts@1.0.8/+esm");
-   const parse=mod.parseRBX||mod.default?.parseRBX;
-   if(typeof parse!=="function")throw Error("Parser de navegador indisponível.");
-   const result=parse(buf);
-   return convertClientInstances(result?.instances||result);
- }catch(e){lastError=e}
- if(file.size<=4*1024*1024){
+function parseBinaryWorker(file){
+ return new Promise(async(resolve,reject)=>{
+   let worker;
+   try{worker=new Worker("/rbxl-worker.js?v=20261004-v42",{type:"module"})}
+   catch(e){reject(e);return}
+   const timer=setTimeout(()=>{worker.terminate();reject(Error("O processamento demorou demais e foi cancelado."))},180000);
+   worker.onmessage=event=>{
+     const data=event.data||{};
+     if(data.type==="progress"){statusText(data.message);return}
+     clearTimeout(timer);worker.terminate();
+     if(data.type==="result"){
+       try{resolve(convertClientInstances(data.instances))}catch(e){reject(e)}
+     }else reject(Error(data.message||"Falha no Worker do importador."));
+   };
+   worker.onerror=e=>{
+     clearTimeout(timer);worker.terminate();
+     reject(Error(e?.message||"Falha no Worker do importador."));
+   };
    try{
-     statusText("Parser local indisponível; usando fallback do servidor…");
-     const response=await fetch("/api/roblox/rbxl-import",{method:"POST",headers:{"Content-Type":"application/octet-stream","X-RBXL-Filename":file.name},body:buf});
-     let data=null;try{data=await response.json()}catch{}
-     if(!response.ok||!data?.ok)throw Error(data?.error||("Importador respondeu HTTP "+response.status));
-     return parseBinaryServerInstances(data.instances);
-   }catch(e){lastError=e}
+     statusText("Preparando processamento em segundo plano…");
+     const buffer=await file.arrayBuffer();
+     worker.postMessage({buffer},[buffer]);
+   }catch(e){clearTimeout(timer);worker.terminate();reject(e)}
+ });
+}
+async function parseBinary(file){
+ try{
+   return await parseBinaryWorker(file);
+ }catch(workerError){
+   if(file.size<=4*1024*1024){
+     try{
+       statusText("Worker indisponível; usando fallback do servidor…");
+       const buf=await file.arrayBuffer();
+       const response=await fetch("/api/roblox/rbxl-import",{method:"POST",headers:{"Content-Type":"application/octet-stream","X-RBXL-Filename":file.name},body:buf});
+       let data=null;try{data=await response.json()}catch{}
+       if(!response.ok||!data?.ok)throw Error(data?.error||("Importador respondeu HTTP "+response.status));
+       return parseBinaryServerInstances(data.instances);
+     }catch(e){workerError=e}
+   }
+   throw Error(workerError?.message||"Não foi possível processar este arquivo RBXL.");
  }
- throw Error(lastError?.message||"Não foi possível processar este arquivo RBXL no navegador.");
 }
 function detect(bytes,ext){
  const h=new TextDecoder("utf-8").decode(bytes.slice(0,300)).replace(/^\uFEFF/,"").trimStart();
