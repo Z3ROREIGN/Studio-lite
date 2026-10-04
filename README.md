@@ -124,3 +124,41 @@ Scripts Luau não são executados dentro do navegador, física/simulação Roblo
 ### Limites importantes
 
 MeshPart e Terrain no editor web são representações de edição; não carregam automaticamente a geometria/voxels reais do Roblox. Scripts Luau continuam sendo editados como texto e não executados no navegador. A publicação Open Cloud ainda depende de um arquivo Roblox válido e das permissões corretas; chamadas diretas podem depender de CORS.
+
+## V11 — organização, diagnóstico e publicação profissional
+
+A versão atual adiciona uma Central do Studio Lite acessível pelo botão **? Ajuda**, com quatro áreas:
+
+- **Guia:** atalhos, Explorer, Console e boas práticas.
+- **Publicar:** fluxo de Universe ID, Place ID, API Key, RBXL/RBXLX e CORS.
+- **Chaves:** regras de segurança para Roblox, Supabase, Cloudflare e GitHub.
+- **Diagnóstico:** verificação local da aplicação.
+
+### Console de diagnóstico
+
+Use os comandos selftest, doctor ou diagnose no Console para executar a verificação integrada.
+
+O diagnóstico verifica DOM, Three.js, WebGL/fallback, estado, seleção, hierarquia, IDs duplicados, LocalStorage, Code Studio, Party, Console, exportação e publicação.
+
+### Documentação
+
+- docs/DEPLOYMENT.md — guia completo de configuração, publicação, Cloudflare, Supabase e Roblox Open Cloud.
+- docs/SECURITY.md — política de segredos e credenciais.
+
+### Segurança de credenciais
+
+A regra do projeto é simples:
+
+**Frontend:** apenas dados públicos e chaves publicáveis.
+
+**Backend/Worker:** segredos e operações privilegiadas.
+
+Nunca publique Roblox Open Cloud API Keys ou Supabase secret/service_role em arquivos do frontend ou no GitHub.
+
+### Publicação Roblox
+
+A publicação usa o fluxo oficial de Place Publishing. Para publicar um lugar existente, a configuração da API Key precisa ter as permissões adequadas, incluindo universe-places e a operação de escrita para a experiência selecionada. Consulte a documentação oficial da Roblox antes de criar uma chave nova.
+
+### Limites técnicos honestos
+
+O Studio Lite não executa Luau como o Roblox, não reproduz toda a física do engine e não fabrica magicamente um RBXL binário completo a partir de JSON. O editor web é uma camada de edição/visualização e publicação assistida; um arquivo Roblox válido e as permissões corretas continuam sendo necessários para uma publicação real.
