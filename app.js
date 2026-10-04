@@ -407,3 +407,41 @@ function patchRender7(){if(window.__studioLiteRenderV7)return;window.__studioLit
 function boot7(){inject7();patchSave7();patchRender7();document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();e.stopImmediatePropagation();$7("#commandBtn")?.click()}if(e.key==="F7"){e.preventDefault();partyModal7()}if(e.key==="F6"){e.preventDefault();const seq=["auto","webgl","css3d","2d"];setMode7(seq[(seq.indexOf(U7.mode)+1)%seq.length])}},true);document.addEventListener("visibilitychange",()=>{if(!document.hidden&&U7.party)refreshParty7()});initSupa7().then(ok=>{if(ok)status7("Supabase conectado • pronto");setMode7(U7.mode)})}
 window.StudioLiteParty={open:partyModal7,join:joinParty7,create:createParty7,leave:partyLeave7};if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot7);else boot7();
 })();
+
+/* ===== STUDIO LITE V8 — NAVIGATION + PERFORMANCE HARDENING ===== */
+(()=>{
+"use strict";
+const V8={historyReady:false};
+const q8=s=>document.querySelector(s);
+function topModal8(){return [...document.querySelectorAll("#modalRoot .modal-bg")].at(-1)||null}
+function closeTop8(){
+ const m=topModal8(); if(m){m.remove();return true}
+ const openPanel=document.querySelector(".sidebar.open"); if(openPanel){openPanel.classList.remove("open");return true}
+ if(window.S?.playing){try{play()}catch{}return true}
+ return false;
+}
+window.studioBack=closeTop8;
+function addModalBack8(root){
+ if(!root||root.dataset.backReady==="1")return;
+ const head=root.querySelector(".modal-head"); if(!head)return;
+ root.dataset.backReady="1";
+ const b=document.createElement("button"); b.className="studio-back-layer"; b.type="button"; b.title="Voltar"; b.textContent="← Voltar";
+ b.onclick=()=>root.remove(); head.insertBefore(b,head.firstChild);
+}
+function scan8(){document.querySelectorAll("#modalRoot .modal-bg").forEach(addModalBack8)}
+function setupNavigation8(){
+ const back=q8("#backBtn"); if(back)back.onclick=()=>{if(!closeTop8())toast("Você já está na tela principal")};
+ const root=q8("#modalRoot"); if(root)new MutationObserver(scan8).observe(root,{childList:true,subtree:true});
+ addEventListener("popstate",()=>{if(!closeTop8())history.pushState(null,"",location.href)});
+ if(!V8.historyReady){history.replaceState({studioLite:true},"",location.href);V8.historyReady=true}
+ addEventListener("keydown",e=>{if(e.key==="Escape"&&!/input|textarea|select/i.test(e.target?.tagName||"")){if(closeTop8())e.preventDefault()}},true);
+ scan8();
+}
+function optimize8(){
+ let t=0;
+ addEventListener("resize",()=>{cancelAnimationFrame(t);t=requestAnimationFrame(()=>{try{resize?.()}catch{}})},{passive:true});
+ document.addEventListener("visibilitychange",()=>{if(!document.hidden){try{render?.(false)}catch{}}});
+}
+function install8(){setupNavigation8();optimize8()}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install8);else install8();
+})();
