@@ -128,7 +128,7 @@ function exec(name,args=[]){
  if(name==="exportHierarchy")return nodes().map(x=>({id:x.id,name:x.name,type:x.type,parent:x.parent}));
  if(name==="exportSelection"||name==="exportSelectionJSON")return JSON.stringify(selectedNodes(),null,2);
  if(name==="copySelection"){const text=JSON.stringify(selectedNodes(),null,2);try{navigator.clipboard?.writeText?.(text)}catch{};return text}
- if(name==="pasteSelection")return navigator.clipboard?.readText?.().then?.(t=>{try{const a=JSON.parse(t);const list=Array.isArray(a)?a:[a];list.forEach(x=>{const n2=add(x.type||"Part");if(n2)Object.assign(n2,x,{id:crypto.randomUUID?.()||Math.random().toString(36).slice(2)})});refresh()}).catch(()=>false),true;
+ if(name==="pasteSelection"){const p=navigator.clipboard?.readText?.();if(!p)return false;return Promise.resolve(p).then(t=>{try{const data=JSON.parse(t);const list=Array.isArray(data)?data:[data];list.forEach(x=>{const n2=add(x.type||"Part");if(n2)Object.assign(n2,x,{id:crypto.randomUUID?.()||Math.random().toString(36).slice(2)})});refresh();return true}catch{return false}}).catch(()=>false)}
  if(name==="downloadText")return download(String(a||"studio.txt"),String(args[1]??""),"text/plain");
  if(name==="exportJSON")return download((s.project||"studio")+".json",JSON.stringify({name:s.project,nodes:nodes(),settings:s.settings},null,2),"application/json");
  if(name==="exportScene"||name==="exportSceneSummary")return JSON.stringify({project:s.project,objects:nodes().length,bounds:bounds(nodes())},null,2);
