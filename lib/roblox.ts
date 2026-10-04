@@ -1,0 +1,1 @@
+export function validId(value:string){return /^\d+$/.test(value)}
