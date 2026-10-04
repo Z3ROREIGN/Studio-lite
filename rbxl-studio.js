@@ -165,7 +165,7 @@ async function parseFile(file){
 }
 function compact(nodes){return nodes.map(n=>({id:n.id,name:n.name,type:n.type,position:vec(n.position),rotation:vec(n.rotation),size:vec(n.size,[1,1,1]),color:n.color,material:n.material,shape:n.shape,anchored:n.anchored,canCollide:n.canCollide,transparency:n.transparency,locked:n.locked,visible:n.visible,parent:n.parent,script:n.script||"",language:n.language,sourceClass:n.sourceClass,rbxProperties:n.rbxProperties||null,customProperties:n.customProperties||null}))}
 async function importFull(file){
- const state=S();if(!state)throw Error("Studio ainda não terminou de carregar.");
+ const state=S()||{settings:{theme:"dark",outline:true,autosave:true},grid:1,snap:true};
  statusText("Lendo "+file.name+"…");
  const nodes=compact(await parseFile(file));if(!nodes.length)throw Error("Nenhuma instância foi encontrada.");
  const root=nodes.find(n=>n.type==="Workspace");nodes.forEach(n=>{if(n.parent&&nodes.some(x=>x.id===n.parent))return;if(!n.parent&&root&&n!==root&&SERVICES.includes(n.type))n.parent=null});
