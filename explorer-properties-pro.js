@@ -67,8 +67,18 @@ function drawTree(){
  host.innerHTML="";
  const head=document.createElement("div");head.className="expro-root-head";head.innerHTML='<span class="expro-chevron">⌄</span><span class="expro-icon">⌂</span><b>Workspace</b><span class="expro-count">'+nodes().length+'</span><button class="expro-add-root" data-root-add="all" title="Adicionar objeto">＋</button><button class="expro-add-root" data-root-add="script" title="Adicionar Script">◇</button><button class="expro-add-root" data-root-add="folder" title="Adicionar Folder">▱</button>';host.appendChild(head);
  head.querySelectorAll("button").forEach(b=>b.onclick=e=>{e.stopPropagation();const a=b.dataset.rootAdd;if(a==="script")add("Script",null);else if(a==="folder")add("Folder",null);else openAddMenu(null,e.clientX,e.clientY)});
- const roots=treeChildren(null);
- // roots use same renderer but keep Workspace header
+ const workspaceNode=nodes().find(n=>n.type==="Workspace");
+ if(workspaceNode){
+   const wr=document.createElement("div");
+   wr.className="expro-workspace-row"+(state()?.selected===workspaceNode.id?" selected":"");
+   wr.innerHTML='<button class="expro-arrow">⌄</button><span class="expro-icon">⌂</span><span class="expro-name">'+esc(workspaceNode.name||"Workspace")+'</span><span class="expro-type">Workspace</span><button class="expro-more" title="Adicionar objeto">＋</button>';
+   host.appendChild(wr);
+   wr.onclick=e=>{if(e.target.closest("button"))return;const st=state();if(st){st.selected=workspaceNode.id;st.selectedIds=[workspaceNode.id]}drawProperties();drawTree()};
+   wr.querySelector(".expro-more").onclick=e=>{e.stopPropagation();openAddMenu(workspaceNode.id,e.clientX,e.clientY)};
+   const child=workspaceNode._explorerExpanded!==false?document.createElement("div"):null;
+   if(child){child.className="expro-children";host.appendChild(child);renderInto(treeChildren(workspaceNode.id),1,child)}
+ }
+ const roots=treeChildren(null).filter(n=>n.type!=="Workspace");
  renderInto(roots,0,host);
  // virtual Roblox services, always visible and expandable
  const svc=document.createElement("div");svc.className="expro-services";
@@ -116,8 +126,15 @@ function drawProperties(){
  section(p,"IDENTIDADE");propInput(p,"Name",n.name,v=>n.name=String(v).slice(0,100));propInput(p,"Class",n.type,()=>{}).querySelector("input").disabled=true;
  const parents=[["","Workspace"],...nodes().filter(x=>x.id!==n.id).map(x=>[x.id,x.name+" • "+x.type])];select(p,"Parent",n.parent||"",parents.map(x=>x[0]),v=>{if(v&&validParent(n,v))n.parent=v||null});
  const parentRow=p.lastElementChild;const ps=parentRow.querySelector("select");parents.forEach((x,i)=>ps.options[i].textContent=x[1]);
- if(!/^(Folder|Model|Tool|Configuration|RemoteEvent|RemoteFunction|BindableEvent|BindableFunction|Attachment|Decal|Texture|SurfaceGui|BillboardGui|Highlight|Camera|PointLight|SpotLight|SurfaceLight|ParticleEmitter|Beam|Trail|ProximityPrompt|ClickDetector|Sky|Atmosphere|Terrain)$/.test(n.type)){
+ const nonTransform=/^(Folder|Model|Tool|Configuration|Workspace|Players|Lighting|ReplicatedFirst|ReplicatedStorage|ServerScriptService|ServerStorage|StarterGui|StarterPack|StarterPlayer|Teams|SoundService|Chat|TextChatService|MaterialService|TestService|VoiceChatService|Attachment|Decal|Texture|SurfaceGui|BillboardGui|Highlight|Camera|PointLight|SpotLight|SurfaceLight|ParticleEmitter|Beam|Trail|ProximityPrompt|ClickDetector|Sky|Atmosphere|Terrain)$/;
+ if(!nonTransform.test(n.type)){
    section(p,"TRANSFORM");vector(p,"Position",n.position,v=>n.position=v);vector(p,"Rotation",n.rotation,v=>n.rotation=v);vector(p,"Size",n.size,v=>n.size=v.map(x=>Math.max(.05,Math.abs(x))));
+ }
+ if(n.type==="Workspace"){
+   section(p,"WORKSPACE");
+   num(p,"Gravity",n.rbxProperties?.Gravity??196.2,v=>{n.rbxProperties??={};n.rbxProperties.Gravity=v});
+   toggle(p,"StreamingEnabled",!!n.rbxProperties?.StreamingEnabled,v=>{n.rbxProperties??={};n.rbxProperties.StreamingEnabled=v});
+   toggle(p,"FilteringEnabled",n.rbxProperties?.FilteringEnabled!==false,v=>{n.rbxProperties??={};n.rbxProperties.FilteringEnabled=v});
  }
  section(p,"APPEARANCE");
  if(n.color!=null){const c=input(n.color,"color");row(p,"Color",c);c.onchange=()=>{commit();n.color=c.value;save();refresh()}}
