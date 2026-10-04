@@ -1,69 +1,81 @@
-# Studio Lite
+# Studio Lite — Professional Web Editor
 
-Editor 3D web inspirado no fluxo do Roblox Studio Lite, feito para funcionar diretamente no navegador.
+Editor 3D inspirado no Roblox Studio Lite, construído para rodar direto no navegador em celular e computador.
 
 ## Stack
+HTML5, CSS3, JavaScript puro, Three.js via CDN e LocalStorage. Sem Next.js, React, TypeScript, npm ou build step.
 
-- HTML5
-- CSS3
-- JavaScript puro
-- Three.js via CDN
-- LocalStorage para persistência local
+## Interface profissional
+- Layout desktop com Explorer + Viewport + Properties/Toolbox
+- Modo retrato para celular
+- Painéis laterais deslizantes no mobile
+- Toolbar compacta e adaptável
+- Fullscreen
+- Câmera Home / Top / Front / Right
+- Grid configurável e Snap
+- Seleção visual e foco de câmera
+- HUD, status, contador de objetos e atalhos
+- Tema escuro profissional
+- UI touch-friendly
 
-Não depende de Next.js, React, TypeScript, npm ou build step.
-
-## Recursos
-
-- Viewport 3D WebGL com iluminação e grid
-- Seleção de Parts na cena
+## Editor 3D
+- Part, SpawnLocation, Folder e Script
 - Explorer com filtro
-- Properties com nome, posição, rotação, escala, cor, material, Anchored e CanCollide
-- Ferramentas Select, Move, Rotate e Scale
-- Arrastar objetos diretamente na viewport
-- Snap e grid configuráveis
-- Duplicar, excluir, focar e vistas Home/Top/Front
-- Undo/Redo com histórico
-- Autosave local no navegador
+- Seleção por clique
+- Move / Rotate / Scale
+- Snap de transformação
+- Duplicar / excluir / renomear
+- Position / Rotation / Size
+- Color
+- Material: Plastic, Metal, Wood, Glass, Neon
+- Transparency
+- Anchored, CanCollide, Locked e Visible
+- Undo / Redo
 - Play Mode visual
-- Editor Luau integrado
-- Importação de JSON e RBXLX
-- Exportação de JSON e RBXLX
-- Layout responsivo para celular
-- Preparação de publicação via Roblox Open Cloud
+- Editor Luau com numeração de linhas
+- Autosave local
 
-## Como usar
+## Arquivos
 
-Abra `index.html` em um servidor estático. Também funciona em hospedagens como Cloudflare Pages e GitHub Pages.
+Importação: JSON nativo, RBXLX XML simplificado e RBXL binário preservado como arquivo de publicação.
 
-O projeto usa Three.js pelo CDN jsDelivr, portanto é necessária conexão com a internet para carregar a biblioteca.
+Exportação: JSON completo e RBXLX XML simplificado.
 
-## Publicação Roblox
+O navegador não gera um RBXL binário Roblox completo a partir do zero. A publicação de um Place real usa um arquivo .rbxl válido importado pelo usuário ou fornecido no diálogo de publicação.
 
-A interface de publicação está preparada, mas uma API Key da Roblox **nunca deve ser colocada no JavaScript do navegador**.
+## Publicar no Roblox
 
-Para publicação real, adicione um backend seguro em PHP ou outro servidor que receba o projeto e faça a chamada à Roblox Open Cloud. O frontend deve enviar somente os dados necessários ao endpoint.
+O botão Publicar possui fluxo para Roblox Open Cloud:
 
-## Formatos
+1. Informe o Universe ID.
+2. Informe o Place ID.
+3. Informe sua Roblox Open Cloud API Key.
+4. Selecione um .rbxl ou use o .rbxl importado na sessão.
+5. Clique em Enviar e Publicar.
+6. O Studio Lite envia o arquivo ao endpoint de Place Publishing com versionType=Published.
 
-### JSON
-Formato nativo do Studio Lite. Preserva os objetos e propriedades suportados pelo editor.
+A API Key digitada não é gravada no LocalStorage.
 
-### RBXLX
-Exporta um DataModel XML simplificado com Workspace, Parts, SpawnLocation, CFrame, tamanho, Anchored e CanCollide.
+### CORS
+Alguns ambientes podem bloquear chamadas diretas do navegador para a Open Cloud por CORS. Nessa situação, use um proxy/backend PHP seguro e mantenha a credencial no servidor.
 
-A importação de RBXL binário não é feita no navegador; para isso é necessário um conversor/backend.
+Nunca coloque uma API Key permanente diretamente no código do repositório.
+
+## Segurança
+- A API Key de publicação fica somente na memória da página durante a publicação.
+- Universe/Place ID podem ser lembrados separadamente.
+- Não há segredo privado hardcoded em app.js.
+
+## Hospedagem
+Funciona em hospedagem estática, incluindo GitHub Pages e Cloudflare Pages.
+
+O Three.js é carregado por CDN; é necessária internet para o motor 3D, a menos que a biblioteca seja hospedada localmente.
 
 ## Estrutura
-
-```
 index.html
 style.css
 app.js
 README.md
-```
 
-## Segurança
-
-Não coloque tokens, API Keys, service-role keys ou credenciais privadas em `app.js`.
-
-O projeto foi estruturado para ser estático e simples de publicar.
+## Status
+A interface e o fluxo de publicação estão implementados em JavaScript puro. A conversão completa de RBXL binário, física real, colaboração multiplayer e publicação de cenas geradas do zero exigem serviços/conversores adicionais e não são simulados como se fossem recursos reais.
