@@ -982,3 +982,52 @@ window.StudioLiteSetMode=set2D15;
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>setTimeout(bind2D15,50));else setTimeout(bind2D15,50);
 new MutationObserver(()=>bind2D15()).observe(document.body,{childList:true,subtree:true});
 })();
+
+/* ===== V16 — PROFESSIONAL RECOVERY / MODE CONTROL ===== */
+(()=>{
+"use strict";
+const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)],core=()=>window.StudioLiteCore;
+function mode16(mode){
+ mode=String(mode||"auto").toLowerCase();
+ try{localStorage.setItem("studio-lite-universal-v7.mode",mode);localStorage.setItem("studio-lite-universal-v6.mode",mode)}catch{}
+ if(typeof window.setMode7==="function"){try{window.setMode7(mode);return}catch(e){console.warn("setMode7",e)}}
+ const c=core(),host=q("#canvas");if(!c||!host)return;
+ if(mode==="2d"){try{c.initFallbackCanvas();host.querySelectorAll("canvas").forEach(x=>x.style.visibility=x===c.fallbackCanvas?"visible":"hidden");c.drawFallback?.()}catch(e){console.error(e)}}
+ else if(mode==="webgl"){host.querySelectorAll("canvas").forEach(x=>x.style.visibility="visible");c.resize?.();c.render?.(false)}
+ q("#engineHud")?.replaceChildren(document.createTextNode(mode==="2d"?"2D COMPAT":mode==="css3d"?"3D SAFE":mode==="auto"?"AUTO":"WebGL"));
+ qa("[data-u7],.u-mode").forEach(b=>b.classList.toggle("active",(b.dataset.u7||b.dataset.mode)===mode));
+}
+function repair16(){
+ const c=core();try{localStorage.removeItem("studio-lite-universal-v7.mode");localStorage.removeItem("studio-lite-universal-v6.mode")}catch{}
+ q("#uScene")?.remove();q(".u7-css3d")?.remove();
+ if(c?.renderer){q("#canvas")?.querySelectorAll("canvas").forEach(x=>{x.style.visibility=x===c.renderer.domElement?"visible":"hidden";x.style.display="block"});c.resize?.();c.render?.(false);q("#engineHud")?.replaceChildren(document.createTextNode("WebGL"))}
+ else if(c){try{c.initFallbackCanvas();c.drawFallback?.();q("#engineHud")?.replaceChildren(document.createTextNode("2D COMPAT"))}catch(e){console.error(e)}}
+ try{window.StudioLiteConsole?.log?.("Viewport reparada")}catch{}
+}
+function esc16(v){return String(v??"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
+function install16(){
+ if(q("#studioProBtn16"))return;
+ const actions=q(".actions");if(!actions)return;
+ const b=document.createElement("button");b.id="studioProBtn16";b.type="button";b.textContent="⚡ Pro";b.title="Controles profissionais";actions.insertBefore(b,q("#publishBtn")||null);
+ b.onclick=()=>{
+  const old=q("#studioPro16");if(old){old.remove();return}
+  const bg=document.createElement("div");bg.id="studioPro16";bg.className="modal-bg";
+  bg.innerHTML='<div class="studio-pro16"><div class="modal-head"><div><h2>Studio Lite Pro</h2><small>Controle de renderização e recuperação</small></div><button id="proClose16">×</button></div><div class="pro-grid16"><button data-mode="auto"><b>AUTO</b><small>Automático</small></button><button data-mode="webgl"><b>WEBGL</b><small>3D principal</small></button><button data-mode="css3d"><b>3D SAFE</b><small>Compatibilidade</small></button><button data-mode="2d"><b>2D</b><small>Fallback universal</small></button><button id="proRepair16"><b>🛠 Reparar</b><small>Viewport congelada</small></button><button id="proDiag16"><b>✓ Diagnóstico</b><small>Verificar sistema</small></button><button id="proSave16"><b>Salvar</b><small>Backup local</small></button><button id="proParty16"><b>PARTY</b><small>Colaboração</small></button></div><div class="pro-status16" id="proStatus16">Sistema pronto</div></div>';
+  document.body.appendChild(bg);
+  q("#proClose16").onclick=()=>bg.remove();bg.addEventListener("click",e=>{if(e.target===bg)bg.remove()});
+  qa("#studioPro16 [data-mode]").forEach(x=>x.onclick=()=>{mode16(x.dataset.mode);q("#proStatus16").textContent="Modo "+x.dataset.mode.toUpperCase()+" aplicado"});
+  q("#proRepair16").onclick=()=>{repair16();q("#proStatus16").textContent="Viewport reparada"};
+  q("#proDiag16").onclick=()=>window.StudioLiteDiagnostics?.openHelp?.("diagnostics");
+  q("#proSave16").onclick=()=>{core()?.save?.();q("#proStatus16").textContent="Projeto salvo localmente"};
+  q("#proParty16").onclick=()=>window.StudioLiteParty?.open?.();
+ };
+}
+function boot16(){
+ install16();
+ window.StudioLitePro={mode:mode16,repair:repair16};
+ try{const mode=localStorage.getItem("studio-lite-universal-v7.mode");if(mode==="2d")setTimeout(()=>mode16("2d"),120)}catch{}
+ window.addEventListener("error",e=>{if(e.message)window.StudioLiteConsole?.log?.("Runtime: "+e.message)});
+ window.addEventListener("unhandledrejection",e=>window.StudioLiteConsole?.log?.("Promise: "+(e.reason?.message||e.reason||"erro")));
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot16);else setTimeout(boot16,100);
+})();
