@@ -6,7 +6,7 @@
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
 const STORE="studio-lite-v4";
-const PARSER_URLS=["/api/roblox/rbx-parser?v=20261004","https://cdn.jsdelivr.net/gh/MrSprinkleToes/rbxBinaryParser@master/dist/client/rbxBinaryParser.js"];
+const PARSER_URLS=["https://esm.sh/rbx-reader-rts@1.0.8?bundle","/api/roblox/rbx-parser?v=20261004","https://cdn.jsdelivr.net/gh/MrSprinkleToes/rbxBinaryParser@master/dist/client/rbxBinaryParser.js"];
 let parserPromise=null;
 
 const services=new Set([
@@ -161,15 +161,28 @@ async function loadBinaryParser(){
    for(const url of PARSER_URLS){
      try{
        const m=await import(url);
+       const parseRBX=m?.parseRBX||m?.default?.parseRBX;
+       if(typeof parseRBX==="function")return async buffer=>({__modern:true,result:parseRBX(buffer)});
        const decode=m?.decode||m?.default?.decode;
-       if(typeof decode!=="function")throw new Error("Parser binário não exportou decode");
-       return decode;
+       if(typeof decode==="function")return async buffer=>({__modern:false,result:decode(buffer)});
+       throw new Error("Parser binário sem API compatível");
      }catch(e){lastError=e}
    }
-   throw new Error("Não foi possível carregar o parser RBXL binário. Verifique a conexão e tente novamente. Detalhe: "+(lastError?.message||lastError||"erro desconhecido"));
+   throw new Error("Não foi possível carregar um parser RBXL binário compatível. Detalhe: "+(lastError?.message||lastError||"erro desconhecido"));
  })().catch(e=>{parserPromise=null;throw e});
  return parserPromise;
 }
+function normalizeBinaryResult(parsed){
+ const root=parsed?.result?.root||parsed?.root;
+ if(parsed?.__modern){
+   const roots=root?.Children||root?.children||[];
+   if(Array.isArray(roots)&&roots.length)return roots;
+   const flat=parsed?.result?.instances||parsed?.instances||[];
+   if(Array.isArray(flat)&&flat.length)return flat;
+ }
+ return Array.isArray(parsed?.result)?parsed.result:[];
+}
+
 function fromBinaryObjectTree(objects){
  const nodes=[];
  const walk=(obj,parent)=>{
@@ -215,8 +228,8 @@ async function parseFile(file){
  }
  if(sig==="<roblox!"){
    const decode=await loadBinaryParser();
-   const result=decode(buf);
-   return fromBinaryObjectTree(result);
+   const parsed=await decode(buf);
+   return fromBinaryObjectTree(normalizeBinaryResult(parsed));
  }
  throw new Error("O arquivo não parece ser um RBXL/RBXLX válido.");
 }
