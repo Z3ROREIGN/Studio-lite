@@ -34,11 +34,12 @@ export default async function handler(req,res){
     if(!list.length)return res.status(422).json({ok:false,error:"O parser não encontrou instâncias no RBXL."});
     const index=new Map(list.map((x,i)=>[x,i]));
     const instances=list.map((inst,i)=>{
+      const raw=inst?.Properties||inst?.properties||{};
+      const parentRaw=raw.Parent?.value!==undefined?raw.Parent.value:raw.Parent;
       const props={};
-      const source=inst?.Properties||inst?.properties||{};
-      for(const [key,d] of Object.entries(source))props[key]=safe(d?.value!==undefined?d.value:d);
-      const parent=props.Parent;
-      return {id:String(i),className:String(inst?.ClassName||"Folder"),name:String(props.Name??inst?.Name??inst?.ClassName??"Instance"),parent:parent&&index.has(parent)?String(index.get(parent)):null,properties:props,attributes:safe(inst?.Attributes||{})};
+      for(const [key,d] of Object.entries(raw))props[key]=safe(d?.value!==undefined?d.value:d);
+      const parentIndex=parentRaw&&index.has(parentRaw)?index.get(parentRaw):null;
+      return {id:String(i),className:String(inst?.ClassName||"Folder"),name:String(raw.Name?.value??raw.Name??inst?.Name??inst?.ClassName??"Instance"),parent:parentIndex==null?null:String(parentIndex),properties:props,attributes:safe(inst?.Attributes||{})};
     });
     return res.status(200).json({ok:true,count:instances.length,instances});
   }catch(error){
