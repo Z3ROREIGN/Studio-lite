@@ -5,11 +5,10 @@ export const config = {
   },
 };
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8" },
-  });
+async function readBody(req) {
+  const chunks = [];
+  for await (const chunk of req) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  return Buffer.concat(chunks);
 }
 
 export default async function handler(req, res) {
@@ -50,6 +49,8 @@ export default async function handler(req, res) {
       ? "application/xml"
       : "application/octet-stream";
 
+    const body = await readBody(req);
+
     const upstream = await fetch(
       `https://apis.roblox.com/universes/v1/${universeId}/places/${placeId}/versions?versionType=Published`,
       {
@@ -57,8 +58,9 @@ export default async function handler(req, res) {
         headers: {
           "x-api-key": apiKey,
           "content-type": contentType,
+          "content-length": String(body.length),
         },
-        body: req,
+        body,
       }
     );
 
@@ -75,6 +77,7 @@ export default async function handler(req, res) {
       ...payload,
     });
   } catch (error) {
+    console.error("Roblox publish proxy error:", error);
     res.status(500).json({
       error: "Falha ao comunicar com Roblox Open Cloud.",
       message: error?.message || String(error),
