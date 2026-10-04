@@ -28,7 +28,7 @@ function add(type,parentId=null){
  if(type==="Cylinder"){n.size=[3,4,3];n.shape="cylinder"}
  if(type==="WedgePart"||type==="CornerWedgePart"){n.shape="wedge"}
  if(scripts){n.script="-- "+type+" criado no Studio Lite\n\nprint(\"Hello from Roblox!\")";n.language="luau"}
- if(values){n.value=type==="BoolValue"?false:type==="StringValue"?type==="ObjectValue"?null:"":0;n.visible=false;n.canCollide=false}
+ if(values){n.value=type==="BoolValue"?false:type==="StringValue"?"":type==="ObjectValue"?null:0;n.visible=false;n.canCollide=false}
  if(container){n.visible=false;n.canCollide=false}
  s.nodes.push(n);s.selected=n.id;s.selectedIds=[n.id];save();refresh();toast(type+" criado");if(scripts)setTimeout(()=>window.openScript?.(n.id),30);return n
 }
@@ -44,46 +44,6 @@ function drawTree(){
  const head=document.createElement("div");head.className="expro-root-head";head.innerHTML='<span class="expro-chevron">⌄</span><span class="expro-icon">⌂</span><b>Workspace</b><span class="expro-count">'+nodes().length+'</span><button class="expro-add-root" title="Adicionar">＋</button>';host.appendChild(head);
  head.querySelector("button").onclick=e=>{e.stopPropagation();openAddMenu(null,e.clientX,e.clientY)};
  const roots=treeChildren(null);
- const walk=(arr,depth,parentEl)=>{
-   arr.forEach(n=>{
-     const children=treeChildren(n.id),match=!filter||n.name.toLowerCase().includes(filter)||n.type.toLowerCase().includes(filter)||JSON.stringify(n.attributes||{}).toLowerCase().includes(filter);
-     const row=document.createElement("div");row.className="expro-row"+(n.id===state()?.selected?" selected":"");row.dataset.id=n.id;row.style.paddingLeft=(8+depth*18)+"px";
-     row.innerHTML='<button class="expro-arrow '+(children.length?"":"empty")+'">'+(children.length?"›":"·")+'</button><span class="expro-icon '+kind(n)+'">'+icon(n)+'</span><span class="expro-name">'+esc(n.name)+'</span><span class="expro-type">'+esc(n.type)+'</span><button class="expro-more" title="Ações">⋮</button>';
-     row.querySelector(".expro-arrow").onclick=e=>{e.stopPropagation();row.classList.toggle("expanded");const kids=row.nextElementSibling;if(kids)kids.hidden=!kids.hidden};
-     row.onclick=e=>{if(e.target.closest(".expro-more"))return;const s=state();s.selected=n.id;s.selectedIds=[n.id];refresh()};
-     row.ondblclick=()=>/Script$/.test(n.type)?window.openScript?.(n.id):rename(n);
-     row.oncontextmenu=e=>{e.preventDefault();openContext(n,e.clientX,e.clientY)};
-     row.querySelector(".expro-more").onclick=e=>{e.stopPropagation();openContext(n,e.clientX,e.clientY)};
-     if(!match&&filter)return;
-     host.appendChild(row);
-     if(children.length){
-       const wrap=document.createElement("div");wrap.className="expro-children";wrap.hidden=!!filter?false:true;host.appendChild(wrap);
-       const oldHost=host; // render into temporary fragment
-       const frag=document.createDocumentFragment();
-       const oldAppend=host.appendChild.bind(host);
-       // use a temporary container to preserve ordering
-       const temp=document.createElement("div");
-       walk(arr=>{},0,temp);
-       // recursive helper below handles actual child rendering
-       renderInto(children,depth+1,wrap);
-     }
-   })
- };
- function renderInto(arr,depth,parent){
-   arr.forEach(n=>{
-     const children=treeChildren(n.id),match=!filter||n.name.toLowerCase().includes(filter)||n.type.toLowerCase().includes(filter);
-     if(filter&&!match&&!children.some(c=>c.name.toLowerCase().includes(filter)))return;
-     const row=document.createElement("div");row.className="expro-row"+(n.id===state()?.selected?" selected":"");row.dataset.id=n.id;row.style.paddingLeft=(8+depth*18)+"px";
-     row.innerHTML='<button class="expro-arrow '+(children.length?"":"empty")+'">'+(children.length?"›":"·")+'</button><span class="expro-icon '+kind(n)+'">'+icon(n)+'</span><span class="expro-name">'+esc(n.name)+'</span><span class="expro-type">'+esc(n.type)+'</span><button class="expro-more" title="Ações">⋮</button>';
-     row.querySelector(".expro-arrow").onclick=e=>{e.stopPropagation();row.classList.toggle("expanded");const k=row.nextElementSibling;if(k)k.hidden=!k.hidden};
-     row.onclick=e=>{if(e.target.closest(".expro-more"))return;const s=state();s.selected=n.id;s.selectedIds=[n.id];refresh()};
-     row.ondblclick=()=>/Script$/.test(n.type)?window.openScript?.(n.id):rename(n);
-     row.oncontextmenu=e=>{e.preventDefault();openContext(n,e.clientX,e.clientY)};
-     row.querySelector(".expro-more").onclick=e=>{e.stopPropagation();openContext(n,e.clientX,e.clientY)};
-     parent.appendChild(row);
-     if(children.length){const wrap=document.createElement("div");wrap.className="expro-children";wrap.hidden=!filter;parent.appendChild(wrap);renderInto(children,depth+1,wrap)}
-   })
- }
  // roots use same renderer but keep Workspace header
  renderInto(roots,0,host);
  // virtual Roblox services, always visible and expandable
@@ -151,7 +111,7 @@ function drawProperties(){
 function install(){
  const style=document.createElement("style");style.id="expro-inline";style.textContent="";document.head.appendChild(style);
  const tree=q("#tree");if(!tree)return;
- drawTree();drawProperties();
+ syncing=true;try{drawTree();drawProperties()}finally{syncing=false};
  q("#treeSearch")?.addEventListener("input",drawTree);
  document.addEventListener("click",e=>{if(!e.target.closest("#exproMenu"))closeMenus()});
  // Keep the professional explorer/properties in sync with existing render calls without fighting them.
