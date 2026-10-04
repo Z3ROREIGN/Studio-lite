@@ -416,7 +416,7 @@ function install(){
  const imp=$("#importBtn");
  if(imp){imp.title="Importação rápida JSON/RBXLX. Use Studio RBXL para Place completo."}
  const oldInput=$("#fileInput");
- if(oldInput)oldInput.accept=".rbxl,.rbxlx,.json";
+ if(oldInput)oldInput.accept=".rbxl,.rbxlx,.rbxm,.rbxmx,.json";
  window.StudioLiteRBXL={open:openStudioImport,importFile:importFull};
 }
 if(document.readyState==="loading"){
