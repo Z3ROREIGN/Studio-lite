@@ -1287,7 +1287,7 @@ function bindReliable(){
  const map={
   explorerToggle:()=>togglePanelsReliable("explorer"),collapseBtn:()=>togglePanelsReliable("explorer"),inspectorToggle:()=>togglePanelsReliable("inspector"),
   undoBtn:()=>core().undo?.(),redoBtn:()=>core().redo?.(),saveBtn:()=>core().save?.(true),duplicateBtn:()=>core().duplicate?.(),deleteBtn:()=>core().remove?.(),renameBtn:()=>core().rename?.(),
-  focusBtn:()=>core().focus?.(),gridBtn:()=>{const st=s();st.grid=st.grid===1?.5:st.grid===.5?.25:st.grid===.25?.1:1;refresh();save();toast("Grid "+st.grid)},
+  focusBtn:()=>core().focus?.(),gridBtn:()=>{const st=s();st.grid=st.grid===1?0.5:st.grid===0.5?0.25:st.grid===0.25?0.1:1;refresh();save();toast("Grid "+st.grid)},
   snapBtn:()=>{const st=s();st.snap=!st.snap;q("#snapBtn").textContent="Snap: "+(st.snap?"ON":"OFF");save();toast("Snap "+(st.snap?"ativado":"desativado"))},
   fullscreenBtn:()=>{document.fullscreenElement?document.exitFullscreen?.():document.documentElement.requestFullscreen?.()},
   gridToggleBtn:()=>core().toggleGrid?.(),commandBtn:()=>core().commandPalette?.(),newBtn:()=>core().newProject?.(),screenshotBtn:()=>core().screenshot?.(),
