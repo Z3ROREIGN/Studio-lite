@@ -6,7 +6,7 @@
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
 const STORE="studio-lite-v4";
-const PARSER_URLS=["https://cdn.jsdelivr.net/gh/MrSprinkleToes/rbxBinaryParser@6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js","https://cdn.jsdelivr.net/gh/MrSprinkleToes/rbxBinaryParser@8d4c7f3ba6f437912a0573a4e747fabccf9faf21/dist/client/rbxBinaryParser.js"];
+const PARSER_URLS=["/api/roblox/rbx-parser?v=20261004","https://cdn.jsdelivr.net/gh/MrSprinkleToes/rbxBinaryParser@master/dist/client/rbxBinaryParser.js"];
 let parserPromise=null;
 
 const services=new Set([
