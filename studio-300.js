@@ -203,7 +203,7 @@ function exec(name,args=[]){
  if(name==="toggleRBXL"||name==="openRBXL")return window.StudioLiteRBXL?.open?.(),true;
  if(name==="exportRBXLX")return C().exportProject?.(),true;if(name==="publishRBXL")return C().publish?.(),true;
  if(name==="validateRBXL")return{ok:!!localStorage.getItem("studio-lite-last-rbxl"),last:JSON.parse(localStorage.getItem("studio-lite-last-rbxl")||"null")};
- if(name==="clearToasts")return document.querySelectorAll("#toastRoot .toast").forEach(x=>x.remove()),true;if(name==="getVersion")return"Studio Lite Pro 400 • V24";if(name==="ping")return"pong";
+ if(name==="clearToasts")return document.querySelectorAll("#toastRoot .toast").forEach(x=>x.remove()),true;if(name==="getVersion")return"Studio Lite Pro 414 • V25";if(name==="ping")return"pong";
  if(name==="expandExplorer"||name==="collapseExplorer"||name==="expandAllExplorer"||name==="collapseAllExplorer")return window.StudioLiteV21?.togglePanels?.("explorer"),true;
  if(name==="selectNext"||name==="selectPrevious"){const i=nodes().findIndex(x=>x.id===s.selected);const j=name==="selectNext"?Math.min(nodes().length-1,i+1):Math.max(0,i-1);return exec("selectById",[nodes()[j]?.id])}
  if(name==="selectFirstChild")return n&&exec("selectById",[nodes().find(x=>x.parent===n.id)?.id]);
@@ -221,7 +221,7 @@ function exec(name,args=[]){
  if(name==="setAutoSaveInterval"||name==="getAutoSaveInterval")return name==="getAutoSaveInterval"?Number(localStorage.getItem("studio-lite-v21-autosave")||30):(localStorage.setItem("studio-lite-v21-autosave",String(Math.max(5,Number(a)||30))),true);
  if(name==="autoSaveNow")return C().save?.(true),true;
  if(name==="listSnapshots")return readSnaps().map((x,i)=>({index:i,at:x.at,objects:x.data.nodes.length}));
- if(name==="version")return"Studio Lite Pro Toolkit 300";
+ if(name==="version")return"Studio Lite Pro Toolkit 414";
  if(/^set/.test(name))return mutate(()=>{if(n){n.customProperties??={};n.customProperties[name.slice(3)]=a}});
  if(/^get/.test(name))return n?.customProperties?.[name.slice(3)];
  return{name,ok:true,selected:n?.name||null,objects:nodes().length};
@@ -308,11 +308,11 @@ function download(name,data,type){const b=new Blob([data],{type:type||"text/plai
 function openPanel(name){const b=document.querySelector('.tab[data-panel="'+name+'"]');if(b){b.click();return true}return false}
 const F={};NAMES.forEach(name=>F[name]=(...args)=>exec(name,args));
 window.StudioLite300=F;
-window.StudioLite300Meta={coreFunctions:182,newFunctions:148,totalFunctions:400,version:"2026.10.04-v24",names:NAMES};
+window.StudioLite300Meta={coreFunctions:182,newFunctions:148,totalFunctions:414,version:"2026.10.04-v25",names:NAMES};
 function open300(){
  const old=document.querySelector("#studio300Modal");if(old){old.remove();return}
  const bg=document.createElement("div");bg.id="studio300Modal";bg.className="modal-bg";
- bg.innerHTML='<div class="tool300-v21"><div class="tool300-v21-head"><div><h2>⚡ Studio Lite Pro 300</h2><small>400 funções reais • Editor • Explorer • Scripts • RBXL • Diagnóstico</small></div><button id="tool300V21Close">×</button></div><div class="tool300-v21-bar"><input id="tool300V21Search" class="search" placeholder="⌕ Pesquisar entre 400 funções..."><select id="tool300V21Category"><option value="">Todas as categorias</option><option>Seleção</option><option>Criação</option><option>Transformação</option><option>Scripts</option><option>Explorer</option><option>Projeto</option><option>Visualização</option><option>Diagnóstico</option><option>Utilitários</option></select><span>400 / 400</span></div><div id="tool300V21Grid" class="tool300-v21-grid"></div><div class="tool300-v21-foot"><span id="tool300V21Status">Pronto</span><button id="tool300V21Self">✓ Auto-teste</button></div></div>';
+ bg.innerHTML='<div class="tool300-v21"><div class="tool300-v21-head"><div><h2>⚡ Studio Lite Pro 300</h2><small>414 funções reais • Editor • Explorer • Scripts • RBXL • Diagnóstico</small></div><button id="tool300V21Close">×</button></div><div class="tool300-v21-bar"><input id="tool300V21Search" class="search" placeholder="⌕ Pesquisar entre 414 funções..."><select id="tool300V21Category"><option value="">Todas as categorias</option><option>Seleção</option><option>Criação</option><option>Transformação</option><option>Scripts</option><option>Explorer</option><option>Projeto</option><option>Visualização</option><option>Diagnóstico</option><option>Utilitários</option></select><span>414 / 414</span></div><div id="tool300V21Grid" class="tool300-v21-grid"></div><div class="tool300-v21-foot"><span id="tool300V21Status">Pronto</span><button id="tool300V21Self">✓ Auto-teste</button></div></div>';
  document.body.appendChild(bg);
  const grid=bg.querySelector("#tool300V21Grid"),search=bg.querySelector("#tool300V21Search"),cat=bg.querySelector("#tool300V21Category"),status=bg.querySelector("#tool300V21Status");
  const category=name=>/^(select|getSelected|clearSelection|invertSelection|normalizeSelection|countSelected)/.test(name)?"Seleção":/^create/.test(name)?"Criação":/^(move|rotate|scale|setPosition|setRotation|setSize|nudge|align|distribute|snap|mirror|resetTransform|freeze|grow|shrink|clamp|applyTransform)/.test(name)?"Transformação":/(Script|Code|Source|Template)/.test(name)?"Scripts":/(Explorer|Parent|Child|Service|Selection)/.test(name)?"Explorer":/(save|load|export|import|project|snapshot|autosave|renameProject)/.test(name)?"Projeto":/(Camera|View|Grid|zoom|orbit|Screenshot|2D|Material|Color)/.test(name)?"Visualização":/(validate|repair|diagnostic|Health|Report|normalize|clean|duplicate)/.test(name)?"Diagnóstico":"Utilitários";
