@@ -16,3 +16,5 @@
 .expro-row .expro-more{background:#0d1723;border:1px solid #1f3045;color:#8fb9e8}
 .expro-row.selected .expro-more{opacity:1}
 @media(max-width:850px){.expro-root-head .expro-add-root,.expro-row .expro-more,.expro-service .expro-more{min-width:30px;min-height:30px;font-size:16px}}
+
+.expro-workspace-row{display:flex;align-items:center;gap:6px;min-height:34px;padding:4px 5px 4px 8px;margin:3px 0;background:linear-gradient(90deg,#172235,#101925);border:1px solid #29405d;border-radius:7px;color:#eef5ff;cursor:pointer}.expro-workspace-row.selected{box-shadow:inset 2px 0 #7fb8ff;background:linear-gradient(90deg,#1d4168,#12243a)}.expro-workspace-row .expro-name{font-weight:800}.expro-workspace-row .expro-more{margin-left:auto;display:grid;place-items:center;min-width:26px;min-height:26px;border:1px solid #29415d;background:#101b29;color:#9bc8ff;border-radius:6px}
