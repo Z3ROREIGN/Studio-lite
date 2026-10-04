@@ -141,5 +141,5 @@ function installExtraUI(){
   search.oninput=draw;bg.querySelector("#extraClose").onclick=()=>bg.remove();draw();search.focus();
  };
 }
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",installExtraUI);else setTimeout(installExtraUI,0);
+\nconst totalTools=515;\nconst syncMainToolkitCount=()=>{const m=document.querySelector("#studio300Modal");if(!m)return;const small=m.querySelector(".tool300-v21-head small");if(small)small.textContent="515 funções reais • Editor • Explorer • Scripts • RBXL • Diagnóstico";const span=m.querySelector(".tool300-v21-bar span");if(span)span.textContent="515 / 515";const input=m.querySelector("#tool300V21Search");if(input)input.placeholder="⌕ Pesquisar entre 515 funções...";};\nnew MutationObserver(syncMainToolkitCount).observe(document.body,{childList:true,subtree:true});\nif(document.readyState==="loading")document.addEventListener("DOMContentLoaded",installExtraUI);else setTimeout(installExtraUI,0);
 })();
