@@ -101,4 +101,82 @@ $("#gridToggleBtn").onclick=toggleGrid;$("#commandBtn").onclick=commandPalette;$
 addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();save();return}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"){e.preventDefault();e.shiftKey?redo():undo();return}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="y"){e.preventDefault();redo();return}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="d"){e.preventDefault();duplicate();return}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="c"){if(!/input|textarea|select/i.test(e.target.tagName)){e.preventDefault();copySelected()}return}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="v"){if(!/input|textarea|select/i.test(e.target.tagName)){e.preventDefault();pasteSelected()}return}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();commandPalette();return}if(/input|textarea|select/i.test(e.target.tagName))return;const k=e.key.toLowerCase();if(k==="delete"||k==="backspace")remove();if(k==="w")setTool("move");if(k==="e")setTool("rotate");if(k==="r")setTool("scale");if(k==="f")focus();if(k==="p")publish();if(k==="escape"&&S.playing)play();if(k==="arrowup")panCamera(0,-12);if(k==="arrowdown")panCamera(0,12);if(k==="arrowleft")panCamera(-12,0);if(k==="arrowright")panCamera(12,0)});
 try{const d=JSON.parse(localStorage.getItem("studio-lite-v4"));if(d?.nodes){S.nodes=d.nodes.map(normalizeNode);S.project=d.name||S.project;S.settings=Object.assign(S.settings,d.settings||{});S.grid=[1,.5,.25,.1].includes(d.grid)?d.grid:1;S.snap=d.snap!==false;$("#projectName").value=S.project}}catch{}
 init();if(renderer){sync();render();status("Pronto")}else{status("Modo 3D indisponível")}setInterval(()=>{if(!S.playing&&S.settings.autosave!==false)save(false)},30000);$("#deviceInfo").textContent="HTML • CSS • JS • THREE.JS • "+(innerWidth<=600?"MOBILE":"DESKTOP");
+
+/* ===== STUDIO LITE PRO EXPANSION ===== */
+S.selectedIds=S.selectedIds||[S.selected].filter(Boolean);
+S.proVersion="5.0 PRO";
+const _baseAdd=add,_baseRender=render,_basePanel=panel,_baseTree=tree,_baseSave=save,_baseDuplicate=duplicate,_baseRemove=remove;
+function proSelect(id,multi=false){if(multi){if(S.selectedIds.includes(id))S.selectedIds=S.selectedIds.filter(x=>x!==id);else S.selectedIds.push(id)}else S.selectedIds=id?[id]:[];S.selected=S.selectedIds.at(-1)||null}
+function proChildren(id){return S.nodes.filter(n=>(n.parent||null)===(id||null))}
+function proDescendant(id,root){let n=S.nodes.find(x=>x.id===id),seen=new Set();while(n&&n.parent&&!seen.has(n.parent)){if(n.parent===root)return true;seen.add(n.parent);n=S.nodes.find(x=>x.id===n.parent)}return false}
+function proGroup(){
+ const ids=S.selectedIds.filter(id=>S.nodes.some(n=>n.id===id));if(!ids.length)return toast("Selecione pelo menos um objeto");
+ commit();const m={id:uid(),name:"Model",type:"Model",position:[0,0,0],rotation:[0,0,0],size:[1,1,1],color:"#64748b",material:"Plastic",anchored:true,canCollide:false,transparency:0,locked:false,visible:true,parent:null};
+ S.nodes.push(m);S.nodes.forEach(n=>{if(ids.includes(n.id))n.parent=m.id});proSelect(m.id);render();save(false);toast("Model criado")
+}
+function proUngroup(){const n=cur();if(!n||n.type!=="Model")return toast("Selecione um Model");commit();S.nodes.forEach(x=>{if(x.parent===n.id)x.parent=n.parent||null});S.nodes=S.nodes.filter(x=>x.id!==n.id);proSelect(null);render();save(false);toast("Model desagrupado")}
+function proAdd(type){
+ if(type==="Model"){commit();const n={id:uid(),name:"Model",type:"Model",position:[0,0,0],rotation:[0,0,0],size:[1,1,1],color:"#64748b",material:"Plastic",anchored:true,canCollide:false,transparency:0,locked:false,visible:true,parent:null};S.nodes.push(n);proSelect(n.id);render();save(false);return toast("Model criado")}
+ _baseAdd(type==="MeshPart"||type==="Terrain"?"Part":type);
+ const n=cur();if(!n)return;
+ n.type=type;n.canCollide=!["Folder","Script","Model"].includes(type);n.parent=cur()&&S.selectedIds.length>1?null:n.parent;
+ if(type==="MeshPart")n.meshId=n.meshId||"";if(type==="Terrain")n.terrain={brush:"block",resolution:4};
+ if(type==="Terrain")n.material="Grass";
+ render();save(false)
+}
+function proTree(){
+ const t=$("#tree"),filter=($("#treeSearch").value||"").toLowerCase();t.innerHTML='<div class="root">⌄ <b>Workspace</b></div>';
+ function walk(parent,depth){proChildren(parent).forEach(n=>{const match=!filter||n.name.toLowerCase().includes(filter)||n.type.toLowerCase().includes(filter);if(match){const b=document.createElement("button");b.className="tree-row"+(S.selectedIds.includes(n.id)?" selected":"");b.style.paddingLeft=(7+depth*18)+"px";const branch=proChildren(n.id).length?"▾":"•";b.innerHTML="<span>"+branch+" "+icon(n)+"</span><span>"+esc(n.name)+"</span><span class=type>"+esc(n.type)+(n.locked?" 🔒":"")+"</span>";b.onclick=e=>{proSelect(n.id,e.ctrlKey||e.metaKey||e.shiftKey);render()};b.ondblclick=()=>rename();t.appendChild(b)}walk(n.id,depth+1)})}
+ walk(null,0);["Lighting","ReplicatedStorage","ServerScriptService","StarterGui","StarterPlayer"].forEach(x=>{const d=document.createElement("div");d.className="root muted";d.textContent="› "+x;t.appendChild(d)});
+ $("#objectCount").textContent=S.nodes.length+" objetos"+(S.selectedIds.length?" • "+S.selectedIds.length+" selecionados":"")
+}
+function proPanel(){
+ _basePanel();
+ const p=$("#panel");if(S.panel==="toolbox"){const root=p.querySelector(".panel");if(root&&!root.dataset.pro){root.dataset.pro="1";[["Sphere","Esfera"],["Cylinder","Cilindro"],["Wedge","Cunha"],["Model","Modelo"],["MeshPart","MeshPart"],["Terrain","Terreno"]].forEach(([x,d])=>{const b=document.createElement("button");b.className="asset";b.innerHTML='<span class=asset-icon>◇</span><span><b>'+x+'</b><small>'+d+'</small></span><strong>＋</strong>';b.onclick=()=>proAdd(x);root.appendChild(b)});const tools=document.createElement("div");tools.innerHTML='<div class=section-title>WORKSPACE TOOLS</div><button class=wide id=proGroup>▣ Group Selected</button><button class=wide id=proUngroup>▱ Ungroup Model</button><button class=wide id=proValidate>✓ Validate Project</button>';root.appendChild(tools);$("#proGroup").onclick=proGroup;$("#proUngroup").onclick=proUngroup;$("#proValidate").onclick=validateProject}return}
+ const n=cur();if(!n)return;
+ const root=p.querySelector(".panel");if(!root||root.dataset.pro)return;root.dataset.pro="1";
+ const sec=document.createElement("div");sec.innerHTML='<div class=section-title>HIERARCHY</div>';const sel=document.createElement("select");sel.style.cssText="width:100%;background:#0e0e0e;border:1px solid #252525;border-radius:5px;color:#ddd;padding:7px";sel.innerHTML='<option value="">Workspace</option>'+S.nodes.filter(x=>x.id!==n.id&&["Folder","Model"].includes(x.type)).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>').join("");sel.value=n.parent||"";sel.onchange=()=>{const v=sel.value;if(v===n.id||proDescendant(v,n.id))return toast("Parent inválido");commit();n.parent=v||null;render();save(false)};sec.appendChild(sel);root.appendChild(sec);
+ const adv=document.createElement("div");adv.innerHTML='<div class=section-title>ADVANCED</div>';const rows=[["Reflectance",n.reflectance||0,0,1,.05],["Surface",n.surface||"Smooth",null,null,null]];const ref=document.createElement("input");ref.type="number";ref.min=0;ref.max=1;ref.step=.05;ref.value=n.reflectance||0;ref.onchange=()=>{commit();n.reflectance=+ref.value||0;save(false)};adv.appendChild(labelWrap("Reflectance",ref));const surface=document.createElement("select");["Smooth","Studs","Inlet","Universal","Hinge","Motor"].forEach(x=>surface.add(new Option(x,x)));surface.value=n.surface||"Smooth";surface.onchange=()=>{commit();n.surface=surface.value;save(false)};adv.appendChild(labelWrap("Surface",surface));root.appendChild(adv);
+ if(n.type==="MeshPart"){const a=document.createElement("div");a.innerHTML='<div class=section-title>MESH</div>';const inp=document.createElement("input");inp.className="search";inp.placeholder="rbxassetid://...";inp.value=n.meshId||"";inp.onchange=()=>{commit();n.meshId=inp.value;save(false)};a.appendChild(inp);root.appendChild(a)}
+ if(n.type==="Terrain"){const a=document.createElement("div");a.innerHTML='<div class=section-title>TERRAIN BRUSH</div>';["block","sphere","smooth","paint"].forEach(x=>{const b=document.createElement("button");b.textContent=x;b.style.margin="3px";b.onclick=()=>{n.terrain=n.terrain||{};n.terrain.brush=x;save(false);toast("Brush: "+x)};a.appendChild(b)});root.appendChild(a)}
+}
+function labelWrap(name,input){const d=document.createElement("div");d.className="field";const s=document.createElement("span");s.textContent=name;d.append(s,input);return d}
+function validateProject(){
+ const issues=[],ids=new Set();S.nodes.forEach(n=>{if(ids.has(n.id))issues.push("ID duplicado: "+n.id);ids.add(n.id);if(!n.name)issues.push("Objeto sem nome");if(n.parent&&!S.nodes.some(x=>x.id===n.parent))issues.push("Parent inexistente: "+n.name);if(!Array.isArray(n.position)||n.position.length!==3)issues.push("Position inválida: "+n.name);if(!Array.isArray(n.size)||n.size.some(v=>v<=0))issues.push("Size inválido: "+n.name)});
+ const bg=document.createElement("div");bg.className="modal-bg";bg.innerHTML='<div class=modal><div class=modal-head><h2>Project Validation</h2><button id=px>×</button></div><div class=notice><strong>'+(!issues.length?"✓ Projeto pronto para exportação":"⚠ "+issues.length+" problema(s)")+'</strong><br>'+(!issues.length?"Nenhum erro estrutural encontrado.":"<br>"+issues.map(esc).join("<br>"))+'</div><div class=modal-actions><button id=pc class=primary>Concluir</button></div></div>';$("#modalRoot").appendChild(bg);$("#px").onclick=$("#pc").onclick=()=>bg.remove();return issues
+}
+function proDuplicate(){const ids=S.selectedIds.slice();if(ids.length<2)return _baseDuplicate();commit();const map=new Map();const copies=ids.map(id=>{const n=S.nodes.find(x=>x.id===id);const x=clone(n);x.id=uid();x.name=n.name+" Copy";x.position=x.position.map((v,i)=>v+(i===0||i===2?S.grid*2:0));map.set(id,x.id);return x});copies.forEach(x=>{if(x.parent&&map.has(x.parent))x.parent=map.get(x.parent)});S.nodes.push(...copies);S.selectedIds=copies.map(x=>x.id);S.selected=S.selectedIds.at(-1);render();save(false);toast(copies.length+" objetos duplicados")}
+function proRemove(){if(S.selectedIds.length<2)return _baseRemove();commit();const ids=new Set(S.selectedIds);S.nodes=S.nodes.filter(n=>!ids.has(n.id)&&!proDescendant(n.id,[...ids][0]));proSelect(null);render();save(false);toast("Objetos removidos")}
+function proRender(full=true){S.selectedIds=S.selectedIds||[S.selected].filter(Boolean);_baseRender(full)}
+add=proAdd;tree=proTree;panel=proPanel;duplicate=proDuplicate;remove=proRemove;render=proRender;
+const _oldSave=save;save=function(show=true){S.selectedIds=S.selectedIds||[S.selected].filter(Boolean);return _oldSave(show)};
+$("[data-add]").forEach(b=>b.onclick=()=>proAdd(b.dataset.add));
+$("#validateBtn")&&($("#validateBtn").onclick=validateProject);
+
+
+/* PRO INPUT + EXPORT */
+const _proDownBase=down;
+down=function(e){
+ if(S.playing)return;
+ if(e.button===1||e.button===2){orbit=true;lx=e.clientX;ly=e.clientY;return}
+ const r=renderer.domElement.getBoundingClientRect();pointer.x=(e.clientX-r.left)/r.width*2-1;pointer.y=-(e.clientY-r.top)/r.height*2+1;ray.setFromCamera(pointer,camera);
+ const hit=ray.intersectObjects([...meshes.values()]).find(h=>h.object.visible);
+ if(!hit){if(!(e.ctrlKey||e.metaKey||e.shiftKey)){proSelect(null);render()}return}
+ const id=hit.object.userData.id,n=S.nodes.find(x=>x.id===id);if(!n||n.locked)return toast("Objeto bloqueado");
+ proSelect(id,e.ctrlKey||e.metaKey||e.shiftKey);drag=S.tool!=="select";lx=e.clientX;ly=e.clientY;dragStart=clone(n);render();status(S.selectedIds.length>1?S.selectedIds.length+" selecionados":"Selecionado")
+};
+const _proMoveBase=move;
+move=function(e){
+ if(orbit){theta-=(e.clientX-lx)*.008;phi=Math.max(.1,Math.min(Math.PI-.1,phi-(e.clientY-ly)*.008));lx=e.clientX;ly=e.clientY;sync();return}
+ if(!drag||!cur())return;const dx=e.clientX-lx,dy=e.clientY-ly;lx=e.clientX;ly=e.clientY;const ns=S.nodes.filter(n=>S.selectedIds.includes(n.id)&&!n.locked);if(!ns.length)return;if(!ns.some(n=>n._dragged)){commit();ns.forEach(n=>n._dragged=true)}
+ ns.forEach(n=>{if(S.tool==="move"){n.position[0]+=dx*.025;n.position[1]-=dy*.025;if(S.snap)n.position=n.position.map(v=>Math.round(v/S.grid)*S.grid)}else if(S.tool==="rotate"){n.rotation[1]+=dx*.5;n.rotation[0]-=dy*.15;if(S.snap)n.rotation=n.rotation.map(v=>Math.round(v/15)*15)}else if(S.tool==="scale"){const q=Math.max(.1,1-dy*.01);n.size=n.size.map(v=>Math.max(.1,v*q));if(S.snap)n.size=n.size.map(v=>Math.max(.1,Math.round(v/S.grid)*S.grid))}});render(false)
+};
+function proExportXML(){
+ const escx=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+ const vec=(name,a)=>'<Vector3 name="'+name+'"><X>'+a[0]+'</X><Y>'+a[1]+'</Y><Z>'+a[2]+'</Z></Vector3>';
+ function item(n){let body='<string name="Name">'+escx(n.name)+'</string>';if(n.type!=="Folder"&&n.type!=="Model"&&n.type!=="Script"){body+='<bool name="Anchored">'+!!n.anchored+'</bool><bool name="CanCollide">'+!!n.canCollide+'</bool>'+vec("size",n.size)+'<CoordinateFrame name="CFrame"><X>'+n.position[0]+'</X><Y>'+n.position[1]+'</Y><Z>'+n.position[2]+'</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame>'}if(n.type==="Script")body+='<ProtectedString name="Source">'+escx(n.script||"")+'</ProtectedString>';let kids=S.nodes.filter(x=>x.parent===n.id).map(item).join("");const cls=n.type==="Sphere"||n.type==="Cylinder"||n.type==="Wedge"?"Part":n.type==="Model"?"Model":n.type;return '<Item class="'+cls+'" referent="RBX'+escx(n.id)+'"><Properties>'+body+'</Properties>'+kids+'</Item>'}
+ const roots=S.nodes.filter(n=>!n.parent).map(item).join("");return '<?xml version="1.0" encoding="utf-8"?><roblox version="4"><Item class="Workspace" referent="RBXWorkspace"><Properties><string name="Name">Workspace</string></Properties>'+roots+'</Item></roblox>'
+}
+exportXML=proExportXML;
+
 })();

@@ -1,4 +1,4 @@
-# Studio Lite — Professional Web Editor
+# Studio Lite — Professional Web Editor v5.0 PRO
 
 Editor 3D inspirado no Roblox Studio Lite, construído para rodar direto no navegador em celular e computador.
 
@@ -108,3 +108,19 @@ A interface e o fluxo de publicação estão implementados em JavaScript puro. A
 ### Limites reais
 
 Scripts Luau não são executados dentro do navegador, física/simulação Roblox não é reproduzida e um RBXL binário completo não pode ser fabricado com fidelidade apenas pelo JavaScript do navegador. O fluxo Open Cloud exige um .rbxl válido para publicação. Se o navegador bloquear a chamada Open Cloud por CORS, é necessário um backend ou proxy seguro.
+
+## v5.0 PRO — Editor expansion
+
+- Explorer hierárquico real com Parent e árvores aninhadas.
+- Multi-seleção com Ctrl/⌘/Shift e transformações em grupo.
+- Group/Ungroup com Models.
+- Primitivas adicionais: Model, MeshPart e Terrain.
+- Inspector expandido com Parent, Reflectance, CastShadow, Massless, Surface e campos específicos.
+- Validação estrutural antes de exportar/publicar.
+- Navegação touch com pinch-to-zoom no viewport.
+- Exportação RBXLX com hierarquia aninhada e scripts.
+- Toolbox ampliada e controles preparados para celular.
+
+### Limites importantes
+
+MeshPart e Terrain no editor web são representações de edição; não carregam automaticamente a geometria/voxels reais do Roblox. Scripts Luau continuam sendo editados como texto e não executados no navegador. A publicação Open Cloud ainda depende de um arquivo Roblox válido e das permissões corretas; chamadas diretas podem depender de CORS.
