@@ -506,11 +506,8 @@ function toggleInspector9(force){
 }
 
 function installNav9(){
-  q9("#explorerToggle")?.addEventListener("click",e=>{e.preventDefault();toggleExplorer9()});
-  q9("#collapseBtn")?.addEventListener("click",e=>{e.preventDefault();toggleExplorer9()});
-  q9("#inspectorToggle")?.addEventListener("click",e=>{e.preventDefault();toggleInspector9()});
   q9("#backBtn")?.addEventListener("click",e=>{e.preventDefault();if(!closeLayer9()){try{history.back()}catch{}}});
-  addEventListener("popstate",()=>{if(!closeLayer9()){history.pushState({studioLite:true},"",location.href)}});
+ addEventListener("popstate",()=>{if(!closeLayer9()){history.pushState({studioLite:true},"",location.href)}});
   if(!history.state?.studioLite)history.pushState({studioLite:true},"",location.href);
   document.addEventListener("keydown",e=>{
     if(e.key!=="Escape"||/input|textarea|select/i.test(e.target?.tagName||""))return;
