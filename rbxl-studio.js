@@ -9,7 +9,7 @@ const STORE="studio-lite-v4";
 // Use somente o parser oficial do projeto. O rbx-reader-rts externo tinha
 // incompatibilidades de runtime que podiam terminar em:
 // "Cannot read properties of undefined (reading 'buffer')".
-const PARSER_URL="/api/roblox/rbx-parser?v=20261004";
+const PARSER_URL="/api/roblox/rbx-parser?v=20261004-v21";
 let parserPromise=null;
 let parserBlobUrl=null;
 
@@ -278,7 +278,7 @@ function backup(){
 }
 async function importFull(file){
  if(!file)return;
- if(!/\.(rbxl|rbxlx)$/i.test(file.name))throw new Error("Escolha um arquivo .rbxl ou .rbxlx.");
+ if(!/\.(rbxl|rbxlx|rbxm|rbxmx)$/i.test(file.name))throw new Error("Escolha um arquivo .rbxl, .rbxlx, .rbxm ou .rbxmx.");
  status("Lendo Place Roblox…");
  const nodes=cleanNodes(await parseFile(file));
  if(!nodes.length)throw new Error("O Place não possui instâncias compatíveis.");
@@ -296,7 +296,7 @@ function openStudioImport(){
  bg.innerHTML='<div class="rbxl-studio-modal">'+
  '<div class="modal-head"><div><h2>▣ Roblox Place Studio</h2><small>Importe o Place inteiro e transforme o Explorer em um projeto editável.</small></div><button id="rbxlClose">×</button></div>'+
  '<div class="rbxl-hero"><div class="rbxl-hero-icon">RBXL</div><div><b>Full Place Import</b><p>Carrega a hierarquia completa, serviços, Models, Folders, scripts e propriedades disponíveis no arquivo.</p></div></div>'+
- '<label class="rbxl-drop" id="rbxlDrop"><input id="rbxlPicker" type="file" accept=".rbxl,.rbxlx" hidden><strong>Arraste seu .RBXL aqui</strong><span>ou toque para escolher • RBXL binário + RBXLX XML</span><small>O arquivo é processado localmente no navegador. Uma cópia do projeto atual é mantida como backup local.</small></label>'+
+ '<label class="rbxl-drop" id="rbxlDrop"><input id="rbxlPicker" type="file" accept=".rbxl,.rbxlx,.rbxm,.rbxmx" hidden><strong>Arraste seu .RBXL aqui</strong><span>ou toque para escolher • RBXL/RBXM binário + RBXLX/RBMX XML</span><small>O arquivo é processado localmente no navegador. Uma cópia do projeto atual é mantida como backup local.</small></label>'+
  '<div class="rbxl-features"><div><b>Explorer completo</b><span>Hierarquia e serviços</span></div><div><b>Code Studio</b><span>Script / LocalScript / ModuleScript</span></div><div><b>Properties</b><span>Transformações e dados importados</span></div><div><b>Search</b><span>Encontre qualquer instância</span></div></div>'+
  '<div class="rbxl-actions"><button id="rbxlCancel">Cancelar</button></div><div id="rbxlProgress" class="rbxl-progress"></div></div>';
  document.body.appendChild(bg);
