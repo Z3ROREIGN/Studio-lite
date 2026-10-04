@@ -601,9 +601,9 @@ function inspectorToggle10(){
 }
 function bindToggles10(){
  const exBtn=q10("#explorerToggle"),colBtn=q10("#collapseBtn"),insBtn=q10("#inspectorToggle");
- if(exBtn)exBtn.onclick=e=>{e.preventDefault();e.stopPropagation();explorerToggle10()};
+ if(exBtn)exBtn.onclick=e=>{e.preventDefault();e.stopImmediatePropagation();explorerToggle10()};
  if(colBtn)colBtn.onclick=e=>{e.preventDefault();e.stopPropagation();explorerToggle10()};
- if(insBtn)insBtn.onclick=e=>{e.preventDefault();e.stopPropagation();inspectorToggle10()};
+ if(insBtn)insBtn.onclick=e=>{e.preventDefault();e.stopImmediatePropagation();inspectorToggle10()};
  const modalButtons=[
    ["#settingsBtn",["configurações"]],
    ["#commandBtn",["command palette","paleta de comandos"]],
