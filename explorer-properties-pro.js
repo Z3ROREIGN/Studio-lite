@@ -109,16 +109,19 @@ function drawProperties(){
  section(p,"HIERARCHY ACTIONS");const actions=document.createElement("div");actions.className="expro-actions";[["＋ Filho",()=>openAddMenu(["Folder","Model","Tool","Configuration"].includes(n.type)?n.id:null,innerWidth/2,100)],["◇ Script",()=>add("Script",n.id)],["▱ Folder",()=>add("Folder",n.id)],["⧉ Duplicar",()=>{state().selected=n.id;API().duplicateSelected?.()}],["⌫ Excluir",()=>remove(n)]].forEach(([t,f])=>{const b=document.createElement("button");b.textContent=t;b.onclick=f;actions.appendChild(b)});p.appendChild(actions);
 }
 function install(){
- const style=document.createElement("style");style.id="expro-inline";style.textContent="";document.head.appendChild(style);
  const tree=q("#tree");if(!tree)return;
- syncing=true;try{drawTree();drawProperties()}finally{syncing=false};
- q("#treeSearch")?.addEventListener("input",drawTree);
- document.addEventListener("click",e=>{if(!e.target.closest("#exproMenu"))closeMenus()});
- // Keep the professional explorer/properties in sync with existing render calls without fighting them.
  let scheduled=false;
  const sync=()=>{if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;drawTree();drawProperties()})};
- const obs=new MutationObserver(()=>sync());obs.observe(tree,{childList:true,subtree:true});
- const panel=q("#panel");if(panel)new MutationObserver(()=>{if(!panel.querySelector(".expro-object-head")&&!panel.querySelector(".expro-empty"))sync()}).observe(panel,{childList:true,subtree:true});
+ drawTree();drawProperties();
+ q("#treeSearch")?.addEventListener("input",()=>drawTree());
+ document.addEventListener("click",e=>{if(!e.target.closest("#exproMenu"))closeMenus()});
+ const core=C();
+ if(core.render&&!core.render.__explorerProWrapped){
+   const original=core.render;
+   const wrapped=function(...args){const result=original.apply(this,args);sync();return result};
+   wrapped.__explorerProWrapped=true;
+   core.render=wrapped;
+ }
  window.StudioLiteExplorerPro={refresh:sync,add,remove,rename,drawTree,drawProperties};
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>setTimeout(install,700));else setTimeout(install,700);
