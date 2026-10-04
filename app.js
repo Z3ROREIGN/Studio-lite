@@ -1085,7 +1085,7 @@ const F={
   rotateSelected:d=>safe(()=>{const n=F.getSelected();if(!n)return false;n.rotation??={x:0,y:0,z:0};n.rotation.x+=(Number(d?.x)||0);n.rotation.y+=(Number(d?.y)||0);n.rotation.z+=(Number(d?.z)||0);C().render?.();C().save?.(false);return true}),
   scaleSelected:d=>safe(()=>{const n=F.getSelected();if(!n)return false;n.size??={x:1,y:1,z:1};n.size.x=Math.max(.05,n.size.x*(Number(d?.x)||1));n.size.y=Math.max(.05,n.size.y*(Number(d?.y)||1));n.size.z=Math.max(.05,n.size.z*(Number(d?.z)||1));C().render?.();C().save?.(false);return true}),
   getTree:()=>safe(()=>{const nodes=S()?.nodes||[];const walk=(parent=null)=>nodes.filter(n=>(n.parent||null)===parent).map(n=>({...n,children:walk(n.id)}));return walk(null)},[]),
-  flattenTree:()=>safe(()=>F.getTree().flatMap(function walk(n){return n.flatMap(x=>[x,...walk(x.children||[])] )}),[]),
+  flattenTree:()=>safe(()=>{const out=[];const walk=arr=>{for(const n of (arr||[])){out.push(n);walk(n.children||[])}};walk(F.getTree());return out},[]),
   orphanCount:()=>safe(()=>{const nodes=S()?.nodes||[],ids=new Set(nodes.map(n=>n.id));return nodes.filter(n=>n.parent&&!ids.has(n.parent)).length},0),
   duplicateIdCount:()=>safe(()=>{const a=S()?.nodes||[],m=new Map();a.forEach(n=>m.set(n.id,(m.get(n.id)||0)+1));return [...m.values()].filter(x=>x>1).length},0),
   repairHierarchy:()=>safe(()=>{const s=S();if(!s)return false;const ids=new Set(s.nodes.map(n=>n.id));s.nodes.forEach(n=>{if(n.parent&&!ids.has(n.parent))n.parent=null});C().save?.(false);C().render?.();return true}),
