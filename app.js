@@ -96,7 +96,21 @@ function publish(){
    if(!api)return toast("Informe a API Key da Roblox");if(!file)return toast("Selecione um .rbxl/.rbxlx ou marque para publicar o RBXLX do editor");if(!/\.rbxlx?$/i.test(file.name))return toast("O arquivo precisa terminar em .rbxl ou .rbxlx");
    if($("#rememberIds").checked)localStorage.setItem("studio-roblox-target",JSON.stringify({universe,place}));
    $("#pubstatus").textContent="Enviando arquivo para Roblox…";$("#publishNow").disabled=true;status("Publicando…");
-   try{const url="https://apis.roblox.com/universes/v1/"+encodeURIComponent(universe)+"/places/"+encodeURIComponent(place)+"/versions?versionType=Published";const res=await fetch(url,{method:"POST",headers:{"x-api-key":api,"Content-Type":file.name.toLowerCase().endsWith(".rbxlx")?"application/xml":"application/octet-stream"},body:await file.arrayBuffer()});const textBody=await res.text();if(!res.ok)throw Error("HTTP "+res.status+" — "+textBody.slice(0,240));$("#pubstatus").textContent="Publicado com sucesso.";status("Publicado");toast("Place publicado no Roblox");setTimeout(()=>bg.remove(),1100)}catch(err){console.error(err);$("#pubstatus").textContent="Falha: "+err.message;status("Falha na publicação");$("#publishNow").disabled=false;toast("Não foi possível publicar diretamente")}}
+   try{
+     const payload=await file.arrayBuffer();
+     const contentType=file.name.toLowerCase().endsWith(".rbxlx")?"application/xml":"application/octet-stream";
+     let res=null,textBody="";
+     if(location.protocol!=="file:"){
+       res=await fetch("/api/roblox/publish",{method:"POST",headers:{"Content-Type":contentType,"x-roblox-universe-id":universe,"x-roblox-place-id":place,"x-roblox-api-key":api,"x-roblox-file-name":file.name},body:payload});
+       textBody=await res.text();
+       if(res.status===404||res.status===405)res=null;
+     }
+     if(!res){
+       const url="https://apis.roblox.com/universes/v1/"+encodeURIComponent(universe)+"/places/"+encodeURIComponent(place)+"/versions?versionType=Published";
+       res=await fetch(url,{method:"POST",headers:{"x-api-key":api,"Content-Type":contentType},body:payload});
+       textBody=await res.text();
+     }
+     if(!res.ok)throw Error("HTTP "+res.status+" — "+textBody.slice(0,500));$("#pubstatus").textContent="Publicado com sucesso.";status("Publicado");toast("Place publicado no Roblox");setTimeout(()=>bg.remove(),1100)}catch(err){console.error(err);$("#pubstatus").textContent="Falha: "+err.message;status("Falha na publicação");$("#publishNow").disabled=false;toast("Não foi possível publicar diretamente")}}
 }
 function exportXML(){const xe=s=>String(s??"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");const children=new Map();S.nodes.forEach(n=>{const p=n.parent||"__workspace__";if(!children.has(p))children.set(p,[]);children.get(p).push(n)});const renderNode=(n)=>{const cls=["Part","SpawnLocation","WedgePart","CornerWedgePart","MeshPart","UnionOperation"].includes(n.type)?n.type:"Part";const pos=n.position||[0,0,0],size=n.size||[1,1,1];const attrs="<string name=\"Name\">"+xe(n.name)+"</string><bool name=\"Anchored\">"+!!n.anchored+"</bool><bool name=\"CanCollide\">"+!!n.canCollide+"</bool><Vector3 name=\"size\"><X>"+size[0]+"</X><Y>"+size[1]+"</Y><Z>"+size[2]+"</Z></Vector3><CoordinateFrame name=\"CFrame\"><X>"+pos[0]+"</X><Y>"+pos[1]+"</Y><Z>"+pos[2]+"</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame>";const kids=(children.get(n.id)||[]).map(renderNode).join("");return "<Item class=\""+cls+"\" referent=\"RBX"+xe(n.id)+"\"><Properties>"+attrs+"</Properties>"+kids+"</Item>"};const workspaceKids=(children.get("__workspace__")||[]).map(renderNode).join("");return "<?xml version=\"1.0\" encoding=\"utf-8\"?><roblox version=\"4\"><Item class=\"Workspace\" referent=\"RBXWorkspace\"><Properties><string name=\"Name\">Workspace</string></Properties>"+workspaceKids+"</Item></roblox>"}
 function download(name,data,type){const b=new Blob([data],{type}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),800)}
