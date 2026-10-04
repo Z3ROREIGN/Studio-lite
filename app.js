@@ -287,8 +287,8 @@ render();
 save(false);
 
 /* ===== CORE BRIDGE — cross-layer scope repair ===== */
-window.StudioLiteCore={get S(){return S},get renderer(){return renderer},get scene(){return scene},get camera(){return camera},get fallbackCanvas(){return fallbackCanvas},get fallbackCtx(){return fallbackCtx},render,save,undo,redo,add,duplicate,remove,rename,setTool,focus,view,toggleGrid,screenshot,newProject,commandPalette,exportProject,publish,initFallbackCanvas,drawFallback,resize,normalizeNode,clone};
-try{Object.defineProperties(window,{S:{configurable:true,get:()=>S},renderer:{configurable:true,get:()=>renderer},scene:{configurable:true,get:()=>scene},camera:{configurable:true,get:()=>camera},fallbackCanvas:{configurable:true,get:()=>fallbackCanvas},fallbackCtx:{configurable:true,get:()=>fallbackCtx}});Object.assign(window,{render,save,undo,redo,add,duplicate,remove,rename,setTool,focus,view,toggleGrid,screenshot,newProject,commandPalette,exportProject,publish,initFallbackCanvas,drawFallback,resize,normalizeNode,clone});}catch(e){console.warn("Core bridge",e)}
+window.StudioLiteCore={get S(){return S},get renderer(){return renderer},get scene(){return scene},get camera(){return camera},get fallbackCanvas(){return fallbackCanvas},get fallbackCtx(){return fallbackCtx},render,save,undo,redo,add,duplicate,remove,rename,setTool,focus,view,toggleGrid,screenshot,newProject,commandPalette,exportProject,publish,importFile,togglePanels,commit,initFallbackCanvas,drawFallback,resize,normalizeNode,clone};
+try{Object.defineProperties(window,{S:{configurable:true,get:()=>S},renderer:{configurable:true,get:()=>renderer},scene:{configurable:true,get:()=>scene},camera:{configurable:true,get:()=>camera},fallbackCanvas:{configurable:true,get:()=>fallbackCanvas},fallbackCtx:{configurable:true,get:()=>fallbackCtx}});Object.assign(window,{render,save,undo,redo,add,duplicate,remove,rename,setTool,focus,view,toggleGrid,screenshot,newProject,commandPalette,exportProject,publish,importFile,togglePanels,commit,initFallbackCanvas,drawFallback,resize,normalizeNode,clone});}catch(e){console.warn("Core bridge",e)}
 
 })();
 
@@ -1066,7 +1066,7 @@ const F={
   setRenderMode:m=>safe(()=>window.StudioLitePro?.mode?.(m)||false),
   getRenderMode:()=>safe(()=>localStorage.getItem("studio-lite-universal-v7.mode")||"auto"),
   exportJSON:()=>safe(()=>C().exportProject?.()||false),
-  importJSONText:t=>safe(()=>{const f=new File([String(t)],"project.json",{type:"application/json"});return f}),
+  importJSONText:async t=>safe(async()=>{const text=String(t??"");const data=JSON.parse(text);if(!Array.isArray(data.nodes))throw new Error("JSON sem nodes[]");const f=new File([JSON.stringify(data)],"project.json",{type:"application/json"});await C().importFile?.(f);return true},false),
   validateProject:()=>safe(()=>{const s=S();return !!s?.nodes?.every?.(n=>n&&n.id&&n.type)}),
   countType:t=>safe(()=>S()?.nodes?.filter?.(n=>n.type===t).length||0,0),
   listTypes:()=>safe(()=>[...new Set((S()?.nodes||[]).map(n=>n.type))],[]),
@@ -1101,7 +1101,7 @@ const F={
   getSettings:()=>safe(()=>({...S()?.settings}),{}),
   setSetting:(k,v)=>safe(()=>{const s=S();s.settings??={};s.settings[k]=v;C().save?.(false);return true}),
   getSetting:k=>safe(()=>S()?.settings?.[k]),
-  copySelected:()=>safe(()=>{document.execCommand?.("copy");return true}),
+  copySelected:async()=>safe(async()=>{const n=F.getSelected();if(!n)return false;const data=JSON.stringify(n,null,2);const s=S();if(s)s.clipboard=JSON.parse(JSON.stringify(n));try{await navigator.clipboard?.writeText?.(data)}catch{}toast("Objeto copiado");return true},false),
   focusExplorer:()=>safe(()=>{$("#explorerSearch")?.focus();return true}),
   focusCode:()=>safe(()=>{$(".file-editor-card textarea,textarea")?.focus();return true}),
   closeTopModal:()=>safe(()=>{const m=all("#modalRoot .modal-bg").at(-1);if(m){m.remove();return true}return false}),
@@ -1113,13 +1113,34 @@ const F={
   ping:()=>true,
   version:()=> "Studio Lite Pro Toolkit 1.0",
   resetMode:()=>safe(()=>F.setRenderMode("auto")),
-  mobilePanels:()=>safe(()=>{document.querySelector("#explorerBtn")?.click();document.querySelector("#inspectorBtn")?.click();return true}),
+  mobilePanels:()=>safe(()=>{const s=S();if(!s)return false;s.panel=s.panel==="properties"?"toolbox":"properties";C().togglePanels?.(s.panel==="properties"?"inspector":"explorer");return true}),
   toggleFullscreen:()=>safe(()=>{document.fullscreenElement?document.exitFullscreen?.():document.documentElement.requestFullscreen?.();return true}),
   exportStats:()=>safe(()=>JSON.stringify(F.projectStats(),null,2)),
   audit:()=>safe(()=>({valid:F.validateProject(),orphans:F.orphanCount(),duplicateIds:F.duplicateIdCount(),stats:F.projectStats()}),{}),
   safeRender:()=>safe(()=>{C().resize?.();C().render?.(false);return true}),
   safeSave:()=>safe(()=>{C().save?.(false);return true}),
   emergencyRepair:()=>safe(()=>{F.repairHierarchy();F.resetMode();return F.safeRender()}),
+  setSelectedPositionArray:v=>safe(()=>{const n=F.getSelected();if(!n)return false;n.position=(Array.isArray(v)?v:[0,0,0]).slice(0,3).map(x=>Number(x)||0);C().render?.();C().save?.(false);return true}),
+  setSelectedRotationArray:v=>safe(()=>{const n=F.getSelected();if(!n)return false;n.rotation=(Array.isArray(v)?v:[0,0,0]).slice(0,3).map(x=>Number(x)||0);C().render?.();C().save?.(false);return true}),
+  setSelectedSizeArray:v=>safe(()=>{const n=F.getSelected();if(!n)return false;n.size=(Array.isArray(v)?v:[1,1,1]).slice(0,3).map(x=>Math.max(.1,Math.abs(Number(x)||1)));C().render?.();C().save?.(false);return true}),
+  nudgeSelected:d=>safe(()=>{const n=F.getSelected();if(!n)return false;n.position??=[0,0,0];const a=Array.isArray(d)?d:[Number(d?.x)||0,Number(d?.y)||0,Number(d?.z)||0];for(let i=0;i<3;i++)n.position[i]=(Number(n.position[i])||0)+(Number(a[i])||0);C().render?.();C().save?.(false);return true}),
+  alignSelectedX:v=>safe(()=>{const n=F.getSelected();if(!n)return false;n.position??=[0,0,0];n.position[0]=Number(v)||0;C().render?.();C().save?.(false);return true}),
+  alignSelectedY:v=>safe(()=>{const n=F.getSelected();if(!n)return false;n.position??=[0,0,0];n.position[1]=Number(v)||0;C().render?.();C().save?.(false);return true}),
+  alignSelectedZ:v=>safe(()=>{const n=F.getSelected();if(!n)return false;n.position??=[0,0,0];n.position[2]=Number(v)||0;C().render?.();C().save?.(false);return true}),
+  snapSelectedToGrid:()=>safe(()=>{const n=F.getSelected(),s=S();if(!n||!s)return false;n.position??=[0,0,0];const g=Math.max(.01,Number(s.grid)||1);n.position=n.position.map(x=>Math.round((Number(x)||0)/g)*g);C().render?.();C().save?.(false);return true}),
+  toggleSelectedVisibility:()=>safe(()=>{const n=F.getSelected();if(!n)return false;n.visible=n.visible===false;C().render?.();C().save?.(false);return n.visible}),
+  toggleSelectedLock:()=>safe(()=>{const n=F.getSelected();if(!n)return false;n.locked=!n.locked;C().save?.(false);return n.locked}),
+  setParent:parentId=>safe(()=>{const n=F.getSelected(),s=S();if(!n||!s||parentId===n.id)return false;if(parentId&&!s.nodes.some(x=>x.id===parentId))return false;let p=parentId;while(p){if(p===n.id)return false;p=s.nodes.find(x=>x.id===p)?.parent||null}n.parent=parentId||null;C().render?.();C().save?.(false);return true}),
+  unparentSelected:()=>safe(()=>F.setParent(null)),
+  createFolder:n=>safe(()=>{C().add?.("Folder");const o=F.getSelected();if(o&&n)o.name=String(n).slice(0,100);C().render?.();C().save?.(false);return o||null}),
+  createPart:n=>safe(()=>{C().add?.("Part");const o=F.getSelected();if(o&&n)o.name=String(n).slice(0,100);C().render?.();C().save?.(false);return o||null}),
+  createScript:n=>safe(()=>{C().add?.("Script");const o=F.getSelected();if(o&&n)o.name=String(n).slice(0,100);C().render?.();C().save?.(false);return o||null}),
+  duplicateMany:count=>safe(()=>{const total=Math.max(1,Math.min(100,Math.floor(Number(count)||1)));let last=null;for(let i=0;i<total;i++){C().duplicate?.();last=F.getSelected()}return last},null),
+  deleteByType:type=>safe(()=>{const s=S();if(!s)return 0;const t=String(type||"");const removed=s.nodes.filter(n=>n.type===t&&n.id!=="spawn").length;if(!removed)return 0;C().commit?.();s.nodes=s.nodes.filter(n=>!(n.type===t&&n.id!=="spawn"));if(!s.nodes.some(n=>n.id===s.selected))s.selected=s.nodes[0]?.id||null;C().render?.();C().save?.(false);return removed},0),
+  renameById:(id,name)=>safe(()=>{const n=F.getObjectById(id);if(!n)return false;n.name=String(name||"Object").slice(0,100);C().render?.();C().save?.(false);return true}),
+  exportSceneSummary:()=>safe(()=>JSON.stringify({project:S()?.project||"Untitled",objects:F.getObjectCount(),types:F.listTypes(),stats:F.projectStats()},null,2),"{}"),
+  clearHistory:()=>safe(()=>{const s=S();if(!s)return false;s.history=[];s.future=[];return true}),
+  getHistoryLength:()=>safe(()=>S()?.history?.length||0,0),
   help:()=>Object.keys(F),
   noop:()=>true
 };
