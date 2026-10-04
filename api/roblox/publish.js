@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       ok: true,
       service: "roblox-place-publish-proxy",
       authMode: "per-user-api-key",
-      version: "2026-10-03-per-user-key-v2",
+      version: "2026-10-04-per-user-key-v3",
       message: "Esta rota não usa nenhuma chave fixa da Vercel. Envie a chave do usuário no header x-roblox-api-key apenas no POST de publicação."
     });
     return;
