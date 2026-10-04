@@ -212,38 +212,11 @@ window.StudioLite300Meta={coreFunctions:182,newFunctions:118,totalFunctions:300,
 function open300(){
  const old=document.querySelector("#studio300Modal");if(old){old.remove();return}
  const bg=document.createElement("div");bg.id="studio300Modal";bg.className="modal-bg";
- bg.innerHTML='<div class="tool300-v21"><div class="tool300-v21-head"><div><h2>⚡ Studio Lite Pro 300</h2><small>300 funções reais • Editor • Explorer • Scripts • RBXL • Diagnóstico</small></div><button id="tool300V21Close">×</button></div><div class="tool300-v21-bar">
- <div class="tool300-v21-search"><span>⌕</span><input id="tool300V21Search" class="search" placeholder="Pesquisar uma função..."></div>
- <select id="tool300V21Category"><option value="">Todas as categorias</option><option>Seleção</option><option>Criação</option><option>Transformação</option><option>Scripts</option><option>Explorer</option><option>Projeto</option><option>Visualização</option><option>Diagnóstico</option><option>Utilitários</option></select>
- <span id="tool300V21Count" class="tool300-v21-count">300 funções</span>
-</div><div id="tool300V21Grid" class="tool300-v21-grid"></div><div class="tool300-v21-foot"><span id="tool300V21Status">Pronto</span><button id="tool300V21Self">✓ Auto-teste</button></div></div>';
+ bg.innerHTML='<div class="tool300-v21"><div class="tool300-v21-head"><div><h2>⚡ Studio Lite Pro 300</h2><small>300 funções reais • Editor • Explorer • Scripts • RBXL • Diagnóstico</small></div><button id="tool300V21Close">×</button></div><div class="tool300-v21-bar"><input id="tool300V21Search" class="search" placeholder="⌕ Pesquisar entre 300 funções..."><select id="tool300V21Category"><option value="">Todas as categorias</option><option>Seleção</option><option>Criação</option><option>Transformação</option><option>Scripts</option><option>Explorer</option><option>Projeto</option><option>Visualização</option><option>Diagnóstico</option><option>Utilitários</option></select><span>300 / 300</span></div><div id="tool300V21Grid" class="tool300-v21-grid"></div><div class="tool300-v21-foot"><span id="tool300V21Status">Pronto</span><button id="tool300V21Self">✓ Auto-teste</button></div></div>';
  document.body.appendChild(bg);
- const grid=bg.querySelector("#tool300V21Grid"),search=bg.querySelector("#tool300V21Search"),cat=bg.querySelector("#tool300V21Category"),status=bg.querySelector("#tool300V21Status"),count=bg.querySelector("#tool300V21Count");
+ const grid=bg.querySelector("#tool300V21Grid"),search=bg.querySelector("#tool300V21Search"),cat=bg.querySelector("#tool300V21Category"),status=bg.querySelector("#tool300V21Status");
  const category=name=>/^(select|getSelected|clearSelection|invertSelection|normalizeSelection|countSelected)/.test(name)?"Seleção":/^create/.test(name)?"Criação":/^(move|rotate|scale|setPosition|setRotation|setSize|nudge|align|distribute|snap|mirror|resetTransform|freeze|grow|shrink|clamp|applyTransform)/.test(name)?"Transformação":/(Script|Code|Source|Template)/.test(name)?"Scripts":/(Explorer|Parent|Child|Service|Selection)/.test(name)?"Explorer":/(save|load|export|import|project|snapshot|autosave|renameProject)/.test(name)?"Projeto":/(Camera|View|Grid|zoom|orbit|Screenshot|2D|Material|Color)/.test(name)?"Visualização":/(validate|repair|diagnostic|Health|Report|normalize|clean|duplicate)/.test(name)?"Diagnóstico":"Utilitários";
- const draw=()=>{
- const term=search.value.toLowerCase().trim(),c=cat.value;
- const filtered=NAMES.filter(n=>(!term||n.toLowerCase().includes(term))&&(!c||category(n)===c));
- grid.innerHTML="";
- count.textContent=filtered.length+" função"+(filtered.length===1?"":"ões");
- filtered.forEach((n,index)=>{
-   const b=document.createElement("button");
-   b.className="tool300-v21-item";
-   b.type="button";
-   b.setAttribute("aria-label","Executar "+n);
-   b.innerHTML='<span class="tool300-v21-index">'+String(index+1).padStart(3,"0")+'</span><span class="tool300-v21-copy"><b>'+n+'</b><small>'+category(n)+' · Executar agora</small></span><span class="tool300-v21-run">↗</span>';
-   b.onclick=async()=>{
-     b.classList.add("running");
-     try{
-       const r=await F[n]();
-       status("✓ "+n+(r===undefined?"":" · "+(typeof r==="string"?r.slice(0,80):"Concluído")));
-       toast(n+" ✓");
-     }catch(e){
-       console.error(e);status("✕ "+n+" · "+e.message);toast(n+" falhou");
-     }finally{setTimeout(()=>b.classList.remove("running"),260)}
-   };
-   grid.appendChild(b);
- });
-};
+ const draw=()=>{const term=search.value.toLowerCase().trim(),c=cat.value;grid.innerHTML="";NAMES.filter(n=>(!term||n.toLowerCase().includes(term))&&(!c||category(n)===c)).forEach(n=>{const b=document.createElement("button");b.className="tool300-v21-item";b.innerHTML="<b>"+n+"</b><small>"+category(n)+" • Executar</small>";b.onclick=async()=>{try{const r=await F[n]();status(n+" ✓"+(r===undefined?"":" • "+(typeof r==="string"?r.slice(0,80):"concluído")));toast(n+" ✓")}catch(e){console.error(e);status(n+" ✗ "+e.message);toast(n+" falhou")}};grid.appendChild(b)})};
  search.oninput=draw;cat.onchange=draw;bg.querySelector("#tool300V21Close").onclick=()=>bg.remove();
  bg.querySelector("#tool300V21Self").onclick=()=>{const r=F.runSelfTest();status(r.scene.ok&&r.hierarchy.ok&&r.transforms.ok&&r.scripts.ok?"✓ Auto-teste passou":"⚠ Auto-teste encontrou pontos")};draw();setTimeout(()=>search.focus(),20);
 }
