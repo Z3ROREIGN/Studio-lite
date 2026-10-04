@@ -48,3 +48,15 @@ footer{height:26px;flex:none;background:#080808;border-top:1px solid #1d1d1d;dis
  .topbar{gap:6px}.topbar .brand small{display:none}.topbar .project{min-width:0}
  .topbar .actions button{min-width:34px}
 }
+
+
+/* ===== V9 RELIABLE DRAWERS / EXPLORER ===== */
+@media(min-width:851px){
+  .workspace{grid-template-columns:255px minmax(0,1fr) 315px;transition:grid-template-columns .18s ease}
+  .workspace.explorer-collapsed{grid-template-columns:0 minmax(0,1fr) 315px}
+  .workspace.explorer-collapsed .explorer{width:0;min-width:0;border:0;opacity:0;pointer-events:none}
+}
+.explorer.collapsed{overflow:hidden}
+.studio-back-layer{min-width:78px;height:30px;padding:0 9px;margin-right:auto}
+.modal-head .studio-back-layer + div{margin-left:6px}
+@media(max-width:850px){.back-top{display:inline-flex}.explorer.collapsed{transform:translateX(-101%)}}
