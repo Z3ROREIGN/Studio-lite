@@ -355,7 +355,27 @@ async function importFull(file){
 }
 function statusText(t){try{C().setStatus?.(t)}catch{}try{$("#status").textContent=t;$("#footerStatus").textContent=t}catch{}}
 function open(){
- if($("#studioRbxlModal"))return $("#studioRbxlModal").remove();
+ const existing=$("#studioRbxlModal");
+ if(existing){existing.remove();return true;}
+ try{
+   if(!document.body)throw Error("Página ainda não terminou de carregar.");
+   const bg=document.createElement("div");bg.id="studioRbxlModal";bg.className="modal-bg";
+   bg.innerHTML='<div class="rbxl-studio-modal" role="dialog" aria-modal="true" aria-label="Studio RBXL"><div class="modal-head"><div><h2>▣ Studio RBXL</h2><small>Importador completo de RBXL, RBXM, RBXLX e RBXMX</small></div><button id="rbxlClose" type="button">×</button></div><div class="rbxl-drop" id="rbxlDrop" tabindex="0"><input id="rbxlPicker" type="file" accept=".rbxl,.rbxm,.rbxlx,.rbxmx" hidden><strong>Selecionar arquivo Roblox</strong><span>Toque aqui para escolher um Place ou Model</span><small>O projeto será carregado no Explorer, Workspace e Properties sem recarregar a página.</small></div><div class="rbxl-checks"><span>✓ Workspace</span><span>✓ Explorer</span><span>✓ Properties</span><span>✓ Scripts Luau</span></div><div id="rbxlProgress" class="rbxl-progress">Pronto para importar.</div></div>';
+   document.body.appendChild(bg);
+   const picker=$("#rbxlPicker"),drop=$("#rbxlDrop"),progress=$("#rbxlProgress");
+   const close=()=>{bg.remove();document.removeEventListener("keydown",escClose,true)};
+   const escClose=e=>{if(e.key==="Escape")close()};
+   $("#rbxlClose").onclick=close;
+   bg.addEventListener("click",e=>{if(e.target===bg)close()});
+   document.addEventListener("keydown",escClose,true);
+   const choose=()=>picker?.click();
+   drop.onclick=e=>{if(e.target!==picker)choose()};
+   drop.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();choose()}};
+   picker.onchange=()=>{const f=picker.files?.[0];if(f)process(f)};
+   async function process(f){progress.innerHTML='<span class="spin"></span> Lendo '+esc(f.name)+'…';try{const p=await importFull(f);progress.innerHTML='<b>✓ Importado com sucesso</b><span>'+p.nodes.length+' instâncias • '+p.nodes.filter(n=>SCRIPT_TYPES.has(n.type)).length+' scripts</span>';setTimeout(()=>{window.StudioLiteExplorerPro?.refresh?.();statusText("Studio RBXL pronto");},120)}catch(e){console.error("Studio RBXL",e);progress.innerHTML='<b class="error">Falha na importação</b><span>'+esc(e.message||String(e))+'</span>';statusText("Falha na importação")}}
+   setTimeout(()=>drop?.focus(),0);
+   return true;
+ }catch(e){console.error("Studio RBXL UI",e);statusText("Não foi possível abrir o Studio RBXL");return false;}
  const bg=document.createElement("div");bg.id="studioRbxlModal";bg.className="modal-bg";
  bg.innerHTML='<div class="rbxl-studio-modal"><div class="modal-head"><div><h2>▣ Studio RBXL — Importação completa</h2><small>RBXL/RBXM binário • RBXLX/RBMX XML • hierarquia + propriedades + scripts</small></div><button id="rbxlClose">×</button></div><div class="rbxl-drop" id="rbxlDrop"><input id="rbxlPicker" type="file" accept=".rbxl,.rbxm,.rbxlx,.rbxmx" hidden><strong>Selecionar Place Roblox</strong><span>Toque aqui para escolher o arquivo</span><small>O Place é convertido para uma árvore editável. Arquivos grandes usam IndexedDB, evitando o erro de quota do localStorage.</small></div><div class="rbxl-checks"><span>✓ Explorer hierárquico</span><span>✓ Scripts editáveis</span><span>✓ Properties preservadas</span><span>✓ Backup local</span></div><div id="rbxlProgress" class="rbxl-progress">Pronto para importar.</div></div>';
  document.body.appendChild(bg);const picker=$("#rbxlPicker"),drop=$("#rbxlDrop"),progress=$("#rbxlProgress");
@@ -364,9 +384,25 @@ function open(){
  async function process(f){progress.innerHTML='<span class="spin"></span> Lendo '+esc(f.name)+'…';try{const p=await importFull(f);progress.innerHTML='<b>✓ Importado com sucesso</b><span>'+p.nodes.length+' instâncias • '+p.nodes.filter(n=>SCRIPT_TYPES.has(n.type)).length+' scripts</span>';setTimeout(()=>{window.StudioLiteExplorerPro?.refresh?.();statusText("Studio RBXL pronto");},120)}catch(e){console.error("Studio RBXL",e);progress.innerHTML='<b class="error">Falha na importação</b><span>'+esc(e.message||String(e))+'</span>';statusText("Falha na importação")}}
 }
 function install(){
- const b=$("#studioRbxlBtn");if(b)b.onclick=open;
  window.StudioLiteRBXL={open,importFile:importFull};
+ const bind=()=>{
+   const b=$("#studioRbxlBtn");
+   if(b){
+     b.type="button";
+     b.setAttribute("data-studio-rbxl","true");
+     b.onclick=e=>{e.preventDefault();e.stopPropagation();open()};
+   }
+ };
+ bind();
+ document.addEventListener("click",e=>{
+   const target=e.target?.closest?.("#studioRbxlBtn,[data-studio-rbxl]");
+   if(!target)return;
+   e.preventDefault();
+   e.stopPropagation();
+   open();
+ },true);
+ window.addEventListener("pageshow",bind);
 }
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install);else setTimeout(install,0);
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
 const st=document.createElement("style");st.textContent='.rbxl-studio-modal{width:min(780px,96vw);max-height:92vh;overflow:auto;background:#0a0d12;border:1px solid #27303b;border-radius:18px;padding:18px;box-shadow:0 30px 120px #000}.rbxl-drop{display:grid;gap:8px;place-items:center;text-align:center;padding:44px 16px;border:1px dashed #46505e;border-radius:14px;background:#0d1219;cursor:pointer}.rbxl-drop strong{font-size:17px}.rbxl-drop span{color:#9aa6b5;font-size:12px}.rbxl-drop small{max-width:560px;color:#657181;font-size:10px;line-height:1.5}.rbxl-checks{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:10px}.rbxl-checks span{padding:10px;border:1px solid #202a35;border-radius:9px;background:#0d1117;color:#9aa6b5;font-size:11px}.rbxl-progress{min-height:38px;margin-top:12px;color:#9aa6b5;font-size:11px}.rbxl-progress b{display:block;color:#dce7f4;margin-bottom:4px}.rbxl-progress .error{color:#ff8b8b}.spin{display:inline-block;width:12px;height:12px;border:2px solid #333;border-top-color:#fff;border-radius:50%;animation:rbxlspin .7s linear infinite;vertical-align:-2px;margin-right:5px}@keyframes rbxlspin{to{transform:rotate(360deg)}}@media(max-width:600px){.rbxl-studio-modal{padding:12px;border-radius:13px}.rbxl-drop{padding:34px 12px}.rbxl-checks{grid-template-columns:1fr}}';document.head.appendChild(st);
 })();
