@@ -54,7 +54,8 @@ function compactState(state){
 // "Cannot read properties of undefined (reading 'buffer')".
 const PARSER_URLS=[
   "https://cdn.jsdelivr.net/gh/MrSprinkleToes/rbxBinaryParser@6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js",
-  "/api/roblox/rbx-parser?v=20261004-v26",
+  "https://cdn.jsdelivr.net/npm/rbx-reader-rts@1.0.8/+esm",
+  "/api/roblox/rbx-parser?v=20261004-v28",
   "https://raw.githubusercontent.com/MrSprinkleToes/rbxBinaryParser/6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js"
 ];
 let parserPromise=null;
@@ -218,22 +219,29 @@ async function loadBinaryParser(){
    const errors=[];
    for(const url of PARSER_URLS){
      try{
-       // IMPORTANTE: não transforme o módulo remoto em Blob URL.
-       // Alguns bundles usam imports relativos; em Blob URL esses imports
-       // deixam de apontar para o CDN e causam "Failed to fetch dynamically imported module".
-       // O módulo ESM deve ser importado diretamente da origem.
        const m=await import(url);
-       const decode=m?.decode||m?.default?.decode;
-       if(typeof decode!=="function")throw new Error("decode() não encontrado no módulo");
-       return async buffer=>{
-         if(buffer instanceof Uint8Array)buffer=buffer.buffer.slice(buffer.byteOffset,buffer.byteOffset+buffer.byteLength);
-         if(!(buffer instanceof ArrayBuffer))throw new Error("Buffer RBXL inválido");
-         if(buffer.byteLength<16)throw new Error("Arquivo RBXL inválido ou incompleto");
-         return {__modern:false,result:decode(buffer)};
-       };
+       if(typeof m?.decode==="function"){
+         return async buffer=>{
+           if(buffer instanceof Uint8Array)buffer=buffer.buffer.slice(buffer.byteOffset,buffer.byteOffset+buffer.byteLength);
+           if(!(buffer instanceof ArrayBuffer))throw new Error("Buffer RBXL inválido");
+           if(buffer.byteLength<16)throw new Error("Arquivo RBXL inválido ou incompleto");
+           try{return {__modern:false,result:m.decode(buffer)}}
+           catch(e){throw new Error("decode() falhou: "+(e?.message||String(e)))}
+         };
+       }
+       const parseRBX=m?.parseRBX||m?.default?.parseRBX;
+       if(typeof parseRBX==="function"){
+         return async buffer=>{
+           const bytes=buffer instanceof Uint8Array?buffer:new Uint8Array(buffer);
+           if(bytes.byteLength<16)throw new Error("Arquivo RBXL inválido ou incompleto");
+           try{return {__modern:true,result:parseRBX(bytes)}}
+           catch(e){throw new Error("parseRBX() falhou: "+(e?.message||String(e)))}
+         };
+       }
+       throw new Error("nenhum decodificador compatível");
      }catch(e){errors.push(url+" → "+(e?.message||String(e)));}
    }
-   throw new Error("Não foi possível carregar o parser binário RBXL. Tentativas: "+errors.join(" | "));
+   throw new Error("Nenhum parser binário funcionou. "+errors.join(" | "));
  })().catch(e=>{parserPromise=null;throw e});
  return parserPromise;
 }
@@ -315,25 +323,29 @@ function repairServerParents(nodes){
 }
 async function parseFile(file){
  const buf=await file.arrayBuffer();
- if(!(buf instanceof ArrayBuffer)||buf.byteLength===0)throw new Error("Não foi possível ler o conteúdo do arquivo RBXL.");
+ if(!(buf instanceof ArrayBuffer)||buf.byteLength===0)throw new Error("Etapa 1/7 — não foi possível ler o conteúdo do arquivo.");
  const bytes=new Uint8Array(buf);
  const sig=String.fromCharCode(...bytes.slice(0,8));
  if(sig==="<roblox"){
-   const text=new TextDecoder("utf-8").decode(bytes);
-   return parseXML(text);
+   try{return parseXML(new TextDecoder("utf-8").decode(bytes))}
+   catch(e){throw new Error("Etapa 3/7 — falha no XML: "+(e?.message||String(e)))}
  }
  if(sig==="<roblox!"){
    try{
      const serverNodes=await parseServerBinary(file);
      if(serverNodes.length)return repairServerParents(serverNodes);
-   }catch(serverError){
-     console.warn("RBXL server parser failed, trying browser parser",serverError);
+   }catch(serverError){console.warn("RBXL server parser unavailable:",serverError)}
+   try{
+     const decode=await loadBinaryParser();
+     const parsed=await decode(buf);
+     const nodes=fromBinaryObjectTree(normalizeBinaryResult(parsed));
+     if(!nodes.length)throw new Error("parser não retornou instâncias");
+     return nodes;
+   }catch(e){
+     throw new Error("Etapa 5/7 — falha ao decodificar RBXL binário. "+(e?.message||String(e)));
    }
-   const decode=await loadBinaryParser();
-   const parsed=await decode(buf);
-   return fromBinaryObjectTree(normalizeBinaryResult(parsed));
  }
- throw new Error("O arquivo não parece ser um RBXL/RBXLX válido.");
+ throw new Error("Etapa 2/7 — assinatura inválida. O arquivo não parece ser RBXL/RBXLX.");
 }
 function summarize(nodes){
  const scripts=nodes.filter(n=>scriptClasses.has(n.type)).length;
