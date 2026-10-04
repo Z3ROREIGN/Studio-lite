@@ -4,75 +4,64 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#050505">
-<meta name="description" content="Studio Lite — editor 3D de experiências Roblox no navegador.">
-<title>Studio Lite — Web Editor</title>
-<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<meta name="description" content="Studio Lite — editor 3D Roblox profissional no navegador.">
+<title>Studio Lite — Professional Web Editor</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div id="app">
 <header class="topbar">
-  <div class="brand"><div class="logo">S</div><div><b>STUDIO LITE</b><small>WEB EDITOR</small></div></div>
-  <div class="project">
-    <input id="projectName" value="Meu Primeiro Jogo" aria-label="Nome do projeto">
-    <span class="status-dot"></span><span id="status">Pronto</span>
-  </div>
+  <button class="mobile-menu" id="explorerToggle" title="Explorer">☰</button>
+  <div class="brand"><div class="logo">S</div><div><b>STUDIO LITE</b><small>PRO WEB EDITOR</small></div></div>
+  <div class="project"><input id="projectName" value="Meu Primeiro Jogo" aria-label="Nome do projeto"><span class="status-dot"></span><span id="status">Pronto</span></div>
   <div class="actions">
-    <button id="undoBtn" title="Desfazer (Ctrl+Z)">↶</button>
-    <button id="redoBtn" title="Refazer (Ctrl+Y)">↷</button>
-    <button id="saveBtn">Salvar</button>
-    <button class="primary" id="playBtn">▶ Play</button>
-    <button class="primary" id="publishBtn">Publicar</button>
+    <button id="undoBtn" title="Desfazer">↶</button><button id="redoBtn" title="Refazer">↷</button>
+    <button id="settingsBtn" title="Configurações">⚙</button><button id="saveBtn">Salvar</button>
+    <button class="primary" id="playBtn">▶ Play</button><button class="primary" id="publishBtn">Publicar</button>
   </div>
 </header>
 
-<nav class="toolbar" aria-label="Ferramentas">
-  <button class="accent" data-add="Part">＋ Part</button>
-  <button data-add="SpawnLocation">⌂ Spawn</button>
-  <button data-add="Folder">▱ Folder</button>
-  <button data-add="Script">◇ Script</button><i></i>
-  <button id="duplicateBtn" title="Duplicar">⧉</button>
-  <button id="deleteBtn" title="Excluir">⌫</button><i></i>
-  <button class="tool active" data-tool="select">Select</button>
-  <button class="tool" data-tool="move">Move</button>
-  <button class="tool" data-tool="rotate">Rotate</button>
-  <button class="tool" data-tool="scale">Scale</button><i></i>
-  <button id="focusBtn">◎ Focar</button>
-  <button id="gridBtn">Grid: 1</button>
-  <button id="snapBtn">Snap: ON</button>
-  <button id="importBtn">⇧ Importar</button>
-  <button id="exportBtn">⇩ Exportar</button>
+<nav class="toolbar">
+  <div class="tool-group"><b>CREATE</b><button class="accent" data-add="Part">＋ Part</button><button data-add="SpawnLocation">⌂ Spawn</button><button data-add="Folder">▱ Folder</button><button data-add="Script">◇ Script</button></div>
+  <i></i>
+  <div class="tool-group"><b>EDIT</b><button id="duplicateBtn">⧉</button><button id="deleteBtn">⌫</button><button id="renameBtn">Rename</button></div>
+  <i></i>
+  <div class="tool-group"><b>TRANSFORM</b><button class="tool active" data-tool="select">Select</button><button class="tool" data-tool="move">Move</button><button class="tool" data-tool="rotate">Rotate</button><button class="tool" data-tool="scale">Scale</button></div>
+  <i></i>
+  <div class="tool-group"><b>VIEW</b><button id="focusBtn">◎ Focar</button><button id="gridBtn">Grid: 1</button><button id="snapBtn">Snap: ON</button><button id="fullscreenBtn">⛶</button></div>
+  <i></i>
+  <div class="tool-group"><b>FILE</b><button id="importBtn">⇧ Importar</button><button id="exportBtn">⇩ Exportar</button></div>
 </nav>
 
 <section class="workspace">
-  <aside class="sidebar explorer">
-    <div class="side-head"><b>Explorer</b><div><button data-add="Part">＋</button><button data-add="Folder">▱</button><button data-add="Script">◇</button></div></div>
-    <div class="tree-search"><input id="treeSearch" placeholder="⌕ Filtrar objetos"></div>
-    <div id="tree" class="tree"></div>
-    <div class="shortcuts"><b>ATALHOS</b><span><kbd>W</kbd> mover <kbd>E</kbd> girar <kbd>R</kbd> escala</span><span><kbd>⌘/CTRL D</kbd> duplicar <kbd>DEL</kbd> apagar</span><span><kbd>⌘/CTRL Z</kbd> desfazer <kbd>F</kbd> focar</span></div>
-  </aside>
+<aside class="sidebar explorer" id="explorerPanel">
+  <div class="side-head"><div><b>Explorer</b><small id="objectCount">0 objetos</small></div><div><button data-add="Part">＋</button><button id="collapseBtn">⌄</button></div></div>
+  <div class="tree-search"><input id="treeSearch" placeholder="⌕ Filtrar objetos"></div>
+  <div id="tree" class="tree"></div>
+  <div class="shortcuts"><b>ATALHOS</b><span><kbd>W</kbd> mover <kbd>E</kbd> girar <kbd>R</kbd> escala</span><span><kbd>Ctrl/⌘ D</kbd> duplicar <kbd>DEL</kbd> apagar</span><span><kbd>Ctrl/⌘ Z</kbd> desfazer <kbd>F</kbd> focar</span><span><kbd>Ctrl/⌘ S</kbd> salvar <kbd>P</kbd> publicar</span></div>
+</aside>
 
-  <main class="viewport">
-    <div id="canvas"></div>
-    <div class="viewport-tools">
-      <button id="homeView" title="Vista inicial">⌂</button><button id="topView" title="Vista superior">Top</button><button id="frontView" title="Vista frontal">Front</button>
-    </div>
-    <div class="hud"><span>Perspective</span><span id="gridHud">Grid 1 stud</span><span>WebGL</span></div>
-    <div class="crosshair">＋</div>
-    <div class="hint">MMB/RMB orbitar • roda zoom • clique seleciona • Shift = orbitar</div>
-    <div id="playBadge" class="play-badge">● PLAY MODE</div>
-    <div id="selectionInfo" class="selection-info">Nenhum objeto selecionado</div>
-  </main>
+<main class="viewport" id="viewport">
+  <div id="canvas"></div>
+  <div class="viewport-top">
+    <div class="hud"><span>Perspective</span><span id="gridHud">Grid 1 stud</span><span id="engineHud">WebGL</span></div>
+    <div class="view-actions"><button id="homeView">⌂</button><button id="topView">Top</button><button id="frontView">Front</button><button id="rightView">Right</button></div>
+  </div>
+  <div class="crosshair">＋</div>
+  <div class="hint">Arraste • MMB/RMB orbitar • roda zoom • Shift orbitar</div>
+  <div id="playBadge" class="play-badge">● PLAY MODE</div>
+  <div id="selectionInfo" class="selection-info">Nenhum objeto selecionado</div>
+  <div class="mobile-fab"><button id="inspectorToggle">☷</button></div>
+</main>
 
-  <aside class="sidebar inspector">
-    <div class="tabs"><button class="tab active" data-panel="properties">Properties</button><button class="tab" data-panel="toolbox">Toolbox</button></div>
-    <div id="panel"></div>
-  </aside>
+<aside class="sidebar inspector" id="inspectorPanel">
+  <div class="tabs"><button class="tab active" data-panel="properties">Properties</button><button class="tab" data-panel="toolbox">Toolbox</button></div>
+  <div id="panel"></div>
+</aside>
 </section>
 
-<footer><span>STUDIO LITE <b>v2.0</b></span><span>● <span id="footerStatus">Ready</span></span><span>HTML • CSS • JavaScript • Three.js</span></footer>
+<footer><span>STUDIO LITE <b>v3.0 PRO</b></span><span>● <span id="footerStatus">Ready</span></span><span id="deviceInfo">HTML • CSS • JS • THREE.JS</span></footer>
 </div>
-
 <input id="fileInput" type="file" accept=".rbxl,.rbxlx,.json" hidden>
 <div id="toastRoot"></div><div id="modalRoot"></div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.min.js"></script>
