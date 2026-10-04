@@ -179,4 +179,75 @@ function proExportXML(){
 }
 exportXML=proExportXML;
 
+
+/* ===== FINAL STUDIO FIXES ===== */
+function studioToolbox(){
+  const p=$("#panel");
+  p.innerHTML='<div class="panel"><input id="assetSearch" class="search" placeholder="⌕ Pesquisar instâncias, serviços ou classes"><div id="assetList"></div></div>';
+  const root=p.querySelector(".panel"), list=$("#assetList");
+  const groups=[
+    ["BASIC",ROBLOX_TYPES.filter(x=>["Part","MeshPart","UnionOperation","SpawnLocation","Seat","VehicleSeat","TrussPart","WedgePart","CornerWedgePart","Sphere","Cylinder","Model","Folder","Tool"].includes(x[0]))],
+    ["SCRIPTS",ROBLOX_TYPES.filter(x=>["Script","LocalScript","ModuleScript"].includes(x[0]))],
+    ["NETWORK",ROBLOX_TYPES.filter(x=>["RemoteEvent","RemoteFunction","BindableEvent","BindableFunction"].includes(x[0]))],
+    ["VALUES",ROBLOX_TYPES.filter(x=>x[0].endsWith("Value"))],
+    ["UI / VISUAL",ROBLOX_TYPES.filter(x=>["Decal","Texture","SurfaceGui","BillboardGui","Highlight","Camera","Attachment"].includes(x[0]))],
+    ["LIGHTING / FX",ROBLOX_TYPES.filter(x=>["PointLight","SpotLight","SurfaceLight","ParticleEmitter","Beam","Trail","Sky","Atmosphere","ColorCorrectionEffect","BloomEffect","BlurEffect","SunRaysEffect","DepthOfFieldEffect"].includes(x[0]))],
+    ["INTERACTION",ROBLOX_TYPES.filter(x=>["ProximityPrompt","ClickDetector"].includes(x[0]))],
+    ["TERRAIN",ROBLOX_TYPES.filter(x=>x[0]==="Terrain")]
+  ];
+  const serviceGroup=document.createElement("div");
+  serviceGroup.innerHTML='<div class="section-title">SERVICES</div>';
+  ROBLOX_SERVICES.forEach(([name,,desc])=>{
+    const b=document.createElement("button");b.className="asset";b.dataset.search=(name+" "+desc).toLowerCase();
+    b.innerHTML='<span class="asset-icon">◆</span><span><b>'+esc(name)+'</b><small>'+esc(desc)+'</small></span><strong>→</strong>';
+    b.onclick=()=>{const n=S.nodes.find(x=>x.service&&x.name===name);if(n){proSelect(n.id);S.panel="properties";render()}};
+    serviceGroup.appendChild(b);
+  });
+  list.appendChild(serviceGroup);
+  groups.forEach(([title,items])=>{
+    const box=document.createElement("div");box.dataset.group=title.toLowerCase();
+    box.innerHTML='<div class="section-title">'+title+'</div>';
+    items.forEach(([type,desc])=>{
+      const b=document.createElement("button");b.className="asset";b.dataset.search=(type+" "+desc).toLowerCase();
+      b.innerHTML='<span class="asset-icon">◇</span><span><b>'+esc(type)+'</b><small>'+esc(desc)+'</small></span><strong>＋</strong>';
+      b.onclick=()=>addRobloxObject(type);box.appendChild(b);
+    });
+    list.appendChild(box);
+  });
+  const input=$("#assetSearch");
+  input.oninput=()=>{
+    const q=input.value.toLowerCase().trim();
+    $("#assetList .asset").forEach(b=>b.style.display=(!q||b.dataset.search.includes(q))?"flex":"none");
+    $("#assetList [data-group]").forEach(g=>g.style.display=(!q||[...g.querySelectorAll(".asset")].some(b=>b.style.display!=="none"))?"block":"none");
+  };
+}
+const _panelStudioFinal=panel;
+panel=function(){
+  if(S.panel==="toolbox"){studioToolbox();return}
+  _panelStudioFinal();
+  const n=cur();
+  if(n&&["Script","LocalScript","ModuleScript"].includes(n.type)){
+    const root=$("#panel .panel");if(root&&!root.querySelector("#openAnyScript")){
+      const b=document.createElement("button");b.id="openAnyScript";b.className="wide primary";b.textContent="Abrir Script Editor";b.onclick=()=>openScript(n.id);root.appendChild(b);
+    }
+  }
+};
+
+function studioFixInit(){
+  try{
+    if(renderer){
+      renderer.setClearColor(0x9bb7cf,1);
+      scene.background=new THREE.Color(0x9bb7cf);
+      const hemi=scene.children.find(x=>x.isHemisphereLight);if(hemi)hemi.intensity=1.35;
+      if(!scene.getObjectByName("__studio_ground")){
+        const g=new THREE.Mesh(new THREE.PlaneGeometry(500,500),new THREE.MeshStandardMaterial({color:0x5c6670,roughness:.95}));
+        g.name="__studio_ground";g.rotation.x=-Math.PI/2;g.position.y=-.52;scene.add(g);
+      }
+    }
+  }catch(e){console.warn(e)}
+}
+studioFixInit();
+render();
+save(false);
+
 })();
