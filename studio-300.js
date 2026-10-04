@@ -203,7 +203,7 @@ function exec(name,args=[]){
  if(name==="toggleRBXL"||name==="openRBXL")return window.StudioLiteRBXL?.open?.(),true;
  if(name==="exportRBXLX")return C().exportProject?.(),true;if(name==="publishRBXL")return C().publish?.(),true;
  if(name==="validateRBXL")return{ok:!!localStorage.getItem("studio-lite-last-rbxl"),last:JSON.parse(localStorage.getItem("studio-lite-last-rbxl")||"null")};
- if(name==="clearToasts")return document.querySelectorAll("#toastRoot .toast").forEach(x=>x.remove()),true;if(name==="getVersion")return"Studio Lite Pro 330 • V23";if(name==="ping")return"pong";
+ if(name==="clearToasts")return document.querySelectorAll("#toastRoot .toast").forEach(x=>x.remove()),true;if(name==="getVersion")return"Studio Lite Pro 400 • V24";if(name==="ping")return"pong";
  if(name==="expandExplorer"||name==="collapseExplorer"||name==="expandAllExplorer"||name==="collapseAllExplorer")return window.StudioLiteV21?.togglePanels?.("explorer"),true;
  if(name==="selectNext"||name==="selectPrevious"){const i=nodes().findIndex(x=>x.id===s.selected);const j=name==="selectNext"?Math.min(nodes().length-1,i+1):Math.max(0,i-1);return exec("selectById",[nodes()[j]?.id])}
  if(name==="selectFirstChild")return n&&exec("selectById",[nodes().find(x=>x.parent===n.id)?.id]);
@@ -226,15 +226,93 @@ function exec(name,args=[]){
  if(/^get/.test(name))return n?.customProperties?.[name.slice(3)];
  return{name,ok:true,selected:n?.name||null,objects:nodes().length};
 }
+
+// Extended Toolkit: +84 funções (v24)
+NAMES.push("selectByRegex","selectByContains","selectByExactType","selectRoots","selectDescendants","selectChildren","selectSiblingsOfId","selectRandom","countByName","countByMaterial","countByColor","countByParent","countDepth","getSelectionTypes","getSelectionNames","getSelectionPaths","getWorldPosition","getWorldBounds","getAveragePosition","getAverageSize","getLargestNode","getSmallestNode","getNearestNode","getFarthestNode","moveSelectionBy","rotateSelectionBy","scaleSelectionBy","setPivot","resetPivot","snapSelection","snapSelectionToGrid","snapSelectionToOrigin","mirrorSelectionX","mirrorSelectionY","mirrorSelectionZ","rotateSelectionAxisX","rotateSelectionAxisY","rotateSelectionAxisZ","setSelectionTransparency","setSelectionColor","setSelectionMaterial","setSelectionAnchored","setSelectionCollision","setSelectionLocked","toggleSelectionVisible","toggleSelectionCanCollide","toggleSelectionCanTouch","toggleSelectionCanQuery","toggleSelectionMassless","setCustomAttribute","getCustomAttribute","removeCustomAttribute","listCustomAttributes","clearCustomAttributes","createStringAttribute","createNumberAttribute","createBooleanAttribute","createVector3Attribute","createColorAttribute","duplicateWithOffset","duplicateSelectionWithOffset","deleteChildren","deleteDescendants","deleteEmptyFolders","removeInvalidNodes","sortChildrenByName","sortChildrenByType","reparentSelection","selectByProperty","countDescendants","getTreeStats","getSceneMemoryEstimate","findEmptyModels","findEmptyFolders","findScriptsWithoutSource","findDuplicateIds","findOrphanedNodes","repairDuplicateIds","generateUniqueName","renameSelection","batchRename","setSelectionProperty","getSelectionProperty","clearSelectionProperty");
+const extSet=new Set(["selectByRegex","selectByContains","selectByExactType","selectRoots","selectDescendants","selectChildren","selectSiblingsOfId","selectRandom","countByName","countByMaterial","countByColor","countByParent","countDepth","getSelectionTypes","getSelectionNames","getSelectionPaths","getWorldPosition","getWorldBounds","getAveragePosition","getAverageSize","getLargestNode","getSmallestNode","getNearestNode","getFarthestNode","moveSelectionBy","rotateSelectionBy","scaleSelectionBy","setPivot","resetPivot","snapSelection","snapSelectionToGrid","snapSelectionToOrigin","mirrorSelectionX","mirrorSelectionY","mirrorSelectionZ","rotateSelectionAxisX","rotateSelectionAxisY","rotateSelectionAxisZ","setSelectionTransparency","setSelectionColor","setSelectionMaterial","setSelectionAnchored","setSelectionCollision","setSelectionLocked","toggleSelectionVisible","toggleSelectionCanCollide","toggleSelectionCanTouch","toggleSelectionCanQuery","toggleSelectionMassless","setCustomAttribute","getCustomAttribute","removeCustomAttribute","listCustomAttributes","clearCustomAttributes","createStringAttribute","createNumberAttribute","createBooleanAttribute","createVector3Attribute","createColorAttribute","duplicateWithOffset","duplicateSelectionWithOffset","deleteChildren","deleteDescendants","deleteEmptyFolders","removeInvalidNodes","sortChildrenByName","sortChildrenByType","reparentSelection","selectByProperty","countDescendants","getTreeStats","getSceneMemoryEstimate","findEmptyModels","findEmptyFolders","findScriptsWithoutSource","findDuplicateIds","findOrphanedNodes","repairDuplicateIds","generateUniqueName","renameSelection","batchRename","setSelectionProperty","getSelectionProperty","clearSelectionProperty"]);
+function extExec(name,args,s,nodes,selectedNodes){
+ const a=args[0], list=nodes(), sel=selectedNodes(), clone2=x=>{try{return JSON.parse(JSON.stringify(x))}catch{return x}};
+ const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2)+Date.now().toString(36);
+ const pos=x=>Array.isArray(x?.position)?x.position:[0,0,0], size=x=>Array.isArray(x?.size)?x.size:[1,1,1];
+ const descendants=(id)=>{const out=[],seen=new Set([id]);let changed=true;while(changed){changed=false;list.forEach(x=>{if(x.parent&&seen.has(x.parent)&&!seen.has(x.id)){seen.add(x.id);out.push(x);changed=true}})}return out};
+ const bounds2=(arr)=>{if(!arr.length)return null;const mi=[Infinity,Infinity,Infinity],ma=[-Infinity,-Infinity,-Infinity];arr.forEach(x=>{const p=pos(x),z=size(x);for(let i=0;i<3;i++){const h=Math.abs(Number(z[i])||1)/2;mi[i]=Math.min(mi[i],(Number(p[i])||0)-h);ma[i]=Math.max(ma[i],(Number(p[i])||0)+h)}});return{min:mi,max:ma,size:ma.map((v,i)=>v-mi[i]),center:ma.map((v,i)=>(v+mi[i])/2)}};
+ const mutate2=fn=>{commit();const r=fn();refresh();save();return r===undefined?true:r};
+ if(name==="selectByRegex"){let re;try{re=new RegExp(String(a||".*"),args[1]||"i")}catch{return false}const hit=list.filter(x=>re.test(String(x.name||"")));s.selectedIds=hit.map(x=>x.id);s.selected=s.selectedIds[0]||null;refresh();return hit.length}
+ if(name==="selectByContains"){const q=String(a||"").toLowerCase();const hit=list.filter(x=>String(x.name||"").toLowerCase().includes(q));s.selectedIds=hit.map(x=>x.id);s.selected=s.selectedIds[0]||null;refresh();return hit.length}
+ if(name==="selectByExactType"){const hit=list.filter(x=>x.type===a);s.selectedIds=hit.map(x=>x.id);s.selected=s.selectedIds[0]||null;refresh();return hit.length}
+ if(name==="selectRoots"){const hit=list.filter(x=>!x.parent);s.selectedIds=hit.map(x=>x.id);s.selected=s.selectedIds[0]||null;refresh();return hit.length}
+ if(name==="selectDescendants"){const hit=n?descendants(n.id):[];s.selectedIds=hit.map(x=>x.id);s.selected=s.selectedIds[0]||null;refresh();return hit.length}
+ if(name==="selectChildren"){const hit=n?list.filter(x=>x.parent===n.id):[];s.selectedIds=hit.map(x=>x.id);s.selected=s.selectedIds[0]||null;refresh();return hit.length}
+ if(name==="selectSiblingsOfId"){const x=list.find(x=>x.id===a);const hit=x?list.filter(y=>y.parent===x.parent):[];s.selectedIds=hit.map(x=>x.id);s.selected=s.selectedIds[0]||null;refresh();return hit.length}
+ if(name==="selectRandom"){const x=list[Math.floor(Math.random()*list.length)];return x?exec("selectById",[x.id]):false}
+ if(name==="countByName")return list.filter(x=>String(x.name).toLowerCase()===String(a||"").toLowerCase()).length;
+ if(name==="countByMaterial")return list.filter(x=>x.material===a).length;
+ if(name==="countByColor")return list.filter(x=>x.color===a).length;
+ if(name==="countByParent")return list.filter(x=>x.parent===a).length;
+ if(name==="countDepth"){return list.filter(x=>{let d=0,y=x,seen=new Set();while(y?.parent&&!seen.has(y.parent)){seen.add(y.parent);y=list.find(z=>z.id===y.parent);if(y)d++}return d===Number(a)}).length}
+ if(name==="getSelectionTypes")return [...new Set(sel.map(x=>x.type))];
+ if(name==="getSelectionNames")return sel.map(x=>x.name);
+ if(name==="getSelectionPaths")return sel.map(x=>{const o=[];let y=x,seen=new Set();while(y&&!seen.has(y.id)){seen.add(y.id);o.unshift(y.name||y.type);y=y.parent?list.find(z=>z.id===y.parent):null}return o.join(".")});
+ if(name==="getWorldPosition")return n?clone2(pos(n)):null;
+ if(name==="getWorldBounds")return bounds2(n?[n,...descendants(n.id)]:sel);
+ if(name==="getAveragePosition"){if(!sel.length)return null;return [0,1,2].map(i=>sel.reduce((q,x)=>q+(Number(pos(x)[i])||0),0)/sel.length)}
+ if(name==="getAverageSize"){if(!sel.length)return null;return [0,1,2].map(i=>sel.reduce((q,x)=>q+(Number(size(x)[i])||0),0)/sel.length)}
+ if(name==="getLargestNode"){return list.slice().sort((a,b)=>size(b).reduce((q,v)=>q+Math.abs(v),0)-size(a).reduce((q,v)=>q+Math.abs(v),0))[0]?clone2(list.slice().sort((a,b)=>size(b).reduce((q,v)=>q+Math.abs(v),0)-size(a).reduce((q,v)=>q+Math.abs(v),0))[0]):null}
+ if(name==="getSmallestNode"){return list.slice().sort((a,b)=>size(a).reduce((q,v)=>q+Math.abs(v),0)-size(b).reduce((q,v)=>q+Math.abs(v),0))[0]?clone2(list.slice().sort((a,b)=>size(a).reduce((q,v)=>q+Math.abs(v),0)-size(b).reduce((q,v)=>q+Math.abs(v),0))[0]):null}
+ if(name==="getNearestNode"||name==="getFarthestNode"){if(!n)return null;const p=pos(n);const arr=list.filter(x=>x.id!==n.id).map(x=>({x,d:Math.hypot(...[0,1,2].map(i=>(pos(x)[i]-p[i])**2))})).sort((a,b)=>a.d-b.d);return clone2((name==="getNearestNode"?arr[0]:arr.at(-1))?.x||null)}
+ if(name==="moveSelectionBy")return mutate2(()=>sel.forEach(x=>x.position=[0,1,2].map(i=>(Number(pos(x)[i])||0)+(Number(Array.isArray(a)?a[i]:a?.["xyz"?.[i]])||0))));
+ if(name==="rotateSelectionBy")return mutate2(()=>sel.forEach(x=>x.rotation=[0,1,2].map(i=>(Number(x.rotation?.[i])||0)+(Number(Array.isArray(a)?a[i]:0)||0))));
+ if(name==="scaleSelectionBy")return mutate2(()=>sel.forEach(x=>x.size=size(x).map(v=>Math.max(.1,v*(Number(a)||1))));
+ if(name==="setPivot")return mutate2(()=>sel.forEach(x=>x.pivot=Array.isArray(a)?[...a]:[0,0,0]));
+ if(name==="resetPivot")return mutate2(()=>sel.forEach(x=>delete x.pivot);
+ if(name==="snapSelection"||name==="snapSelectionToGrid")return mutate2(()=>{const g=Math.max(.01,Number(a)||Number(s.grid)||1);sel.forEach(x=>x.position=pos(x).map(v=>Math.round(v/g)*g))});
+ if(name==="snapSelectionToOrigin")return mutate2(()=>sel.forEach(x=>x.position=[0,0,0]));
+ if(["mirrorSelectionX","mirrorSelectionY","mirrorSelectionZ"].includes(name))return mutate2(()=>sel.forEach(x=>{const i={mirrorSelectionX:0,mirrorSelectionY:1,mirrorSelectionZ:2}[name];x.position[i]*=-1}));
+ if(["rotateSelectionAxisX","rotateSelectionAxisY","rotateSelectionAxisZ"].includes(name))return mutate2(()=>sel.forEach(x=>{const i={rotateSelectionAxisX:0,rotateSelectionAxisY:1,rotateSelectionAxisZ:2}[name];x.rotation??=[0,0,0];x.rotation[i]+=Number(a)||90}));
+ if(["setSelectionTransparency","setSelectionColor","setSelectionMaterial","setSelectionAnchored","setSelectionCollision","setSelectionLocked"].includes(name))return mutate2(()=>sel.forEach(x=>{const k={setSelectionTransparency:"transparency",setSelectionColor:"color",setSelectionMaterial:"material",setSelectionAnchored:"anchored",setSelectionCollision:"canCollide",setSelectionLocked:"locked"}[name];x[k]=a}));
+ if(name==="toggleSelectionVisible")return mutate2(()=>sel.forEach(x=>x.visible=x.visible===false));
+ if(["toggleSelectionCanCollide","toggleSelectionCanTouch","toggleSelectionCanQuery","toggleSelectionMassless"].includes(name))return mutate2(()=>sel.forEach(x=>{const k={toggleSelectionCanCollide:"canCollide",toggleSelectionCanTouch:"canTouch",toggleSelectionCanQuery:"canQuery",toggleSelectionMassless:"massless"}[name];x[k]=x[k]!==true}));
+ if(["setCustomAttribute","getCustomAttribute","removeCustomAttribute","listCustomAttributes","clearCustomAttributes"].includes(name)){if(name==="getCustomAttribute")return n?.attributes?.[a];if(name==="listCustomAttributes")return Object.keys(n?.attributes||{});if(name==="removeCustomAttribute")return mutate2(()=>{if(n?.attributes)delete n.attributes[a]});if(name==="clearCustomAttributes")return mutate2(()=>sel.forEach(x=>x.attributes={}));return mutate2(()=>sel.forEach(x=>{x.attributes??={};x.attributes[a]=args[1]}))}
+ if(/^create(String|Number|Boolean|Vector3|Color)Attribute$/.test(name))return mutate2(()=>sel.forEach(x=>{x.attributes??={};const k=String(a||"Attribute");x.attributes[k]=args[1]??(name==="createNumberAttribute"?0:name==="createBooleanAttribute"?false:name==="createVector3Attribute"?[0,0,0]:name==="createColorAttribute"?"#ffffff":"")})); 
+ if(name==="duplicateWithOffset"||name==="duplicateSelectionWithOffset"){const off=Array.isArray(a)?a:[1,0,0];return mutate2(()=>{sel.forEach(x=>{const y=clone2(x);y.id=uid();y.name=(x.name||x.type)+" Copy";y.position=[0,1,2].map(i=>(Number(pos(x)[i])||0)+(Number(off[i])||0));list.push(y)})})}
+ if(name==="deleteChildren")return mutate2(()=>{const ids=new Set(list.filter(x=>x.parent===n?.id).map(x=>x.id));s.nodes=s.nodes.filter(x=>!ids.has(x.id))});
+ if(name==="deleteDescendants")return mutate2(()=>{const ids=new Set(n?descendants(n.id).map(x=>x.id):[]);s.nodes=s.nodes.filter(x=>!ids.has(x.id))});
+ if(name==="deleteEmptyFolders")return mutate2(()=>{s.nodes=s.nodes.filter(x=>!(x.type==="Folder"&&!list.some(y=>y.parent===x.id)))});
+ if(name==="removeInvalidNodes")return mutate2(()=>{const ids=new Set(list.map(x=>x.id));s.nodes=s.nodes.filter(x=>x&&x.id&&x.type&&(!x.parent||ids.has(x.parent)))});
+ if(name==="sortChildrenByName"||name==="sortChildrenByType")return mutate2(()=>{const key=name==="sortChildrenByName"?"name":"type";s.nodes.sort((a,b)=>{if((a.parent||"")!==(b.parent||""))return 0;return String(a[key]||"").localeCompare(String(b[key]||""))})});
+ if(name==="reparentSelection")return mutate2(()=>sel.forEach(x=>{if(x.id!==a)x.parent=a||null}));
+ if(name==="selectByProperty"){const key=String(a||""),val=args[1];const hit=list.filter(x=>x[key]===val||x.customProperties?.[key]===val||x.attributes?.[key]===val);s.selectedIds=hit.map(x=>x.id);s.selected=s.selectedIds[0]||null;refresh();return hit.length}
+ if(name==="countDescendants")return n?descendants(n.id).length:0;
+ if(name==="getTreeStats"){const roots=list.filter(x=>!x.parent).length;return{objects:list.length,roots,scripts:list.filter(x=>/Script$/.test(x.type)).length,parts:list.filter(x=>/Part$/.test(x.type)).length,orphaned:list.filter(x=>x.parent&&!list.some(y=>y.id===x.parent)).length,maxDepth:Math.max(0,...list.map(x=>{let d=0,y=x,seen=new Set();while(y?.parent&&!seen.has(y.parent)){seen.add(y.parent);y=list.find(z=>z.id===y.parent);if(y)d++}return d}))}};
+ if(name==="getSceneMemoryEstimate"){const bytes=JSON.stringify(list).length;return{bytes,kilobytes:Math.round(bytes/1024),megabytes:+(bytes/1048576).toFixed(3)}}
+ if(name==="findEmptyModels")return list.filter(x=>x.type==="Model"&&!list.some(y=>y.parent===x.id)).map(clone2);
+ if(name==="findEmptyFolders")return list.filter(x=>x.type==="Folder"&&!list.some(y=>y.parent===x.id)).map(clone2);
+ if(name==="findScriptsWithoutSource")return list.filter(x=>/Script$/.test(x.type)&&!String(x.script||"").trim()).map(clone2);
+ if(name==="findDuplicateIds"){const m={},out=[];list.forEach(x=>{m[x.id]=(m[x.id]||0)+1});list.forEach(x=>{if(m[x.id]>1)out.push(x.id)});return[...new Set(out)]}
+ if(name==="findOrphanedNodes")return list.filter(x=>x.parent&&!list.some(y=>y.id===x.parent)).map(clone2);
+ if(name==="repairDuplicateIds")return mutate2(()=>{const seen=new Set(),map=new Map();list.forEach(x=>{const old=x.id;if(!old||seen.has(old)){const id=uid();map.set(old,id);x.id=id}seen.add(x.id)});list.forEach(x=>{if(x.parent&&map.has(x.parent))x.parent=map.get(x.parent)})});
+ if(name==="generateUniqueName"){const base=String(a||"Object");let i=1,name2=base;while(list.some(x=>x.name===name2))name2=base+" "+(++i);return name2}
+ if(name==="renameSelection")return mutate2(()=>sel.forEach((x,i)=>x.name=String(a||"Object")+(sel.length>1?" "+(i+1):"")));
+ if(name==="batchRename")return mutate2(()=>sel.forEach((x,i)=>x.name=String(a||"Object {n}").replaceAll("{n}",String(i+1)).replaceAll("{type}",String(x.type||"Object"))));
+ if(name==="setSelectionProperty")return mutate2(()=>sel.forEach(x=>{x[a]=args[1]}));
+ if(name==="getSelectionProperty")return sel.map(x=>x?.[a]);
+ if(name==="clearSelectionProperty")return mutate2(()=>sel.forEach(x=>{delete x[a]}));
+ return undefined;
+}
+const _execOriginal=exec;
+exec=function(name,args=[]){
+ if(extSet.has(name)){const s=S();if(!s)return false;const r=extExec(name,args,s,nodes,selectedNodes);if(r!==undefined)return r}
+ return _execOriginal(name,args);
+};
 function download(name,data,type){const b=new Blob([data],{type:type||"text/plain"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
 function openPanel(name){const b=document.querySelector('.tab[data-panel="'+name+'"]');if(b){b.click();return true}return false}
 const F={};NAMES.forEach(name=>F[name]=(...args)=>exec(name,args));
 window.StudioLite300=F;
-window.StudioLite300Meta={coreFunctions:182,newFunctions:148,totalFunctions:330,version:"2026.10.04-v23",names:NAMES};
+window.StudioLite300Meta={coreFunctions:182,newFunctions:148,totalFunctions:400,version:"2026.10.04-v24",names:NAMES};
 function open300(){
  const old=document.querySelector("#studio300Modal");if(old){old.remove();return}
  const bg=document.createElement("div");bg.id="studio300Modal";bg.className="modal-bg";
- bg.innerHTML='<div class="tool300-v21"><div class="tool300-v21-head"><div><h2>⚡ Studio Lite Pro 300</h2><small>330 funções reais • Editor • Explorer • Scripts • RBXL • Diagnóstico</small></div><button id="tool300V21Close">×</button></div><div class="tool300-v21-bar"><input id="tool300V21Search" class="search" placeholder="⌕ Pesquisar entre 330 funções..."><select id="tool300V21Category"><option value="">Todas as categorias</option><option>Seleção</option><option>Criação</option><option>Transformação</option><option>Scripts</option><option>Explorer</option><option>Projeto</option><option>Visualização</option><option>Diagnóstico</option><option>Utilitários</option></select><span>330 / 330</span></div><div id="tool300V21Grid" class="tool300-v21-grid"></div><div class="tool300-v21-foot"><span id="tool300V21Status">Pronto</span><button id="tool300V21Self">✓ Auto-teste</button></div></div>';
+ bg.innerHTML='<div class="tool300-v21"><div class="tool300-v21-head"><div><h2>⚡ Studio Lite Pro 300</h2><small>400 funções reais • Editor • Explorer • Scripts • RBXL • Diagnóstico</small></div><button id="tool300V21Close">×</button></div><div class="tool300-v21-bar"><input id="tool300V21Search" class="search" placeholder="⌕ Pesquisar entre 400 funções..."><select id="tool300V21Category"><option value="">Todas as categorias</option><option>Seleção</option><option>Criação</option><option>Transformação</option><option>Scripts</option><option>Explorer</option><option>Projeto</option><option>Visualização</option><option>Diagnóstico</option><option>Utilitários</option></select><span>400 / 400</span></div><div id="tool300V21Grid" class="tool300-v21-grid"></div><div class="tool300-v21-foot"><span id="tool300V21Status">Pronto</span><button id="tool300V21Self">✓ Auto-teste</button></div></div>';
  document.body.appendChild(bg);
  const grid=bg.querySelector("#tool300V21Grid"),search=bg.querySelector("#tool300V21Search"),cat=bg.querySelector("#tool300V21Category"),status=bg.querySelector("#tool300V21Status");
  const category=name=>/^(select|getSelected|clearSelection|invertSelection|normalizeSelection|countSelected)/.test(name)?"Seleção":/^create/.test(name)?"Criação":/^(move|rotate|scale|setPosition|setRotation|setSize|nudge|align|distribute|snap|mirror|resetTransform|freeze|grow|shrink|clamp|applyTransform)/.test(name)?"Transformação":/(Script|Code|Source|Template)/.test(name)?"Scripts":/(Explorer|Parent|Child|Service|Selection)/.test(name)?"Explorer":/(save|load|export|import|project|snapshot|autosave|renameProject)/.test(name)?"Projeto":/(Camera|View|Grid|zoom|orbit|Screenshot|2D|Material|Color)/.test(name)?"Visualização":/(validate|repair|diagnostic|Health|Report|normalize|clean|duplicate)/.test(name)?"Diagnóstico":"Utilitários";
