@@ -107,9 +107,19 @@ function normalizeInstanceList(parsed) {
   if (!list.length) return [];
 
   const index = new Map(list.map((instance, index) => [instance, index]));
-  const originalIds = new Map();
+  const refMap = new Map();
+  const idMap = new Map();
   list.forEach((instance, index) => {
-    originalIds.set(instance, String(index));
+    for (const key of ["Referent","referent","Reference","reference","id","ID"]) {
+      const value = descriptorValue(instance?.[key]);
+      if (value != null) refMap.set(String(value), index);
+    }
+    const props = instance?.Properties || instance?.properties || {};
+    for (const key of ["Referent","referent"]) {
+      const value = descriptorValue(props?.[key]);
+      if (value != null) refMap.set(String(value), index);
+    }
+    idMap.set(String(index), index);
   });
 
   return list.map((instance, index) => {
@@ -117,10 +127,13 @@ function normalizeInstanceList(parsed) {
     const rawParent = descriptorValue(properties.Parent ?? instance?.Parent);
     let parent = null;
 
-    if (rawParent && index.has(rawParent)) {
+    if (rawParent && typeof rawParent === "object" && index.has(rawParent)) {
       parent = String(index.get(rawParent));
     } else if (typeof rawParent === "number" && rawParent >= 0 && rawParent < list.length) {
       parent = String(rawParent);
+    } else if (typeof rawParent === "string") {
+      const resolved = refMap.get(rawParent) ?? idMap.get(rawParent);
+      if (resolved != null) parent = String(resolved);
     }
 
     const cleanProperties = {};
