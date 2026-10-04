@@ -53,7 +53,7 @@ function compactState(state){
 // incompatibilidades de runtime que podiam terminar em:
 // "Cannot read properties of undefined (reading 'buffer')".
 const PARSER_URLS=[
-  "/api/roblox/rbx-parser?v=20261004-v24",
+  "/api/roblox/rbx-parser?v=20261004-v25",
   "https://cdn.jsdelivr.net/gh/MrSprinkleToes/rbxBinaryParser@6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js",
   "https://raw.githubusercontent.com/MrSprinkleToes/rbxBinaryParser/6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js"
 ];
