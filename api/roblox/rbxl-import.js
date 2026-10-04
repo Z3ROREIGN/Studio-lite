@@ -1,4 +1,4 @@
-import reader from "rbx-reader";
+import { parseBuffer } from "rbx-reader";
 
 export const config = { api: { bodyParser: false } };
 
@@ -46,7 +46,7 @@ export default async function handler(req,res){
     if(!body.length)return res.status(400).json({error:"Arquivo vazio"});
     if(body.length>80*1024*1024)return res.status(413).json({error:"Arquivo RBXL muito grande (limite 80 MB)."});
     const ab=body.buffer.slice(body.byteOffset,body.byteOffset+body.byteLength);
-    const parsed=reader.parseBuffer(ab);
+    const parsed=parseBuffer(ab);
     const list=Array.isArray(parsed?.instances)?parsed.instances:[];
     const map=new Map(list.map((x,i)=>[x,i]));
     const instances=list.map(x=>plain(x,map));
