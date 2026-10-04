@@ -17,6 +17,7 @@ function openDB(){return new Promise((ok,no)=>{if(!indexedDB)return no(Error("In
 async function putState(state){const db=await openDB();return new Promise((ok,no)=>{const tx=db.transaction(TABLE,"readwrite");tx.objectStore(TABLE).put(state,KEY);tx.oncomplete=()=>{db.close();ok()};tx.onerror=()=>{db.close();no(tx.error)}})}
 function getProp(p,n){if(!p)return undefined;const v=p[n];if(v&&typeof v==="object"&&"value" in v)return v.value;return v}
 function rgb(v){if(Array.isArray(v)&&v.length>=3){return "#"+v.slice(0,3).map(x=>Math.max(0,Math.min(255,Math.round(num(x)*255))).toString(16).padStart(2,"0")).join("")}if(v&&typeof v==="object"&&["r","g","b"].every(k=>k in v))return rgb([v.r,v.g,v.b]);if(typeof v==="number"){const n=v>>>0;return "#"+((n>>16)&255).toString(16).padStart(2,"0")+((n>>8)&255).toString(16).padStart(2,"0")+(n&255).toString(16).padStart(2,"0")}return null}
+function compactProperty(v,depth=0){if(depth>3)return null;if(v==null||typeof v==="string"||typeof v==="boolean"||typeof v==="number")return typeof v==="string"&&v.length>200000?v.slice(0,200000)+"…":v;if(Array.isArray(v))return v.length>5000?v.slice(0,5000):v.map(x=>compactProperty(x,depth+1));if(typeof v==="object"){const o={};for(const [k,x] of Object.entries(v)){if(k==="Parent"||k==="Children")continue;o[k]=compactProperty(x,depth+1)}return o}return String(v)}
 function makeNode(type,p,parent=null,id=null){
  p=p||{};const n={id:id??uid(),name:String(getProp(p,"Name")??type),type:String(type||"Part"),
   position:vec(getProp(p,"Position")),rotation:[0,0,0],size:vec(getProp(p,"Size"),[1,1,1]),
@@ -28,7 +29,7 @@ function makeNode(type,p,parent=null,id=null){
  const shape=String(getProp(p,"Shape")??"").toLowerCase();if(shape==="ball")n.shape="sphere";else if(shape==="cylinder")n.shape="cylinder";
  const src=getProp(p,"Source");if(typeof src==="string"){n.script=src;n.language="luau"}
  const attrs=getProp(p,"Attributes");if(attrs&&typeof attrs==="object")n.customProperties={Attributes:clone(attrs)};
- n.rbxProperties=clone(p);
+ n.rbxProperties=Object.fromEntries(Object.entries(p).filter(([k])=>k!=="Parent"&&k!=="Children").map(([k,v])=>[k,compactProperty(v)]));
  return n;
 }
 function parseXML(text){
@@ -71,17 +72,62 @@ function parseBinaryServerInstances(list){
    return n;
  });
 }
+function normalizeClientInstance(inst,i,all,objectIds){
+ const raw=inst?.properties||inst?.Properties||inst?.props||{};
+ const props={};
+ for(const [key,val] of Object.entries(raw||{})){
+   if(key==="Parent"||key==="Children")continue;
+   props[key]=val&&typeof val==="object"&&"value" in val?val.value:val;
+ }
+ const className=String(inst?.className||inst?.ClassName||inst?.class||"Folder");
+ const ref=inst?.id??inst?.referent??i;
+ const n=makeNode(className,props,null,"rbx-"+i);
+ n.rbxOriginalId=String(ref);
+ all.push(n);
+ objectIds.set(inst,i);
+ return n;
+}
+function convertClientInstances(instances){
+ if(!Array.isArray(instances)||!instances.length)throw Error("O parser do navegador não encontrou instâncias.");
+ const all=[],objectIds=new Map();
+ instances.forEach((inst,i)=>normalizeClientInstance(inst,i,all,objectIds));
+ all.forEach((n,i)=>{
+   const inst=instances[i],raw=inst?.properties||inst?.Properties||inst?.props||{};
+   const pv=raw?.Parent&&typeof raw.Parent==="object"&&"value" in raw.Parent?raw.Parent.value:raw?.Parent;
+   if(pv!=null){
+     const idx=objectIds.get(pv);
+     if(idx!=null)n.parent="rbx-"+idx;
+     else if(typeof pv==="string"){
+       const byRef=instances.findIndex(x=>String(x?.id??x?.referent??"")===pv);
+       if(byRef>=0)n.parent="rbx-"+byRef;
+     }
+   }
+ });
+ const valid=new Set(all.map(n=>n.id));
+ all.forEach(n=>{if(n.parent&&!valid.has(n.parent))n.parent=null});
+ return all;
+}
 async function parseBinary(file){
  const buf=await file.arrayBuffer();
- let response;
- try{response=await fetch("/api/roblox/rbxl-import",{method:"POST",headers:{"Content-Type":"application/octet-stream","X-RBXL-Filename":file.name},body:buf})}
- catch(e){throw Error("Não foi possível conectar ao importador do servidor.")}
- let data=null;try{data=await response.json()}catch{}
- if(!response.ok||!data?.ok)throw Error(data?.error||("Importador respondeu HTTP "+response.status));
- const nodes=parseBinaryServerInstances(data.instances);
- const valid=new Set(nodes.map(n=>n.id));
- nodes.forEach(n=>{if(n.parent&&!valid.has(n.parent))n.parent=null});
- return nodes;
+ let lastError=null;
+ try{
+   statusText("Processando o RBXL no seu navegador…");
+   const mod=await import("https://cdn.jsdelivr.net/npm/rbx-reader-rts@1.0.8/+esm");
+   const parse=mod.parseRBX||mod.default?.parseRBX;
+   if(typeof parse!=="function")throw Error("Parser de navegador indisponível.");
+   const result=parse(buf);
+   return convertClientInstances(result?.instances||result);
+ }catch(e){lastError=e}
+ if(file.size<=4*1024*1024){
+   try{
+     statusText("Parser local indisponível; usando fallback do servidor…");
+     const response=await fetch("/api/roblox/rbxl-import",{method:"POST",headers:{"Content-Type":"application/octet-stream","X-RBXL-Filename":file.name},body:buf});
+     let data=null;try{data=await response.json()}catch{}
+     if(!response.ok||!data?.ok)throw Error(data?.error||("Importador respondeu HTTP "+response.status));
+     return parseBinaryServerInstances(data.instances);
+   }catch(e){lastError=e}
+ }
+ throw Error(lastError?.message||"Não foi possível processar este arquivo RBXL no navegador.");
 }
 function detect(bytes,ext){
  const h=new TextDecoder("utf-8").decode(bytes.slice(0,300)).replace(/^\uFEFF/,"").trimStart();
@@ -92,7 +138,7 @@ async function parseFile(file){
  const ext=(file.name.split(".").pop()||"").toLowerCase();
  if(!["rbxl","rbxm","rbxlx","rbxmx"].includes(ext))throw Error("Use .rbxl, .rbxm, .rbxlx ou .rbxmx.");
  if(file.size<16)throw Error("O arquivo está vazio ou incompleto.");
- if(file.size>80*1024*1024)throw Error("Limite de 80 MB excedido.");
+ if(file.size>250*1024*1024)throw Error("Limite de 250 MB excedido.");
  const buf=new Uint8Array(await file.arrayBuffer());
  if(detect(buf,ext))return parseXML(new TextDecoder("utf-8").decode(buf));
  return parseBinary(file);
