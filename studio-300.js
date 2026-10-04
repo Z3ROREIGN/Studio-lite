@@ -53,7 +53,7 @@ function exec(name,args=[]){
  if(name==="getProjectName")return s.project||"";if(name==="setProjectName")return(s.project=String(a||"Meu Primeiro Jogo"),C().save?.(false),refresh(),s.project);
  if(name==="getGrid")return Number(s.grid)||1;if(name==="setGrid")return(s.grid=Math.max(.01,Number(a)||1),refresh(),s.grid);
  if(name==="toggleSnap")return(s.snap=!s.snap,save(),refresh(),s.snap);if(name==="isSnapEnabled")return s.snap!==false;
- if(name==="toggleOutline")return(s.settings??={},s.settings.outline=s.settings.outline===false,true,refresh(),s.settings.outline);
+ if(name==="toggleOutline")return(s.settings??={},s.settings.outline=!((s.settings&&s.settings.outline)===true),refresh(),s.settings.outline);
  if(name==="isOutlineEnabled")return s.settings?.outline!==false;if(name==="getSettings")return clone(s.settings||{});
  if(name==="setSetting")return(s.settings??={},s.settings[a]=args[1],save(),args[1]);if(name==="resetSettings")return(s.settings={theme:"dark",outline:true,autosave:true},save(),refresh(),true);
  if(name==="saveProject")return C().save?.(true),true;
@@ -114,7 +114,7 @@ function exec(name,args=[]){
  if(["setMultiPosition","setMultiRotation","setMultiSize"].includes(name))return false;
  if(["setMassless","setCastShadow","setCanQuery","setCanTouch","setArchivable","setRoughness","setReflectance","setMetalness"].includes(name))return mutate(()=>selectedNodes().forEach(x=>{x.customProperties??={};x.customProperties[name]=a??true}));
  if(["setGlassTransparency"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.transparency=Math.max(.05,Math.min(1,Number(a) || .35)));
- if(["growSelection","shrinkSelection","scaleUniform"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.size=x.size.map(v=>Math.max(.1,v*(name==="shrinkSelection"?.9:Number(a)||1.1)))));
+ if(["growSelection","shrinkSelection","scaleUniform"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.size=x.size.map(v=>Math.max(.1,v*(name==="shrinkSelection"?0.9:(Number(a)||1.1))))));
  if(["mirrorX","mirrorY","mirrorZ"].includes(name))return mutate(()=>selectedNodes().forEach(x=>{const k={mirrorX:0,mirrorY:1,mirrorZ:2}[name];x.position[k]*=-1;x.rotation[k]*=-1}));
  if(["rotate90","rotate180","rotate270"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.rotation[1]+={rotate90:90,rotate180:180,rotate270:270}[name]));
  if(["clampPosition","clampRotation","clampSize"].includes(name))return mutate(()=>selectedNodes().forEach(x=>{const k=name==="clampPosition"?"position":name==="clampRotation"?"rotation":"size";x[k]=x[k].map(v=>name==="clampSize"?Math.max(.1,Math.min(100,Number(v)||1)):Math.max(-10000,Math.min(10000,Number(v)||0)))}));
