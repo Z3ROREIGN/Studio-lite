@@ -29,8 +29,6 @@ export default async function handler(req,res){
     const body=await readBody(req);
     if(!body.length)return res.status(400).json({ok:false,error:"Arquivo vazio"});
     if(body.length>80*1024*1024)return res.status(413).json({ok:false,error:"Arquivo maior que 80 MB"});
-    // rbx-reader 1.5.x recebe ArrayBuffer, não Node Buffer.
-    // Passar Buffer diretamente pode quebrar o ByteReader e resultar em HTTP 500.
     const arrayBuffer=body.buffer.slice(body.byteOffset,body.byteOffset+body.byteLength);
     const header=body.subarray(0,16);
     const expected=[0x3C,0x72,0x6F,0x62,0x6C,0x6F,0x78,0x21,0x89,0xFF,0x0D,0x0A,0x1A,0x0A,0x00,0x00];
@@ -38,9 +36,12 @@ export default async function handler(req,res){
     // Use a entrada pública do pacote. O subpath dist/BinaryParser.js não é
     // garantido pelo empacotamento ESM/serverless da Vercel.
     const reader=RBXReader?.default||RBXReader;
-    const parse=reader?.parseBuffer||reader?.parse;
-    if(typeof parse!=="function")throw Error("O rbx-reader não expôs parseBuffer/parse no runtime.");
-    const parsed=await Promise.resolve(parse.call(reader,Buffer.from(body)));
+    const parseBuffer=reader?.parseBuffer;
+    const parse=reader?.parse;
+    if(typeof parseBuffer!=="function"&&typeof parse!=="function")throw Error("O rbx-reader não expôs parseBuffer/parse no runtime.");
+    const parsed=typeof parseBuffer==="function"
+      ? await Promise.resolve(parseBuffer.call(reader,body))
+      : await Promise.resolve(parse.call(reader,arrayBuffer));
     const list=Array.isArray(parsed?.instances)?parsed.instances:[];
     if(!list.length)return res.status(422).json({ok:false,error:"O parser não encontrou instâncias no RBXL."});
     const index=new Map(list.map((x,i)=>[x,i]));
