@@ -1,4 +1,4 @@
-import BinaryParser from "rbx-reader/dist/BinaryParser.js";
+import RBXReader from "rbx-reader";
 
 export const config = { api: { bodyParser: false }, maxDuration: 60 };
 
@@ -35,9 +35,12 @@ export default async function handler(req,res){
     const header=body.subarray(0,16);
     const expected=[0x3C,0x72,0x6F,0x62,0x6C,0x6F,0x78,0x21,0x89,0xFF,0x0D,0x0A,0x1A,0x0A,0x00,0x00];
     if(header.length<expected.length||!expected.every((v,i)=>header[i]===v))throw Error("Arquivo não é um RBXL/RBXM binário válido.");
-    const parse=BinaryParser?.parse;
-    if(typeof parse!=="function")throw Error("O BinaryParser do rbx-reader não foi carregado no runtime.");
-    const parsed=await Promise.resolve(parse.call(BinaryParser,arrayBuffer));
+    // Use a entrada pública do pacote. O subpath dist/BinaryParser.js não é
+    // garantido pelo empacotamento ESM/serverless da Vercel.
+    const reader=RBXReader?.default||RBXReader;
+    const parse=reader?.parseBuffer||reader?.parse;
+    if(typeof parse!=="function")throw Error("O rbx-reader não expôs parseBuffer/parse no runtime.");
+    const parsed=await Promise.resolve(parse.call(reader,Buffer.from(body)));
     const list=Array.isArray(parsed?.instances)?parsed.instances:[];
     if(!list.length)return res.status(422).json({ok:false,error:"O parser não encontrou instâncias no RBXL."});
     const index=new Map(list.map((x,i)=>[x,i]));
