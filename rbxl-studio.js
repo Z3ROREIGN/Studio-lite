@@ -53,13 +53,75 @@ function compactState(state){
 // incompatibilidades de runtime que podiam terminar em:
 // "Cannot read properties of undefined (reading 'buffer')".
 const PARSER_URLS=[
-  "https://cdn.jsdelivr.net/gh/MrSprinkleToes/rbxBinaryParser@6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js",
+  // Parser moderno: funciona no navegador e aceita ArrayBuffer/Uint8Array.
   "https://cdn.jsdelivr.net/npm/rbx-reader-rts@1.0.8/+esm",
-  "/api/roblox/rbx-parser?v=20261004-v28",
+  // Fallback legado.
+  "https://cdn.jsdelivr.net/gh/MrSprinkleToes/rbxBinaryParser@6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js",
+  "/api/roblox/rbx-parser?v=20261004-v29",
   "https://raw.githubusercontent.com/MrSprinkleToes/rbxBinaryParser/6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js"
 ];
 let parserPromise=null;
-let parserBlobUrl=null;
+
+/*
+ * IMPORTANTE:
+ * O parser antigo exporta decode(), mas algumas versões conseguem carregar
+ * corretamente e só quebram quando decode() recebe um RBXL real. Antes,
+ * escolhíamos esse parser apenas porque decode existia e nunca chegávamos
+ * ao rbx-reader-rts. Agora cada parser é TESTADO com o arquivo real e,
+ * se falhar, o próximo parser é tentado automaticamente.
+ */
+async function loadBinaryParser(){
+  if(parserPromise)return parserPromise;
+  parserPromise=(async()=>{
+    const modules=[];
+    const errors=[];
+    for(const url of PARSER_URLS){
+      try{
+        const m=await import(url);
+        modules.push({url,m});
+      }catch(e){
+        errors.push(url+" → import: "+(e?.message||String(e)));
+      }
+    }
+
+    return async buffer=>{
+      const arrayBuffer=buffer instanceof ArrayBuffer
+        ? buffer
+        : buffer?.buffer instanceof ArrayBuffer
+          ? buffer.buffer.slice(buffer.byteOffset||0,(buffer.byteOffset||0)+(buffer.byteLength||buffer.length||0))
+          : null;
+      if(!arrayBuffer||arrayBuffer.byteLength<16)throw new Error("Buffer RBXL inválido ou incompleto.");
+
+      for(const {url,m} of modules){
+        try{
+          const parseRBX=m?.parseRBX||m?.default?.parseRBX;
+          if(typeof parseRBX==="function"){
+            const result=await parseRBX(arrayBuffer);
+            if(result&&(result.root||Array.isArray(result.instances)||Array.isArray(result))){
+              return {__modern:true,result,parser:url};
+            }
+            throw new Error("parseRBX() não retornou instâncias.");
+          }
+
+          if(typeof m?.decode==="function"){
+            const result=await m.decode(arrayBuffer);
+            if(result&&(result.root||Array.isArray(result.instances)||Array.isArray(result))){
+              return {__modern:false,result,parser:url};
+            }
+            throw new Error("decode() não retornou instâncias.");
+          }
+
+          throw new Error("nenhum decodificador compatível");
+        }catch(e){
+          errors.push(url+" → execução: "+(e?.message||String(e)));
+        }
+      }
+
+      throw new Error("Nenhum parser binário conseguiu ler este RBXL. "+errors.join(" | "));
+    };
+  })().catch(e=>{parserPromise=null;throw e});
+  return parserPromise;
+}
 
 const services=new Set([
  "Workspace","Lighting","Players","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage",
