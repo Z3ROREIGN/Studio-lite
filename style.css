@@ -60,3 +60,33 @@ footer{height:26px;flex:none;background:#080808;border-top:1px solid #1d1d1d;dis
 .studio-back-layer{min-width:78px;height:30px;padding:0 9px;margin-right:auto}
 .modal-head .studio-back-layer + div{margin-left:6px}
 @media(max-width:850px){.back-top{display:inline-flex}.explorer.collapsed{transform:translateX(-101%)}}
+
+/* ===== STUDIO LITE V11 HELP CENTER ===== */
+.studio-help11{width:min(1080px,96vw);height:min(760px,92vh);background:#080808;border:1px solid #2a2a2a;border-radius:16px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 120px #000}
+.help-tabs11{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.help-tabs11 button{border:1px solid #282828;background:#101010;color:#aaa;border-radius:8px;padding:7px 10px;cursor:pointer}
+.help-tabs11 button.active,.help-tabs11 button:hover{color:#fff;background:#191919;border-color:#444}
+.help-body11{overflow:auto;padding:18px;min-height:0}
+.guide-grid11{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.guide-grid11 section{background:#0e0e0e;border:1px solid #222;border-radius:12px;padding:15px}
+.guide-grid11 h3{margin:0 0 8px;font-size:14px}
+.guide-grid11 p{margin:0;color:#a7a7a7;line-height:1.55;font-size:13px}
+.guide-grid11 code{background:#151515;border:1px solid #262626;border-radius:4px;padding:1px 4px}
+.help-note11{margin-top:14px;padding:12px 14px;background:#0c1118;border:1px solid #1e2b3b;border-radius:10px;color:#9aa8b8;font-size:12px;line-height:1.55}
+.health-head11{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}
+.health-head11 b{display:block;font-size:17px}.health-head11 small{color:#777}
+.health-list11{display:grid;gap:6px}
+.health-row11{display:grid;grid-template-columns:28px 1fr 1.3fr;gap:8px;align-items:center;padding:9px 10px;border:1px solid #202020;background:#0d0d0d;border-radius:8px;font-size:12px}
+.health-row11 b{width:20px;height:20px;display:grid;place-items:center;border-radius:50%;background:#161616}
+.health-row11.ok b{color:#86efac}.health-row11.bad b{color:#fca5a5}
+.health-row11 small{color:#777;overflow:hidden;text-overflow:ellipsis}
+#studioHelpBtn11{margin-left:4px}
+@media(max-width:850px){
+ .studio-help11{width:100vw;height:100dvh;border-radius:0;border-left:0;border-right:0}
+ .guide-grid11{grid-template-columns:1fr}
+ .help-tabs11{justify-content:flex-start}
+ .help-tabs11 button{min-height:38px}
+ .help-body11{padding:12px}
+ .health-row11{grid-template-columns:25px 1fr}
+ .health-row11 small{grid-column:2}
+}
