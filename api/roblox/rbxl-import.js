@@ -48,6 +48,7 @@ export default async function handler(req,res){
     const expected=[0x3C,0x72,0x6F,0x62,0x6C,0x6F,0x78,0x21,0x89,0xFF,0x0D,0x0A,0x1A,0x0A,0x00,0x00];
     if(header.length<expected.length||!expected.every((v,i)=>header[i]===v))throw Error("Arquivo não é um RBXL/RBXM binário válido.");
     // Carrega pelo entrypoint CommonJS oficial para evitar incompatibilidade
+    // deploy-trigger: rbxl-import hardening v2026-10-04
     // do bundler ESM da Vercel com o pacote rbx-reader.
     let RBXReader;
     try{
