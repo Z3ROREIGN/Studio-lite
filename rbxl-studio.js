@@ -6,6 +6,47 @@
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
 const STORE="studio-lite-v4";
+const LARGE_DB="StudioLiteProjectsV1";
+const LARGE_STORE="projects";
+const LARGE_KEY="current";
+let largeSaveTimer=null;
+function openLargeDB(){
+  return new Promise((resolve,reject)=>{
+    if(!window.indexedDB){reject(new Error("IndexedDB indisponível"));return}
+    const req=indexedDB.open(LARGE_DB,1);
+    req.onupgradeneeded=()=>{try{if(!req.result.objectStoreNames.contains(LARGE_STORE))req.result.createObjectStore(LARGE_STORE)}catch(e){reject(e)}};
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error||new Error("Falha ao abrir armazenamento"));
+  });
+}
+function idbPutState(state){
+  return openLargeDB().then(db=>new Promise((resolve,reject)=>{
+    const tx=db.transaction(LARGE_STORE,"readwrite");
+    tx.objectStore(LARGE_STORE).put(state,LARGE_KEY);
+    tx.oncomplete=()=>{db.close();resolve(true)};
+    tx.onerror=()=>{db.close();reject(tx.error||new Error("Falha ao salvar projeto"))};
+  }));
+}
+function idbGetState(){
+  return openLargeDB().then(db=>new Promise((resolve,reject)=>{
+    const req=db.transaction(LARGE_STORE,"readonly").objectStore(LARGE_STORE).get(LARGE_KEY);
+    req.onsuccess=()=>{const v=req.result;db.close();resolve(v||null)};
+    req.onerror=()=>{db.close();reject(req.error||new Error("Falha ao ler projeto"))};
+  }));
+}
+function compactNode(n){
+  const x={id:n.id,name:n.name,type:n.type,position:vec3(n.position),rotation:vec3(n.rotation),size:vec3(n.size),
+    color:n.color,material:n.material,shape:n.shape,anchored:n.anchored,canCollide:n.canCollide,
+    transparency:n.transparency,locked:n.locked,visible:n.visible,parent:n.parent,script:n.script||"",
+    language:n.language,sourceClass:n.sourceClass};
+  if(n.customProperties&&typeof n.customProperties==="object")x.customProperties=n.customProperties;
+  return x;
+}
+function compactState(state){
+  return {name:state.name||"Imported Roblox Place",nodes:(state.nodes||[]).map(compactNode),
+    settings:state.settings||{theme:"dark",outline:true,autosave:true},grid:state.grid||1,snap:state.snap!==false,
+    updatedAt:Date.now(),largeStorage:true};
+}
 // Use somente o parser oficial do projeto. O rbx-reader-rts externo tinha
 // incompatibilidades de runtime que podiam terminar em:
 // "Cannot read properties of undefined (reading 'buffer')".
@@ -34,13 +75,18 @@ function readState(){
  try{const x=JSON.parse(localStorage.getItem(STORE)||"{}");return x&&Array.isArray(x.nodes)?x:{name:"Meu Primeiro Jogo",nodes:[]}}
  catch{return {name:"Meu Primeiro Jogo",nodes:[]}}
 }
-function writeState(state){
- localStorage.setItem(STORE,JSON.stringify({
-   name:state.name||"Imported Roblox Place",
-   nodes:state.nodes||[],
-   settings:state.settings||{theme:"dark",outline:true,autosave:true},
-   grid:state.grid||1,snap:state.snap!==false
- }));
+async function writeState(state){
+  const compact=compactState(state);
+  try{
+    localStorage.removeItem(STORE);
+    localStorage.removeItem(STORE+"-before-rbxl");
+    localStorage.setItem(STORE,JSON.stringify(compact));
+  }catch(e){
+    try{localStorage.removeItem(STORE)}catch{}
+    try{localStorage.setItem(STORE,JSON.stringify({name:compact.name,nodes:[],settings:compact.settings,grid:compact.grid,snap:compact.snap,largeStorage:true,updatedAt:compact.updatedAt}))}catch{}
+  }
+  try{await idbPutState(compact)}catch(e){console.warn("Studio Lite: IndexedDB",e)}
+  return compact;
 }
 
 function number(v,d=0){const n=Number(v);return Number.isFinite(n)?n:d}
@@ -271,10 +317,11 @@ function summarize(nodes){
  return {total:nodes.length,scripts,visual,services:servicesFound.length,serviceNames:servicesFound};
 }
 function backup(){
- try{
-   const current=localStorage.getItem(STORE);
-   if(current)localStorage.setItem(STORE+"-before-rbxl",current);
- }catch{}
+  try{
+    const current=readState();
+    localStorage.removeItem(STORE+"-before-rbxl");
+    localStorage.setItem(STORE+"-before-rbxl",JSON.stringify({name:current.name||"Meu Primeiro Jogo",count:Array.isArray(current.nodes)?current.nodes.length:0,at:Date.now()}));
+  }catch{}
 }
 async function importFull(file){
  if(!file)return;
@@ -285,8 +332,8 @@ async function importFull(file){
  backup();
  const state=readState();
  const name=file.name.replace(/\.(rbxl|rbxlx)$/i,"")||"Imported Roblox Place";
- writeState({...state,name,nodes});
- localStorage.setItem("studio-lite-last-rbxl",JSON.stringify({file:file.name,...summarize(nodes),at:new Date().toISOString()}));
+ const saved=await writeState({...state,name,nodes});
+ localStorage.setItem("studio-lite-last-rbxl",JSON.stringify({file:file.name,...summarize(nodes),at:new Date().toISOString(),storage:saved.largeStorage?"indexeddb":"localstorage"}));
  return summarize(nodes);
 }
 
@@ -321,6 +368,40 @@ function openStudioImport(){
    }
  }
 }
+async function hydrateLargeProject(){
+  try{
+    const saved=await idbGetState();
+    if(!saved||!Array.isArray(saved.nodes)||!saved.nodes.length)return;
+    const core=window.StudioLiteCore;
+    const s=core?.S||window.S;
+    if(!s||!Array.isArray(s.nodes))return;
+    s.nodes=saved.nodes.map(x=>({...x}));
+    s.project=saved.name||s.project||"Imported Roblox Place";
+    s.settings=saved.settings||s.settings||{};
+    s.grid=saved.grid||1;
+    s.snap=saved.snap!==false;
+    core.render?.();
+    core.setStatus?.("Projeto RBXL carregado");
+  }catch(e){console.warn("Studio Lite: hydrate",e)}
+}
+function bridgeLargeSave(){
+  const core=window.StudioLiteCore;
+  if(!core||typeof core.save!=="function"||core.__largeSaveBridge)return;
+  const original=core.save.bind(core);
+  core.save=(...args)=>{
+    const result=original(...args);
+    try{
+      const s=core.S||window.S;
+      if(s&&Array.isArray(s.nodes)){
+        const state={name:s.project||"Meu Primeiro Jogo",nodes:s.nodes,settings:s.settings||{},grid:s.grid||1,snap:s.snap!==false};
+        clearTimeout(largeSaveTimer);
+        largeSaveTimer=setTimeout(()=>idbPutState(compactState(state)).catch(()=>{}),120);
+      }
+    }catch{}
+    return result;
+  };
+  core.__largeSaveBridge=true;
+}
 function install(){
  const existing=$("#studioRbxlBtn");
  if(existing){
@@ -338,7 +419,11 @@ function install(){
  if(oldInput)oldInput.accept=".rbxl,.rbxlx,.json";
  window.StudioLiteRBXL={open:openStudioImport,importFile:importFull};
 }
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install);else setTimeout(install,0);
+if(document.readyState==="loading"){
+  document.addEventListener("DOMContentLoaded",()=>{install();setTimeout(()=>{bridgeLargeSave();hydrateLargeProject()},80)});
+}else{
+  setTimeout(()=>{install();bridgeLargeSave();hydrateLargeProject()},0);
+}
 
 const style=document.createElement("style");style.textContent=
 '.rbxl-studio-modal{width:min(860px,100%);max-height:min(900px,94vh);overflow:auto;background:#090909;border:1px solid #2b2b2b;border-radius:16px;box-shadow:0 30px 120px #000;padding:18px}'+
