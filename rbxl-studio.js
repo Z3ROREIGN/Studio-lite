@@ -73,271 +73,73 @@ let parserPromise=null;
 async function loadBinaryParser(){
   if(parserPromise)return parserPromise;
   parserPromise=(async()=>{
-    const modules=[];
+    const candidates=[];
     const errors=[];
     for(const url of PARSER_URLS){
       try{
         const m=await import(url);
-        modules.push({url,m});
-      }catch(e){
-        errors.push(url+" → import: "+(e?.message||String(e)));
-      }
+        const parseRBX=m?.parseRBX||m?.default?.parseRBX;
+        const decode=m?.decode||m?.default?.decode;
+        if(typeof parseRBX==="function"||typeof decode==="function") candidates.push({url,parseRBX,decode});
+        else errors.push(url+" → nenhum decodificador exportado");
+      }catch(e){errors.push(url+" → import: "+(e?.message||String(e)))}
     }
-
     return async buffer=>{
-      const arrayBuffer=buffer instanceof ArrayBuffer
-        ? buffer
-        : buffer?.buffer instanceof ArrayBuffer
-          ? buffer.buffer.slice(buffer.byteOffset||0,(buffer.byteOffset||0)+(buffer.byteLength||buffer.length||0))
-          : null;
-      if(!arrayBuffer||arrayBuffer.byteLength<16)throw new Error("Buffer RBXL inválido ou incompleto.");
-
-      for(const {url,m} of modules){
+      const ab=buffer instanceof ArrayBuffer?buffer:(buffer instanceof Uint8Array?buffer.buffer.slice(buffer.byteOffset,buffer.byteOffset+buffer.byteLength):null);
+      if(!ab||ab.byteLength<16)throw new Error("Buffer RBXL inválido ou incompleto.");
+      for(const candidate of candidates){
         try{
-          const parseRBX=m?.parseRBX||m?.default?.parseRBX;
-          if(typeof parseRBX==="function"){
-            const result=await parseRBX(arrayBuffer);
-            if(result&&(result.root||Array.isArray(result.instances)||Array.isArray(result))){
-              return {__modern:true,result,parser:url};
-            }
-            throw new Error("parseRBX() não retornou instâncias.");
+          let result;
+          if(typeof candidate.parseRBX==="function"){
+            result=await candidate.parseRBX(new Uint8Array(ab));
+            if(result&&(result.root||Array.isArray(result.instances)||Array.isArray(result)))return {__modern:true,result,parser:candidate.url};
+            throw new Error("parseRBX() retornou um resultado vazio.");
           }
-
-          if(typeof m?.decode==="function"){
-            const result=await m.decode(arrayBuffer);
-            if(result&&(result.root||Array.isArray(result.instances)||Array.isArray(result))){
-              return {__modern:false,result,parser:url};
-            }
-            throw new Error("decode() não retornou instâncias.");
-          }
-
-          throw new Error("nenhum decodificador compatível");
-        }catch(e){
-          errors.push(url+" → execução: "+(e?.message||String(e)));
-        }
+          result=await candidate.decode(ab);
+          if(result&&(result.root||Array.isArray(result.instances)||Array.isArray(result)))return {__modern:false,result,parser:candidate.url};
+          throw new Error("decode() retornou um resultado vazio.");
+        }catch(e){errors.push(candidate.url+" → execução: "+(e?.message||String(e)))}
       }
-
       throw new Error("Nenhum parser binário conseguiu ler este RBXL. "+errors.join(" | "));
     };
   })().catch(e=>{parserPromise=null;throw e});
   return parserPromise;
 }
 
-const services=new Set([
- "Workspace","Lighting","Players","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage",
- "StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService",
- "TestService","VoiceChatService","CollectionService","HttpService","MarketplaceService","TweenService","RunService",
- "DataStoreService","MemoryStoreService","MessagingService","TeleportService","UserInputService","ContextActionService",
- "GuiService","Debris","InsertService","LocalizationService","PathfindingService","PhysicsService","SocialService",
- "PolicyService","BadgeService","GroupService","UserService","AnalyticsService"
-]);
-const scriptClasses=new Set(["Script","LocalScript","ModuleScript"]);
-const visualClasses=new Set(["Part","SpawnLocation","MeshPart","UnionOperation","WedgePart","CornerWedgePart","TrussPart","Seat","VehicleSeat"]);
-const containerClasses=new Set(["Model","Folder","Tool","Configuration"]);
-
-function uid(){return (crypto.randomUUID?.()||Math.random().toString(36).slice(2)+Date.now().toString(36));}
-function toast(t){try{window.toast?.(t)}catch{}}
-function status(t){try{window.status?.(t)}catch{}}
-function clone(o){return JSON.parse(JSON.stringify(o));}
-
-function readState(){
- try{const x=JSON.parse(localStorage.getItem(STORE)||"{}");return x&&Array.isArray(x.nodes)?x:{name:"Meu Primeiro Jogo",nodes:[]}}
- catch{return {name:"Meu Primeiro Jogo",nodes:[]}}
-}
-async function writeState(state){
-  const compact=compactState(state);
-  // IndexedDB é a fonte de verdade para projetos grandes.
-  // LocalStorage recebe apenas um índice pequeno para evitar o erro:
-  // "Failed to execute setItem on Storage: quota exceeded".
-  try{
-    const index={name:compact.name,objectCount:compact.nodes.length,settings:compact.settings,grid:compact.grid,snap:compact.snap,largeStorage:true,updatedAt:compact.updatedAt};
-    localStorage.setItem(STORE,JSON.stringify(index));
-    localStorage.removeItem(STORE+"-before-rbxl");
-  }catch(e){
-    try{localStorage.removeItem(STORE);localStorage.removeItem(STORE+"-before-rbxl")}catch{}
-  }
-  try{await idbPutState(compact)}catch(e){throw new Error("O navegador não conseguiu armazenar o projeto RBXL no IndexedDB. Libere espaço do site e tente novamente.")}
-  return compact;
-}
-
-function number(v,d=0){const n=Number(v);return Number.isFinite(n)?n:d}
-function vec3(v){
- if(Array.isArray(v))return [number(v[0]),number(v[1]),number(v[2])];
- if(v&&typeof v==="object"){
-   return [number(v.X??v.x),number(v.Y??v.y),number(v.Z??v.z)];
- }
- return [0,0,0];
-}
-function colorHex(v){
- if(typeof v==="string"&&/^#?[0-9a-f]{6}$/i.test(v))return v.startsWith("#")?v:"#"+v;
- if(v&&typeof v==="object"){
-   const r=Math.round(Math.max(0,Math.min(1,number(v.R??v.r)))*255);
-   const g=Math.round(Math.max(0,Math.min(1,number(v.G??v.g)))*255);
-   const b=Math.round(Math.max(0,Math.min(1,number(v.B??v.b)))*255);
-   return "#"+[r,g,b].map(x=>x.toString(16).padStart(2,"0")).join("");
- }
- if(Number.isFinite(Number(v))){
-   const n=Math.max(0,Math.min(255,Number(v))).toString(16).padStart(2,"0");
-   return "#"+n+n+n;
- }
- return "#64748b";
-}
-function parsePropertyElement(el){
- const tag=el.tagName;
- const text=el.textContent||"";
- if(["string","ProtectedString","Content","BinaryString"].includes(tag))return text;
- if(tag==="bool")return text==="true";
- if(["int","int64","float","double","BrickColor"].includes(tag))return number(text);
- if(["Vector3","Vector3int16","Color3","Color3uint8","Vector2","Vector2int16"].includes(tag)){
-   const x=number(el.querySelector("X")?.textContent),y=number(el.querySelector("Y")?.textContent),z=number(el.querySelector("Z")?.textContent);
-   if(tag.startsWith("Color"))return {R:x,G:y,B:z};
-   return tag.startsWith("Vector2")?[x,y]:[x,y,z];
- }
- if(tag==="CoordinateFrame"||tag==="CFrame"){
-   const p=[number(el.querySelector("X")?.textContent),number(el.querySelector("Y")?.textContent),number(el.querySelector("Z")?.textContent)];
-   const r=[number(el.querySelector("R00")?.textContent,1),number(el.querySelector("R01")?.textContent),number(el.querySelector("R02")?.textContent),
-            number(el.querySelector("R10")?.textContent),number(el.querySelector("R11")?.textContent,1),number(el.querySelector("R12")?.textContent),
-            number(el.querySelector("R20")?.textContent),number(el.querySelector("R21")?.textContent),number(el.querySelector("R22")?.textContent,1)];
-   return {position:p,rotationMatrix:r};
- }
- if(tag==="token"||tag==="Ref")return number(text);
- if(tag==="SharedString")return text;
- return text;
-}
-function xmlProperties(item){
- const out={};
- item.querySelectorAll(":scope > Properties > *").forEach(el=>{
-   const name=el.getAttribute("name");
-   if(name)out[name]=parsePropertyElement(el);
- });
- return out;
-}
-function prop(props,...names){
- for(const n of names)if(props[n]!==undefined)return props[n];
- return undefined;
-}
-function makeNode(className,props,parent,originalId){
- const p=vec3(prop(props,"Position","position"));
- const size=vec3(prop(props,"Size","size"));
- const source=prop(props,"Source","source");
- const cframe=prop(props,"CFrame","CoordinateFrame");
- const cf=cframe?.position?cframe.position:p;
- const type=className||"Part";
- const isScript=scriptClasses.has(type);
- const isVisual=visualClasses.has(type);
- const isContainer=containerClasses.has(type);
- const n={
-   id:uid(),name:String(prop(props,"Name")||type).slice(0,100),type,
-   position:cf||[0,0,0],rotation:[0,0,0],
-   size:(size.some(v=>v!==0)?size:[1,1,1]).map(v=>Math.max(.1,Math.abs(number(v,1)))),
-   color:colorHex(prop(props,"Color","Color3")),
-   material:String(prop(props,"Material")||"Plastic"),
-   shape:type==="WedgePart"||type==="CornerWedgePart"?"wedge":type==="MeshPart"?"box":"box",
-   anchored:prop(props,"Anchored")!==false,
-   canCollide:prop(props,"CanCollide")!==false,
-   transparency:Math.max(0,Math.min(1,number(prop(props,"Transparency"),0))),
-   locked:!!prop(props,"Locked"),visible:!isScript&&!(!isVisual&&!isContainer),
-   parent:parent||null,
-   script:isScript?String(source??""):"",
-   language:isScript?"luau":undefined,
-   sourceClass:type,
-   rbxProperties:props,
-   rbxOriginalId:originalId||null
- };
- if(type==="Sphere"){n.shape="sphere";n.size=[4,4,4]}
- if(type==="Cylinder"){n.shape="cylinder"}
- if(type==="Model"||type==="Folder"||type==="Configuration"||type==="Tool"){n.canCollide=false;n.visible=false}
- if(isScript)n.size=[1,1,1];
- return n;
-}
-function parseXML(text){
- const doc=new DOMParser().parseFromString(text,"application/xml");
- if(doc.querySelector("parsererror"))throw new Error("XML do Roblox inválido");
- const roots=[...doc.documentElement.children].filter(x=>x.tagName==="Item");
- const nodes=[];
- const walk=(item,parent)=>{
-   const cls=item.getAttribute("class")||"Part";
-   const props=xmlProperties(item);
-   let targetParent=parent;
-   if(services.has(cls)&&cls!=="Workspace")targetParent="service:"+cls;
-   const n=makeNode(cls,props,targetParent,item.getAttribute("referent"));
-   if(services.has(cls)&&cls!=="Workspace"){
-     n.__serviceRoot=true;
-     // Keep service contents in the virtual service branch.
-     targetParent=n.id;
-     n.visible=false;
-     nodes.push(n);
-   }else{
-     nodes.push(n);
-   }
-   [...item.children].filter(x=>x.tagName==="Item").forEach(ch=>walk(ch,targetParent));
- };
- roots.forEach(r=>walk(r,null));
- return nodes;
-}
-async function loadBinaryParser(){
- if(parserPromise)return parserPromise;
- parserPromise=(async()=>{
-   const errors=[];
-   for(const url of PARSER_URLS){
-     try{
-       const m=await import(url);
-       if(typeof m?.decode==="function"){
-         return async buffer=>{
-           if(buffer instanceof Uint8Array)buffer=buffer.buffer.slice(buffer.byteOffset,buffer.byteOffset+buffer.byteLength);
-           if(!(buffer instanceof ArrayBuffer))throw new Error("Buffer RBXL inválido");
-           if(buffer.byteLength<16)throw new Error("Arquivo RBXL inválido ou incompleto");
-           try{return {__modern:false,result:m.decode(buffer)}}
-           catch(e){throw new Error("decode() falhou: "+(e?.message||String(e)))}
-         };
-       }
-       const parseRBX=m?.parseRBX||m?.default?.parseRBX;
-       if(typeof parseRBX==="function"){
-         return async buffer=>{
-           const bytes=buffer instanceof Uint8Array?buffer:new Uint8Array(buffer);
-           if(bytes.byteLength<16)throw new Error("Arquivo RBXL inválido ou incompleto");
-           try{return {__modern:true,result:parseRBX(bytes)}}
-           catch(e){throw new Error("parseRBX() falhou: "+(e?.message||String(e)))}
-         };
-       }
-       throw new Error("nenhum decodificador compatível");
-     }catch(e){errors.push(url+" → "+(e?.message||String(e)));}
-   }
-   throw new Error("Nenhum parser binário funcionou. "+errors.join(" | "));
- })().catch(e=>{parserPromise=null;throw e});
- return parserPromise;
-}
-
 function normalizeBinaryResult(parsed){
- const root=parsed?.result?.root||parsed?.root;
- if(parsed?.__modern){
-   const roots=root?.Children||root?.children||[];
-   if(Array.isArray(roots)&&roots.length)return roots;
-   const flat=parsed?.result?.instances||parsed?.instances||[];
-   if(Array.isArray(flat)&&flat.length)return flat;
- }
- return Array.isArray(parsed?.result)?parsed.result:[];
+ const result=parsed?.result??parsed;
+ const root=result?.root;
+ const roots=root?.Children||root?.children;
+ if(Array.isArray(roots)&&roots.length)return roots;
+ const flat=result?.instances||result?.Instances;
+ if(Array.isArray(flat)&&flat.length)return flat;
+ if(Array.isArray(result))return result;
+ if(root&&typeof root==="object")return [root];
+ return [];
 }
 
 function fromBinaryObjectTree(objects){
  const nodes=[];
  const walk=(obj,parent)=>{
    if(!obj||typeof obj!=="object")return;
-   const cls=String(obj.ClassName||obj.className||"Part");
+   const cls=String(obj.ClassName||obj.className||obj.class||obj.Type||"Part");
    const props={};
+   const sourceProps=obj.Properties||obj.properties||{};
+   if(sourceProps&&typeof sourceProps==="object")Object.assign(props,sourceProps);
    for(const [k,v] of Object.entries(obj)){
-     if(k!=="Children"&&k!=="ClassName"&&k!=="className")props[k]=v;
+     if(!["Children","children","ClassName","className","class","Type","Properties","properties","Parent","parent"].includes(k))props[k]=v;
    }
-   const name=props.Name??props.name??cls;
+   const name=props.Name??props.name??obj.Name??obj.name??cls;
    props.Name=name;
    let targetParent=parent;
    if(services.has(cls)&&cls!=="Workspace")targetParent="service:"+cls;
    const n=makeNode(cls,props,targetParent);
    if(services.has(cls)&&cls!=="Workspace"){n.__serviceRoot=true;n.visible=false;nodes.push(n);targetParent=n.id}
    else nodes.push(n);
-   (obj.Children||[]).forEach(ch=>walk(ch,targetParent));
+   const children=obj.Children||obj.children||[];
+   if(Array.isArray(children))children.forEach(ch=>walk(ch,targetParent));
  };
- (objects||[]).forEach(x=>walk(x,null));
+ (Array.isArray(objects)?objects:[]).forEach(x=>walk(x,null));
  return nodes;
 }
 function cleanNodes(nodes){
