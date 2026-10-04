@@ -14,6 +14,8 @@ type Node = {
   color: string;
   anchored: boolean;
   canCollide: boolean;
+  parent?: string;
+  script?: string;
 };
 
 const initial: Node[] = [
@@ -45,6 +47,8 @@ export default function Home() {
   const [placeId, setPlaceId] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [openScript, setOpenScript] = useState<string | null>(null);
+  const [scriptText, setScriptText] = useState("-- Script criado no Studio Lite\n\nprint(\"Hello from Studio Lite!\")\n");
 
   useEffect(() => {
     nodesRef.current = nodes;
@@ -113,8 +117,8 @@ export default function Home() {
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
 
-    const onPointerDown = (event: PointerEvent) => {
-      const rect = renderer.domElement.getBoundingClientRect();
+    let orbiting = false;\n    let lastX = 0;\n    let lastY = 0;\n    let theta = Math.atan2(camera.position.x, camera.position.z);\n    let phi = Math.acos(camera.position.y / camera.position.distanceTo(new THREE.Vector3(0, 1, 0)));\n    let radius = camera.position.distanceTo(new THREE.Vector3(0, 1, 0));\n    const target = new THREE.Vector3(0, 1, 0);\n    const updateCamera = () => {\n      phi = Math.max(0.12, Math.min(Math.PI - 0.12, phi));\n      camera.position.set(\n        target.x + radius * Math.sin(phi) * Math.sin(theta),\n        target.y + radius * Math.cos(phi),\n        target.z + radius * Math.sin(phi) * Math.cos(theta)\n      );\n      camera.lookAt(target);\n    };\n    const onPointerDown = (event: PointerEvent) => {
+      if (event.button === 1 || event.button === 2) {\n        orbiting = true; lastX = event.clientX; lastY = event.clientY;\n        renderer.domElement.setPointerCapture(event.pointerId);\n        return;\n      }\n      const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
@@ -126,7 +130,7 @@ export default function Home() {
       }
     };
 
-    renderer.domElement.addEventListener("pointerdown", onPointerDown);
+    const onPointerMove = (event: PointerEvent) => {\n      if (!orbiting) return;\n      const dx = event.clientX - lastX; const dy = event.clientY - lastY;\n      lastX = event.clientX; lastY = event.clientY;\n      theta -= dx * 0.008; phi -= dy * 0.008; updateCamera();\n    };\n    const onPointerUp = () => { orbiting = false; };\n    const onWheel = (event: WheelEvent) => {\n      event.preventDefault(); radius = Math.max(3, Math.min(100, radius * (event.deltaY > 0 ? 1.08 : 0.92))); updateCamera();\n    };\n    const onContext = (event: MouseEvent) => event.preventDefault();\n    renderer.domElement.addEventListener("pointerdown", onPointerDown);\n    renderer.domElement.addEventListener("pointermove", onPointerMove);\n    renderer.domElement.addEventListener("pointerup", onPointerUp);\n    renderer.domElement.addEventListener("wheel", onWheel, { passive: false });\n    renderer.domElement.addEventListener("contextmenu", onContext);
 
     let raf = 0;
     const animate = () => {
@@ -146,7 +150,7 @@ export default function Home() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
-      renderer.domElement.removeEventListener("pointerdown", onPointerDown);
+      renderer.domElement.removeEventListener("pointerdown", onPointerDown);\n      renderer.domElement.removeEventListener("pointermove", onPointerMove);\n      renderer.domElement.removeEventListener("pointerup", onPointerUp);\n      renderer.domElement.removeEventListener("wheel", onWheel);\n      renderer.domElement.removeEventListener("contextmenu", onContext);
       renderer.dispose();
       renderer.domElement.remove();
       objectsRef.current.clear();
@@ -281,7 +285,7 @@ export default function Home() {
     }
   }
 
-  const current = nodes.find((item) => item.id === selected);
+  const current = nodes.find((item) => item.id === selected);\n\n  function addSpecial(type: "Folder" | "Script") {\n    const id = crypto.randomUUID();\n    const node: Node = { id, name: type === "Script" ? "Script" : "Folder", type, position: [0,0,0], rotation: [0,0,0], size: [1,1,1], color: "#64748b", anchored: true, canCollide: false, script: type === "Script" ? "-- Novo Script\\n\\nprint(\\\"Hello!\\\")\\n" : undefined };\n    setNodes((current) => [...current, node]);\n    setSelected(id);\n    if (type === "Script") { setOpenScript(id); setScriptText(node.script || ""); }\n    setStatus(type + " criado");\n  }\n\n  function openSelectedScript() {\n    if (current?.type !== "Script") return;\n    setOpenScript(current.id); setScriptText(current.script || "");\n  }\n\n  function saveScript() {\n    if (!openScript) return;\n    setNodes((items) => items.map((n) => n.id === openScript ? { ...n, script: scriptText } : n));\n    setStatus("Script salvo");\n  }\n\n  useEffect(() => {\n    const onKey = (event: KeyboardEvent) => {\n      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;\n      if (event.key === "Delete" || event.key === "Backspace") deleteSelected();\n      if (event.key.toLowerCase() === "d" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); duplicateSelected(); }\n      if (event.key.toLowerCase() === "w") transformSelected("move");\n      if (event.key.toLowerCase() === "e") transformSelected("rotate");\n      if (event.key.toLowerCase() === "r") transformSelected("scale");\n    };\n    window.addEventListener("keydown", onKey);\n    return () => window.removeEventListener("keydown", onKey);\n  });
 
   return (
     <main className="app">
@@ -306,7 +310,7 @@ export default function Home() {
 
       <section className="workspace">
         <aside className="left panel">
-          <div className="panelHead"><b>Explorer</b><button onClick={addPart}>＋</button></div>
+          <div className="panelHead"><b>Explorer</b><div className="miniActions"><button onClick={addPart}>＋ Part</button><button onClick={() => addSpecial("Folder")}>Folder</button><button onClick={() => addSpecial("Script")}>Script</button></div></div>
           <div className="tree">
             <div className="treeRoot">▾ Workspace</div>
             {nodes.map((node) => (
@@ -338,9 +342,9 @@ export default function Home() {
               <VectorRow title="Rotation" values={current.rotation} onChange={(i, v) => updateVector("rotation", i, v)} suffix="°" />
               <VectorRow title="Size" values={current.size} onChange={(i, v) => updateVector("size", i, v)} />
               <label>Appearance</label>
-              <div className="row"><span>Material</span><select><option>Plastic</option><option>Metal</option><option>Wood</option><option>Glass</option></select></div>
-              <div className="row"><span>Color</span><input type="color" value={current.color} onChange={(e) => updateSelected({ color: e.target.value })} /></div>
-              <label>Behavior</label>
+              {current.type !== "Script" && <div className="row"><span>Material</span><select><option>Plastic</option><option>Metal</option><option>Wood</option><option>Glass</option></select></div>}
+              {current.type !== "Script" && <div className="row"><span>Color</span><input type="color" value={current.color} onChange={(e) => updateSelected({ color: e.target.value })} /></div>}
+              {current.type === "Script" && <button className="primary wide" onClick={openSelectedScript}>Abrir Script Editor</button>}\n              <label>Behavior</label>
               <div className="toggle"><span>Anchored</span><input type="checkbox" checked={current.anchored} onChange={(e) => updateSelected({ anchored: e.target.checked })} /></div>
               <div className="toggle"><span>CanCollide</span><input type="checkbox" checked={current.canCollide} onChange={(e) => updateSelected({ canCollide: e.target.checked })} /></div>
             </>}
@@ -350,7 +354,7 @@ export default function Home() {
 
       <footer className="statusbar"><span>Studio Lite Web</span><span>Editor 3D • Safe publish pipeline</span><span>WebGL</span></footer>
 
-      {tab !== "home" && <div className="modal"><div className="modalCard">
+      {openScript && <div className="scriptOverlay"><div className="scriptWindow"><div className="scriptHeader"><b>▤ {nodes.find(n => n.id === openScript)?.name || "Script"}</b><div><button onClick={saveScript}>Salvar</button><button onClick={() => setOpenScript(null)}>×</button></div></div><div className="scriptBody"><div className="scriptGutter">{scriptText.split("\\n").map((_, i) => <span key={i}>{i + 1}</span>)}</div><textarea spellCheck={false} value={scriptText} onChange={(e) => setScriptText(e.target.value)} /></div><div className="scriptFooter"><span>Luau</span><span>UTF-8</span><span>Linhas: {scriptText.split("\\n").length}</span></div></div></div>}\n\n      {tab !== "home" && <div className="modal"><div className="modalCard">
         <button className="close" onClick={() => setTab("home")}>×</button>
         {tab === "connect" ? <>
           <div className="modalIcon">☁</div><h2>Conectar ao Roblox</h2>
