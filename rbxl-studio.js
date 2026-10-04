@@ -11,25 +11,101 @@ const SCRIPT_TYPES=new Set(["Script","LocalScript","ModuleScript"]);
 const VISUAL_TYPES=new Set(["Part","MeshPart","UnionOperation","WedgePart","CornerWedgePart","TrussPart","VehicleSeat","Seat","SpawnLocation"]);
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2)+Date.now().toString(36);
 const clone=x=>{try{return JSON.parse(JSON.stringify(x))}catch{return x}};
-const vec=(v,d=[0,0,0])=>Array.isArray(v)?[Number(v[0])||0,Number(v[1])||0,Number(v[2])||0]:d.slice();
+const vec=(v,d=[0,0,0])=>{
+ if(Array.isArray(v))return [Number(v[0])||0,Number(v[1])||0,Number(v[2])||0];
+ if(v&&typeof v==="object"){
+   if(Array.isArray(v.value))return vec(v.value,d);
+   if(Number.isFinite(Number(v.x))||Number.isFinite(Number(v.y))||Number.isFinite(Number(v.z)))
+     return [Number(v.x)||0,Number(v.y)||0,Number(v.z)||0];
+ }
+ return d.slice();
+};
 const num=v=>Number.isFinite(Number(v))?Number(v):0;
-function openDB(){return new Promise((ok,no)=>{if(!indexedDB)return no(Error("IndexedDB indisponível"));const r=indexedDB.open(DB,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(TABLE))r.result.createObjectStore(TABLE)};r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error||Error("Falha no IndexedDB"))})}
-async function putState(state){const db=await openDB();return new Promise((ok,no)=>{const tx=db.transaction(TABLE,"readwrite");tx.objectStore(TABLE).put(state,KEY);tx.oncomplete=()=>{db.close();ok()};tx.onerror=()=>{db.close();no(tx.error)}})}
-function getProp(p,n){if(!p)return undefined;const v=p[n];if(v&&typeof v==="object"&&"value" in v)return v.value;return v}
-function rgb(v){if(Array.isArray(v)&&v.length>=3){return "#"+v.slice(0,3).map(x=>Math.max(0,Math.min(255,Math.round(num(x)*255))).toString(16).padStart(2,"0")).join("")}if(v&&typeof v==="object"&&["r","g","b"].every(k=>k in v))return rgb([v.r,v.g,v.b]);if(typeof v==="number"){const n=v>>>0;return "#"+((n>>16)&255).toString(16).padStart(2,"0")+((n>>8)&255).toString(16).padStart(2,"0")+(n&255).toString(16).padStart(2,"0")}return null}
-function compactProperty(v,depth=0){if(depth>3)return null;if(v==null||typeof v==="string"||typeof v==="boolean"||typeof v==="number")return typeof v==="string"&&v.length>200000?v.slice(0,200000)+"…":v;if(Array.isArray(v))return v.length>5000?v.slice(0,5000):v.map(x=>compactProperty(x,depth+1));if(typeof v==="object"){const o={};for(const [k,x] of Object.entries(v)){if(k==="Parent"||k==="Children")continue;o[k]=compactProperty(x,depth+1)}return o}return String(v)}
+function colorHex(v){
+ if(Array.isArray(v)&&v.length>=3){
+   const a=v.slice(0,3).map(x=>Math.max(0,Math.min(1,Number(x)||0)));
+   return "#"+a.map(x=>Math.round(x*255).toString(16).padStart(2,"0")).join("");
+ }
+ if(v&&typeof v==="object"){
+   if(["r","g","b"].every(k=>k in v))return colorHex([v.r,v.g,v.b]);
+   if(Array.isArray(v.value))return colorHex(v.value);
+ }
+ if(typeof v==="number"){
+   const n=v>>>0;
+   return "#"+((n>>16)&255).toString(16).padStart(2,"0")+((n>>8)&255).toString(16).padStart(2,"0")+(n&255).toString(16).padStart(2,"0");
+ }
+ return null;
+}
+function cframeToTransform(v){
+ if(Array.isArray(v)&&v.length>=12){
+   const m=v;
+   const x=m[3]||0,y=m[4]||0,z=m[5]||0;
+   return {position:[x,y,z],rotation:[0,0,0]};
+ }
+ if(v&&typeof v==="object"){
+   const p=vec(v.position||v.Position);
+   const r=v.rotation;
+   if(Array.isArray(r)&&r.length>=9){
+     const m=r;
+     const sy=Math.sqrt(m[0]*m[0]+m[3]*m[3]);
+     let rx,ry,rz;
+     if(sy>1e-6){
+       rx=Math.atan2(m[7],m[8]);
+       ry=Math.atan2(-m[6],sy);
+       rz=Math.atan2(m[3],m[0]);
+     }else{
+       rx=Math.atan2(-m[5],m[4]); ry=Math.atan2(-m[6],sy); rz=0;
+     }
+     return {position:p,rotation:[rx*180/Math.PI,ry*180/Math.PI,rz*180/Math.PI]};
+   }
+   if(Array.isArray(r)&&r[0]==="matrix"){
+     const m=r[1]||[];
+     return cframeToTransform({position:p,rotation:m});
+   }
+   if(Array.isArray(v)&&v.length>=3)return {position:vec(v),rotation:[0,0,0]};
+   return {position:p,rotation:[0,0,0]};
+ }
+ return {position:[0,0,0],rotation:[0,0,0]};
+}
 function makeNode(type,p,parent=null,id=null){
- p=p||{};const n={id:id??uid(),name:String(getProp(p,"Name")??type),type:String(type||"Part"),
-  position:vec(getProp(p,"Position")),rotation:[0,0,0],size:vec(getProp(p,"Size"),[1,1,1]),
-  color:rgb(getProp(p,"Color3"))||"#777777",material:String(getProp(p,"Material")??"Plastic"),
-  shape:"box",anchored:Boolean(getProp(p,"Anchored")??false),canCollide:Boolean(getProp(p,"CanCollide")??true),
-  transparency:Math.max(0,Math.min(1,num(getProp(p,"Transparency")))),locked:Boolean(getProp(p,"Locked")??false),
-  visible:true,parent:parent??null,script:"",language:"luau",sourceClass:String(type||"")};
+ p=p||{};
+ const cf=cframeToTransform(getProp(p,"CFrame"));
+ const n={
+  id:id??uid(),
+  name:String(getProp(p,"Name")??type),
+  type:String(type||"Part"),
+  position:vec(getProp(p,"Position"),cf.position),
+  rotation:vec(getProp(p,"Orientation"),cf.rotation),
+  size:vec(getProp(p,"Size"),[1,1,1]),
+  color:colorHex(getProp(p,"Color3"))||"#777777",
+  material:String(getProp(p,"Material")??"Plastic"),
+  shape:"box",
+  anchored:Boolean(getProp(p,"Anchored")??false),
+  canCollide:Boolean(getProp(p,"CanCollide")??true),
+  canTouch:Boolean(getProp(p,"CanTouch")??true),
+  canQuery:Boolean(getProp(p,"CanQuery")??true),
+  transparency:Math.max(0,Math.min(1,num(getProp(p,"Transparency")))),
+  locked:Boolean(getProp(p,"Locked")??false),
+  visible:true,
+  parent:parent??null,
+  script:"",
+  language:"luau",
+  sourceClass:String(type||"")
+ };
  const ori=getProp(p,"Orientation");if(Array.isArray(ori))n.rotation=vec(ori);
- const shape=String(getProp(p,"Shape")??"").toLowerCase();if(shape==="ball")n.shape="sphere";else if(shape==="cylinder")n.shape="cylinder";
- const src=getProp(p,"Source");if(typeof src==="string"){n.script=src;n.language="luau"}
- const attrs=getProp(p,"Attributes");if(attrs&&typeof attrs==="object")n.customProperties={Attributes:clone(attrs)};
- n.rbxProperties=Object.fromEntries(Object.entries(p).filter(([k])=>k!=="Parent"&&k!=="Children").map(([k,v])=>[k,compactProperty(v)]));
+ const shape=String(getProp(p,"Shape")??"").toLowerCase();
+ if(shape==="ball"||shape==="sphere")n.shape="sphere";
+ else if(shape==="cylinder")n.shape="cylinder";
+ else if(shape==="wedge")n.shape="wedge";
+ const src=getProp(p,"Source");
+ if(typeof src==="string"){n.script=src;n.language="luau"}
+ const attrs=getProp(p,"Attributes");
+ if(attrs&&typeof attrs==="object")n.attributes=clone(attrs);
+ n.rbxProperties=Object.fromEntries(
+   Object.entries(p)
+     .filter(([k])=>k!=="Parent"&&k!=="Children")
+     .map(([k,v])=>[k,compactProperty(v)])
+ );
  return n;
 }
 function parseXML(text){
@@ -37,40 +113,64 @@ function parseXML(text){
  if(doc.querySelector("parsererror"))throw Error("XML Roblox inválido ou corrompido.");
  const parseValue=el=>{
    const tag=el.tagName.toLowerCase(),t=(el.textContent||"").trim();
-   if(["string","protectedstring","binarystring","sharedstring","token"].includes(tag))return t;
+   if(["string","protectedstring","binarystring","sharedstring"].includes(tag))return t;
    if(tag==="bool")return t.toLowerCase()==="true";
-   if(["int","int64","float","double"].includes(tag))return num(t);
-   if(tag==="color3")return Number(t)||t;
-   if(tag==="vector3"||tag==="vector3int16"){return {x:num(el.querySelector("X")?.textContent),y:num(el.querySelector("Y")?.textContent),z:num(el.querySelector("Z")?.textContent)}}
-   if(tag==="coordinateframe"){const a=[...el.querySelectorAll("X,Y,Z")].map(x=>num(x.textContent));return a.length>=3?a.slice(0,3):t}
-   if(tag==="ref")return t;
+   if(["int","int64","float","double","token","brickcolor"].includes(tag))return num(t);
+   if(tag==="color3"){
+     const n=num(t);return colorHex(n)||n;
+   }
+   if(tag==="color3uint8"){
+     const n=num(t);return [((n>>16)&255)/255,((n>>8)&255)/255,(n&255)/255];
+   }
+   if(tag==="vector2")return {x:num(el.querySelector("X")?.textContent),y:num(el.querySelector("Y")?.textContent)};
+   if(tag==="vector3"||tag==="vector3int16")return {x:num(el.querySelector("X")?.textContent),y:num(el.querySelector("Y")?.textContent),z:num(el.querySelector("Z")?.textContent)};
+   if(tag==="coordinateframe"){
+     const p=[num(el.querySelector("X")?.textContent),num(el.querySelector("Y")?.textContent),num(el.querySelector("Z")?.textContent)];
+     const m=["R00","R01","R02","R10","R11","R12","R20","R21","R22"].map(k=>num(el.querySelector(k)?.textContent));
+     return {position:p,rotation:m};
+   }
+   if(tag==="ref")return t==="null"||t==="nil"||!t?null:t;
+   if(tag==="content")return t;
+   if(tag==="physicalproperties")return {raw:t};
    return t;
  };
  const walk=(item,parent,all,refs)=>{
-   const type=item.getAttribute("class")||"Folder", id=item.getAttribute("referent")||uid(), props={};
+   const type=item.getAttribute("class")||"Folder",id=item.getAttribute("referent")||uid(),props={};
    const pe=item.querySelector(":scope > Properties");
    if(pe)for(const p of pe.children){const name=p.getAttribute("name");if(name)props[name]=parseValue(p)}
    const n=makeNode(type,props,parent,id);all.push(n);refs.set(id,n);
    for(const child of item.querySelectorAll(":scope > Item"))walk(child,n.id,all,refs);
    return n;
  };
- const all=[],refs=new Map();const items=[...doc.documentElement.children].filter(x=>x.tagName==="Item");
- items.forEach(x=>walk(x,null,all,refs));
- all.forEach(n=>{for(const [k,v] of Object.entries(n.rbxProperties||{})){if(k==="Parent"&&typeof v==="string"&&refs.has(v))n.parent=refs.get(v).id}});
+ const all=[],refs=new Map();
+ const roots=[...doc.documentElement.children].filter(x=>x.tagName==="Item");
+ roots.forEach(x=>walk(x,null,all,refs));
+ all.forEach(n=>{
+   const parent=n.rbxProperties?.Parent;
+   if(typeof parent==="string"&&refs.has(parent))n.parent=refs.get(parent).id;
+ });
  return all;
 }
 function parseBinaryServerInstances(list){
- if(!Array.isArray(list))return [];
- const idMap=new Map(),raw=[];
- list.forEach((x,i)=>{const id=String(x.id??i);idMap.set(id,i);raw.push(x)});
- return raw.map((x,i)=>{
-   const props=clone(x.properties||{});if(x.attributes)props.Attributes=x.attributes;
-   const n=makeNode(x.className||"Part",props,null,"rbx-"+i);
-   n.rbxOriginalId=String(x.id??i);
-   n.parent=x.parent==null?null:"rbx-"+String(x.parent);
+ if(!Array.isArray(list)||!list.length)throw Error("O parser não encontrou instâncias.");
+ const all=list.map((x,i)=>{
+   const raw=x?.properties||x?.Properties||x?.props||{};
+   const props={};
+   for(const [key,val] of Object.entries(raw||{})){
+     if(key==="Parent"||key==="Children")continue;
+     props[key]=val&&typeof val==="object"&&"value" in val?val.value:val;
+   }
+   const className=String(x?.className||x?.ClassName||"Folder");
+   const n=makeNode(className,props,null,"rbx-"+i);
+   n.rbxOriginalId=String(x?.id??i);
+   n.parent=x?.parent==null?null:"rbx-"+String(x.parent);
    if(SCRIPT_TYPES.has(n.type)&&typeof props.Source==="string")n.script=props.Source;
+   if(x?.attributes&&typeof x.attributes==="object")n.attributes=clone(x.attributes);
    return n;
  });
+ const valid=new Set(all.map(n=>n.id));
+ all.forEach(n=>{if(n.parent&&!valid.has(n.parent))n.parent=null});
+ return all;
 }
 function normalizeClientInstance(inst,i,all,objectIds){
  const raw=inst?.properties||inst?.Properties||inst?.props||{};
@@ -83,7 +183,9 @@ function normalizeClientInstance(inst,i,all,objectIds){
  const ref=inst?.id??inst?.referent??i;
  const n=makeNode(className,props,null,"rbx-"+i);
  n.rbxOriginalId=String(ref);
+ if(inst?.attributes&&typeof inst.attributes==="object")n.attributes=clone(inst.attributes);
  all.push(n);
+ objectIds.set(ref,i);
  objectIds.set(inst,i);
  return n;
 }
@@ -128,7 +230,7 @@ function parseBinaryWorker(file){
    try{
      statusText("Preparando processamento em segundo plano…");
      const buffer=await file.arrayBuffer();
-     worker.postMessage({buffer},[buffer]);
+     worker.postMessage({buffer,filename:file.name},[buffer]);
    }catch(e){clearTimeout(timer);worker.terminate();reject(e)}
  });
 }
@@ -172,16 +274,59 @@ async function parseFile(file){
  return parseBinary(file);
 }
 function compact(nodes){return nodes.map(n=>({id:n.id,name:n.name,type:n.type,position:vec(n.position),rotation:vec(n.rotation),size:vec(n.size,[1,1,1]),color:n.color,material:n.material,shape:n.shape,anchored:n.anchored,canCollide:n.canCollide,transparency:n.transparency,locked:n.locked,visible:n.visible,parent:n.parent,script:n.script||"",language:n.language,sourceClass:n.sourceClass,rbxProperties:n.rbxProperties||null,customProperties:n.customProperties||null}))}
-async function importFull(file){
+async async function importFull(file){
  const state=S()||{settings:{theme:"dark",outline:true,autosave:true},grid:1,snap:true};
  statusText("Lendo "+file.name+"…");
- const nodes=compact(await parseFile(file));if(!nodes.length)throw Error("Nenhuma instância foi encontrada.");
- const root=nodes.find(n=>n.type==="Workspace");nodes.forEach(n=>{if(n.parent&&nodes.some(x=>x.id===n.parent))return;if(!n.parent&&root&&n!==root&&SERVICES.includes(n.type))n.parent=null});
- const payload={name:file.name.replace(/\.(rbxl|rbxm|rbxlx|rbxmx)$/i,"")||"Imported Roblox Place",nodes,settings:state.settings||{theme:"dark",outline:true,autosave:true},grid:state.grid||1,snap:state.snap!==false,updatedAt:Date.now(),largeStorage:true};
+ const nodes=compact(await parseFile(file));
+ if(!nodes.length)throw Error("Nenhuma instância foi encontrada.");
+ const ids=new Set(nodes.map(n=>n.id));
+ nodes.forEach(n=>{if(n.parent&&!ids.has(n.parent))n.parent=null});
+ const root=nodes.find(n=>n.type==="Workspace");
+ if(root){
+   nodes.forEach(n=>{
+     if(n===root)return;
+     if(!n.parent&&SERVICES.includes(n.type))n.parent=null;
+   });
+ }
+ const payload={
+   name:file.name.replace(/\.(rbxl|rbxm|rbxlx|rbxmx)$/i,"")||"Imported Roblox Place",
+   nodes,
+   settings:state.settings||{theme:"dark",outline:true,autosave:true},
+   grid:Number(state.grid)||1,
+   snap:state.snap!==false,
+   updatedAt:Date.now(),
+   largeStorage:true
+ };
  try{localStorage.removeItem(STORE)}catch{}
- try{localStorage.setItem(STORE,JSON.stringify({name:payload.name,objectCount:nodes.length,settings:payload.settings,grid:payload.grid,snap:payload.snap,largeStorage:true,updatedAt:payload.updatedAt}))}catch(e){console.warn("Studio RBXL: localStorage cheio; metadados não serão armazenados",e)}
+ try{
+   localStorage.setItem(STORE,JSON.stringify({
+     name:payload.name,objectCount:nodes.length,
+     settings:payload.settings,grid:payload.grid,snap:payload.snap,
+     largeStorage:true,updatedAt:payload.updatedAt
+   }));
+ }catch(e){console.warn("Studio RBXL: localStorage cheio; projeto permanece no IndexedDB",e)}
  await putState(payload);
- try{localStorage.setItem("studio-lite-last-rbxl",JSON.stringify({file:file.name,count:nodes.length,scripts:nodes.filter(n=>SCRIPT_TYPES.has(n.type)).length,visual:nodes.filter(n=>VISUAL_TYPES.has(n.type)).length,at:new Date().toISOString()}))}catch{}
+
+ // Hidrata o editor atual sem recarregar a página. Isso evita perder projetos
+ // grandes e também mantém Explorer/Properties/viewport sincronizados.
+ const core=C();
+ const live=core.S;
+ if(live&&Array.isArray(live.nodes)){
+   const normalizer=core.normalizeNode;
+   live.nodes=nodes.map(n=>normalizer?normalizer(n):n);
+   live.project=payload.name;
+   live.settings=Object.assign({},live.settings||{},payload.settings||{});
+   live.grid=payload.grid;
+   live.snap=payload.snap;
+   live.selected=live.nodes.find(n=>n.type==="Part")?.id||live.nodes.find(n=>n.type!=="Workspace")?.id||live.nodes[0]?.id||null;
+   live.selectedIds=live.selected?[live.selected]:[];
+   live.sourceRbxl=null;
+   live.history=[];
+   live.future=[];
+   core.render?.();
+   core.save?.(false);
+   setTimeout(()=>window.StudioLiteExplorerPro?.refresh?.(),60);
+ }
  return payload;
 }
 function statusText(t){try{C().setStatus?.(t)}catch{}try{$("#status").textContent=t;$("#footerStatus").textContent=t}catch{}}
@@ -192,7 +337,7 @@ function open(){
  document.body.appendChild(bg);const picker=$("#rbxlPicker"),drop=$("#rbxlDrop"),progress=$("#rbxlProgress");
  const close=()=>bg.remove();$("#rbxlClose").onclick=close;drop.onclick=()=>picker.click();
  picker.onchange=()=>{const f=picker.files?.[0];if(f)process(f)};
- async function process(f){progress.innerHTML='<span class="spin"></span> Lendo '+esc(f.name)+'…';try{const p=await importFull(f);progress.innerHTML='<b>✓ Importado com sucesso</b><span>'+p.nodes.length+' instâncias • '+p.nodes.filter(n=>SCRIPT_TYPES.has(n.type)).length+' scripts</span>';setTimeout(()=>location.reload(),450)}catch(e){console.error("Studio RBXL",e);progress.innerHTML='<b class="error">Falha na importação</b><span>'+esc(e.message||String(e))+'</span>';statusText("Falha na importação")}}
+ async function process(f){progress.innerHTML='<span class="spin"></span> Lendo '+esc(f.name)+'…';try{const p=await importFull(f);progress.innerHTML='<b>✓ Importado com sucesso</b><span>'+p.nodes.length+' instâncias • '+p.nodes.filter(n=>SCRIPT_TYPES.has(n.type)).length+' scripts</span>';setTimeout(()=>{window.StudioLiteExplorerPro?.refresh?.();statusText("Studio RBXL pronto");},120)}catch(e){console.error("Studio RBXL",e);progress.innerHTML='<b class="error">Falha na importação</b><span>'+esc(e.message||String(e))+'</span>';statusText("Falha na importação")}}
 }
 function install(){
  const b=$("#studioRbxlBtn");if(b)b.onclick=open;
