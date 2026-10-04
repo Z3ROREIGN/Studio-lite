@@ -79,3 +79,22 @@ README.md
 
 ## Status
 A interface e o fluxo de publicação estão implementados em JavaScript puro. A conversão completa de RBXL binário, física real, colaboração multiplayer e publicação de cenas geradas do zero exigem serviços/conversores adicionais e não são simulados como se fossem recursos reais.
+
+
+## Novidades da versão 4.0 PRO
+
+- Primitivas 3D: Part, Sphere, Cylinder e Wedge
+- Command Palette com Ctrl/⌘ K
+- Navegação de câmera com teclas de seta
+- Alternância visual do Grid
+- Fullscreen com entrada e saída
+- Autosave periódico e persistência de Grid/Snap
+- Validação e normalização de projetos carregados
+- Tratamento seguro de falha de WebGL
+- Descarte de geometrias e materiais removidos
+- Presets de formas preservados no JSON
+- Toolbox expandida com novas primitivas
+
+### Limites reais
+
+Scripts Luau não são executados dentro do navegador, física/simulação Roblox não é reproduzida e um RBXL binário completo não pode ser fabricado com fidelidade apenas pelo JavaScript do navegador. O fluxo Open Cloud exige um .rbxl válido para publicação. Se o navegador bloquear a chamada Open Cloud por CORS, é necessário um backend ou proxy seguro.
