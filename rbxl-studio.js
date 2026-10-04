@@ -40,6 +40,8 @@ function compactNode(n){
     transparency:n.transparency,locked:n.locked,visible:n.visible,parent:n.parent,script:n.script||"",
     language:n.language,sourceClass:n.sourceClass};
   if(n.customProperties&&typeof n.customProperties==="object")x.customProperties=n.customProperties;
+  // Nunca copie rbxProperties para o LocalStorage: arquivos RBXL grandes podem
+  // exceder a cota do navegador. As propriedades completas permanecem na memória/IndexedDB.
   return x;
 }
 function compactState(state){
@@ -77,15 +79,17 @@ function readState(){
 }
 async function writeState(state){
   const compact=compactState(state);
+  // IndexedDB é a fonte de verdade para projetos grandes.
+  // LocalStorage recebe apenas um índice pequeno para evitar o erro:
+  // "Failed to execute setItem on Storage: quota exceeded".
   try{
-    localStorage.removeItem(STORE);
+    const index={name:compact.name,objectCount:compact.nodes.length,settings:compact.settings,grid:compact.grid,snap:compact.snap,largeStorage:true,updatedAt:compact.updatedAt};
+    localStorage.setItem(STORE,JSON.stringify(index));
     localStorage.removeItem(STORE+"-before-rbxl");
-    localStorage.setItem(STORE,JSON.stringify(compact));
   }catch(e){
-    try{localStorage.removeItem(STORE)}catch{}
-    try{localStorage.setItem(STORE,JSON.stringify({name:compact.name,nodes:[],settings:compact.settings,grid:compact.grid,snap:compact.snap,largeStorage:true,updatedAt:compact.updatedAt}))}catch{}
+    try{localStorage.removeItem(STORE);localStorage.removeItem(STORE+"-before-rbxl")}catch{}
   }
-  try{await idbPutState(compact)}catch(e){console.warn("Studio Lite: IndexedDB",e)}
+  try{await idbPutState(compact)}catch(e){throw new Error("O navegador não conseguiu armazenar o projeto RBXL no IndexedDB. Libere espaço do site e tente novamente.")}
   return compact;
 }
 
@@ -317,10 +321,10 @@ function summarize(nodes){
  return {total:nodes.length,scripts,visual,services:servicesFound.length,serviceNames:servicesFound};
 }
 function backup(){
+  // Backup de RBXL não deve duplicar o Place inteiro no LocalStorage.
   try{
     const current=readState();
-    localStorage.removeItem(STORE+"-before-rbxl");
-    localStorage.setItem(STORE+"-before-rbxl",JSON.stringify({name:current.name||"Meu Primeiro Jogo",count:Array.isArray(current.nodes)?current.nodes.length:0,at:Date.now()}));
+    localStorage.setItem(STORE+"-before-rbxl",JSON.stringify({name:current.name||"Meu Primeiro Jogo",count:Number(current.objectCount||current.nodes?.length||0),at:Date.now()}));
   }catch{}
 }
 async function importFull(file){
@@ -452,7 +456,7 @@ function run(){
    nodes.unshift({id:"service:"+name,name,type:name,service:true,position:[0,0,0],rotation:[0,0,0],size:[1,1,1],color:"#64748b",material:"Plastic",anchored:true,canCollide:false,transparency:0,locked:false,visible:false,parent:null,rbxProperties:{}});
   }
   s.nodes=nodes;
-  localStorage.setItem(STORE,JSON.stringify(s));
+  try{localStorage.setItem(STORE,JSON.stringify({name:s.name,objectCount:nodes.length,settings:s.settings,grid:s.grid,snap:s.snap,largeStorage:true,updatedAt:Date.now()}))}catch{}
  }catch(e){console.warn("RBXL service repair",e)}
 }
 run();
