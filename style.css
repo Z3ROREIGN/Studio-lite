@@ -165,3 +165,133 @@ footer{height:26px;flex:none;background:#080808;border-top:1px solid #1d1d1d;dis
   .toolbar button{height:30px;padding:0 7px;font-size:11px}
   .workspace{height:calc(100vh - 312px)}
 }
+
+/* ===== V19 MOBILE-FIRST PROFESSIONAL CONTROLS ===== */
+.mobile-controls{display:none}
+@media(max-width:850px){
+  html,body{overflow:hidden;overscroll-behavior:none}
+  #app{min-height:100dvh}
+  .topbar{height:56px;min-height:56px;gap:5px;padding:0 7px}
+  .mobile-menu{width:36px;height:36px}
+  .back-top{height:36px;min-width:66px;padding:0 8px;font-size:11px}
+  .brand{flex:1;min-width:0;gap:7px}
+  .brand .logo{width:32px;height:32px;flex:none}
+  .brand b{font-size:10px;letter-spacing:1.2px}
+  .brand small{display:none}
+  .actions{margin-left:0;gap:4px;flex:none}
+  .actions button{height:36px;min-width:36px;padding:0 7px}
+  .actions #undoBtn,.actions #redoBtn,#settingsBtn{display:none}
+  .actions #saveBtn{display:inline-flex}
+  .actions #playBtn{font-size:0;width:40px;padding:0}
+  .actions #playBtn::before{content:"▶";font-size:13px}
+  .actions #publishBtn{font-size:0;width:40px;padding:0}
+  .actions #publishBtn::before{content:"☁";font-size:13px}
+  .toolbar{
+    height:146px!important;
+    min-height:146px;
+    display:flex!important;
+    align-items:stretch;
+    gap:7px;
+    padding:7px!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    scroll-snap-type:x proximity;
+    scrollbar-width:none;
+  }
+  .toolbar::-webkit-scrollbar{display:none}
+  .tool-group{
+    flex:0 0 auto;
+    width:270px;
+    min-width:270px;
+    min-height:130px;
+    height:130px;
+    padding:8px!important;
+    gap:5px!important;
+    align-content:flex-start;
+    overflow:hidden;
+    scroll-snap-align:start;
+  }
+  .tool-group>b{font-size:8px!important}
+  .toolbar button{height:34px!important;min-height:34px!important;padding:0 9px!important;font-size:11px!important}
+  .workspace{
+    height:calc(100dvh - 228px)!important;
+    min-height:0;
+    display:block!important;
+  }
+  .viewport{height:100%;width:100%;min-height:0}
+  .viewport-top{left:7px;right:7px;top:7px}
+  .hud span{padding:5px 7px}
+  .view-actions{gap:4px}
+  .view-actions button{height:34px;min-width:36px;padding:0 8px}
+  .mobile-fab{display:none!important}
+  .mobile-controls{
+    position:absolute;left:7px;right:7px;bottom:8px;z-index:8;
+    display:flex;align-items:stretch;gap:5px;padding:5px;
+    background:rgba(8,8,8,.92);border:1px solid #292929;border-radius:12px;
+    box-shadow:0 12px 35px rgba(0,0,0,.45);backdrop-filter:blur(12px);
+    touch-action:manipulation
+  }
+  .mobile-controls button{
+    flex:1;min-width:0;height:46px;padding:4px 3px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:2px;border-radius:8px;background:#111;border-color:#292929
+  }
+  .mobile-controls button.active{background:#ededed;color:#080808;border-color:#fff}
+  .mobile-controls small{font-size:8px;line-height:1}
+  .mobile-controls span{width:1px;background:#292929;margin:4px 0}
+  .selection-info{left:7px;bottom:68px;max-width:58%;padding:6px 8px}
+  .play-badge{right:7px;top:45px}
+  .hint{display:none}
+  .explorer{width:min(340px,92vw)!important;max-width:92vw}
+  .inspector{width:min(380px,94vw)!important;max-width:94vw}
+  .side-head{height:52px;padding:0 12px}
+  .side-head button{width:38px;height:34px}
+  .tree-search{padding:9px}
+  .tree-search input{height:40px;font-size:13px}
+  .tree-row{min-height:42px!important;height:42px!important;padding-left:9px!important;padding-right:7px!important;font-size:12px}
+  .tree-row .type{max-width:92px}
+  .tabs{height:52px}
+  .tab{font-size:12px}
+  .panel{padding:14px 13px;height:calc(100% - 52px)}
+  .field{min-height:42px;margin:6px 0}
+  .field input,.field select{width:150px;max-width:52vw;min-height:40px;font-size:13px}
+  .vector{grid-template-columns:66px 1fr;gap:6px;margin:8px 0}
+  .vector input{min-height:40px;font-size:12px}
+  .toggle{min-height:42px}
+  .switch{width:42px;height:24px}
+  .switch i{width:20px;height:20px}
+  .switch.on i{transform:translateX(18px)}
+  .asset{min-height:54px;padding:9px}
+  footer{height:26px}
+  .modal-bg{padding:7px}
+  .modal,.rbxl-studio-modal,.studio-help11,.studio-console,.tool300,.script-window,.code-studio-window{
+    width:100%;max-width:100%;max-height:calc(100dvh - 14px);border-radius:12px
+  }
+}
+@media(max-width:600px) and (orientation:portrait){
+  .topbar{height:58px;min-height:58px}
+  .toolbar{height:154px!important;min-height:154px}
+  .tool-group{width:260px;min-width:260px;height:138px;min-height:138px}
+  .workspace{height:calc(100dvh - 238px)!important}
+  .viewport-top .hud span:nth-child(2){display:none}
+  .view-actions button{font-size:10px;min-width:34px}
+  .mobile-controls{bottom:7px}
+  .mobile-controls button{height:48px}
+  .selection-info{bottom:68px}
+}
+@media(max-width:430px){
+  .back-top{min-width:60px;font-size:0}
+  .back-top::before{content:"←";font-size:17px}
+  .brand .logo{width:30px;height:30px}
+  .actions #saveBtn{font-size:0;width:36px;padding:0}
+  .actions #saveBtn::before{content:"✓";font-size:13px}
+  .toolbar{height:150px!important;min-height:150px}
+  .tool-group{width:244px;min-width:244px}
+  .mobile-controls{left:5px;right:5px}
+  .mobile-controls button{height:46px}
+  .selection-info{max-width:52%;font-size:9px}
+}
+@media(min-width:851px){
+  .mobile-controls{display:none!important}
+  .viewport{min-height:0}
+}
