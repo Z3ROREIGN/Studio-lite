@@ -1,4 +1,4 @@
-import reader from "rbx-reader";
+import BinaryParser from "rbx-reader/dist/BinaryParser.js";
 
 export const config = { api: { bodyParser: false }, maxDuration: 60 };
 
