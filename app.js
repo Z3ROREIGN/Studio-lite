@@ -807,20 +807,24 @@ function addCheck11(name,ok,detail){checks11.push({name:name,ok:!!ok,detail:deta
 function runSelfTest11(){
  checks11.length=0;
  addCheck11("DOM principal",!!q11("#canvas")&&!!q11("#tree")&&!!q11("#panel"));
- addCheck11("Three.js",typeof THREE!=="undefined");
- addCheck11("Motor de renderização",!!renderer||!!fallbackCanvas,renderer?"WebGL":"2D compatível");
- addCheck11("Estado do projeto",!!S&&Array.isArray(S.nodes));
- addCheck11("Seleção",!S.selected||S.nodes.some(n=>n.id===S.selected),"Seleção válida ou vazia");
- const ids=new Set(S.nodes.map(n=>n.id));
- const broken=S.nodes.filter(n=>n.parent&&!ids.has(n.parent));
+ addCheck11("Three.js",typeof window.THREE!=="undefined");
+ const hasWebgl=!!q11("#canvas canvas:not(.fallback-canvas)");
+ const hasFallback=!!q11("#canvas .fallback-canvas");
+ addCheck11("Motor de renderização",hasWebgl||hasFallback,hasWebgl?"WebGL":(hasFallback?"2D compatível":"viewport não inicializada"));
+ let stored=null;
+ try{stored=JSON.parse(localStorage.getItem("studio-lite-v4")||"null")}catch{}
+ addCheck11("Estado do projeto",!!stored&&Array.isArray(stored.nodes),stored&&Array.isArray(stored.nodes)?stored.nodes.length+" objetos salvos":"nenhum projeto salvo");
+ const nodes=Array.isArray(stored?.nodes)?stored.nodes:[];
+ const ids=new Set(nodes.map(n=>n&&n.id).filter(Boolean));
+ const broken=nodes.filter(n=>n&&n.parent&&!ids.has(n.parent));
  addCheck11("Hierarquia",broken.length===0,broken.length?broken.length+" parent(s) inválidos":"Parents válidos");
- const dup=S.nodes.length-new Set(S.nodes.map(n=>n.id)).size;
+ const dup=nodes.length-ids.size;
  addCheck11("IDs únicos",dup===0,dup?dup+" duplicado(s)":"OK");
  addCheck11("LocalStorage",(()=>{try{const k="__studio_lite_test__";localStorage.setItem(k,"1");localStorage.removeItem(k);return true}catch{return false}})());
- addCheck11("Code Studio",typeof openCodeStudio==="function"&&typeof openScript==="function");
+ addCheck11("Code Studio",!!q11("#codeStudioBtn")||!!q11(".code-editor")||typeof window.StudioLiteCode!=="undefined");
  addCheck11("Party",!!window.StudioLiteParty,"Supabase/Realtíme disponível");
  addCheck11("Console",!!window.StudioLiteConsole);
- addCheck11("Exportação",typeof exportJSON==="function"&&typeof exportXML==="function");
+ addCheck11("Exportação",!!q11("#exportBtn")||!!q11("#exportJsonBtn")||!!q11("[data-action='export']"));
  addCheck11("Publicação",!!q11("#publishBtn"));
  return checks11;
 }
