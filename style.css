@@ -208,9 +208,12 @@ footer{height:26px;flex:none;background:#080808;border-top:1px solid #1d1d1d;dis
     padding:8px!important;
     gap:5px!important;
     align-content:flex-start;
-    overflow:hidden;
+    overflow-y:auto;
+    overflow-x:hidden;
+    scrollbar-width:none;
     scroll-snap-align:start;
   }
+  .tool-group::-webkit-scrollbar{display:none}
   .tool-group>b{font-size:8px!important}
   .toolbar button{height:34px!important;min-height:34px!important;padding:0 9px!important;font-size:11px!important}
   .workspace{
