@@ -48,7 +48,14 @@ function setupTouch(){
     const wasOrbit=orbiting;active.delete(e.pointerId);
     if(wasOrbit&&active.size===0)synth("pointerup",e,{shiftKey:true});
     else synth("pointerup",e);
-    if(active.size<2){orbiting=false;lastCenter=null;lastDistance=0}
+    if(active.size<2){
+      if(wasOrbit&&active.size===1){
+        const p=[...active.entries()][0];
+        synth("pointerdown",{pointerId:p[0],clientX:p[1].x,clientY:p[1].y,button:0,buttons:1},{shiftKey:true});
+      }
+      orbiting=active.size===1;
+      lastCenter=null;lastDistance=0
+    }
   };
   host.addEventListener("pointerup",finish,true);
   host.addEventListener("pointercancel",finish,true);
@@ -58,6 +65,7 @@ function mobileToolbar(){
   const bar=document.createElement("div");bar.id="mobileControls";bar.className="mobile-controls";
   bar.innerHTML='<button data-m="select">⌁<small>Selecionar</small></button><button data-m="move">✥<small>Mover</small></button><button data-m="rotate">↻<small>Girar</small></button><button data-m="scale">↔<small>Escalar</small></button><span></span><button data-m="explorer">☰<small>Explorer</small></button><button data-m="inspector">☷<small>Props</small></button>';
   host.appendChild(bar);
+  bar.querySelector("[data-m=\"select\"]")?.classList.add("active");
   bar.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{
     const m=b.dataset.m;
     if(["select","move","rotate","scale"].includes(m)){q('.tool[data-tool="'+m+'"]')?.click();bar.querySelectorAll("[data-m]").forEach(x=>x.classList.toggle("active",x.dataset.m===m))}
