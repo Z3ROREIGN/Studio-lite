@@ -376,12 +376,6 @@ function open(){
    setTimeout(()=>drop?.focus(),0);
    return true;
  }catch(e){console.error("Studio RBXL UI",e);statusText("Não foi possível abrir o Studio RBXL");return false;}
- const bg=document.createElement("div");bg.id="studioRbxlModal";bg.className="modal-bg";
- bg.innerHTML='<div class="rbxl-studio-modal"><div class="modal-head"><div><h2>▣ Studio RBXL — Importação completa</h2><small>RBXL/RBXM binário • RBXLX/RBMX XML • hierarquia + propriedades + scripts</small></div><button id="rbxlClose">×</button></div><div class="rbxl-drop" id="rbxlDrop"><input id="rbxlPicker" type="file" accept=".rbxl,.rbxm,.rbxlx,.rbxmx" hidden><strong>Selecionar Place Roblox</strong><span>Toque aqui para escolher o arquivo</span><small>O Place é convertido para uma árvore editável. Arquivos grandes usam IndexedDB, evitando o erro de quota do localStorage.</small></div><div class="rbxl-checks"><span>✓ Explorer hierárquico</span><span>✓ Scripts editáveis</span><span>✓ Properties preservadas</span><span>✓ Backup local</span></div><div id="rbxlProgress" class="rbxl-progress">Pronto para importar.</div></div>';
- document.body.appendChild(bg);const picker=$("#rbxlPicker"),drop=$("#rbxlDrop"),progress=$("#rbxlProgress");
- const close=()=>bg.remove();$("#rbxlClose").onclick=close;drop.onclick=()=>picker.click();
- picker.onchange=()=>{const f=picker.files?.[0];if(f)process(f)};
- async function process(f){progress.innerHTML='<span class="spin"></span> Lendo '+esc(f.name)+'…';try{const p=await importFull(f);progress.innerHTML='<b>✓ Importado com sucesso</b><span>'+p.nodes.length+' instâncias • '+p.nodes.filter(n=>SCRIPT_TYPES.has(n.type)).length+' scripts</span>';setTimeout(()=>{window.StudioLiteExplorerPro?.refresh?.();statusText("Studio RBXL pronto");},120)}catch(e){console.error("Studio RBXL",e);progress.innerHTML='<b class="error">Falha na importação</b><span>'+esc(e.message||String(e))+'</span>';statusText("Falha na importação")}}
 }
 function install(){
  window.StudioLiteRBXL={open,importFile:importFull};
