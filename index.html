@@ -22,15 +22,15 @@
 </header>
 
 <nav class="toolbar">
-  <div class="tool-group"><b>CREATE</b><button class="accent" data-add="Part">＋ Part</button><button data-add="Sphere">● Sphere</button><button data-add="Cylinder">◉ Cylinder</button><button data-add="Wedge">◢ Wedge</button><button data-add="SpawnLocation">⌂ Spawn</button><button data-add="Folder">▱ Folder</button><button data-add="Script">◇ Script</button><button data-add="Model">◇ Model</button><button data-add="MeshPart">◆ Mesh</button><button data-add="Terrain">▰ Terrain</button></div>
+  <div class="tool-group"><b>CRIAR</b><button class="accent" data-add="Part">＋ Part</button><button data-add="Sphere">● Sphere</button><button data-add="Cylinder">◉ Cylinder</button><button data-add="Wedge">◢ Wedge</button><button data-add="SpawnLocation">⌂ Spawn</button><button data-add="Folder">▱ Folder</button><button data-add="Script">◇ Script</button><button data-add="Model">◇ Model</button><button data-add="MeshPart">◆ Mesh</button><button data-add="Terrain">▰ Terrain</button></div>
   <i></i>
-  <div class="tool-group"><b>EDIT</b><button id="duplicateBtn">⧉</button><button id="deleteBtn">⌫</button><button id="renameBtn">Rename</button></div>
+  <div class="tool-group"><b>EDITAR</b><button id="duplicateBtn">⧉</button><button id="deleteBtn">⌫</button><button id="renameBtn">Renomear</button></div>
   <i></i>
-  <div class="tool-group"><b>TRANSFORM</b><button class="tool active" data-tool="select">Select</button><button class="tool" data-tool="move">Move</button><button class="tool" data-tool="rotate">Rotate</button><button class="tool" data-tool="scale">Scale</button></div>
+  <div class="tool-group"><b>TRANSFORMAR</b><button class="tool active" data-tool="select">Selecionar</button><button class="tool" data-tool="move">Mover</button><button class="tool" data-tool="rotate">Rotacionar</button><button class="tool" data-tool="scale">Escalar</button></div>
   <i></i>
-  <div class="tool-group"><b>VIEW</b><button id="focusBtn">◎ Focar</button><button id="gridBtn">Grid: 1</button><button id="snapBtn">Snap: ON</button><button id="fullscreenBtn">⛶</button><button id="gridToggleBtn" title="Mostrar/ocultar grid">▦</button><button id="validateBtn" title="Validar projeto">✓</button><button id="commandBtn" title="Command Palette">⌘K</button></div>
+  <div class="tool-group"><b>VISUALIZAÇÃO</b><button id="focusBtn">◎ Focar</button><button id="gridBtn">Grid: 1</button><button id="snapBtn">Snap: ON</button><button id="fullscreenBtn">⛶</button><button id="gridToggleBtn" title="Mostrar/ocultar grid">▦</button><button id="validateBtn" title="Validar projeto">✓</button><button id="commandBtn" title="Command Palette">⌘K</button></div>
   <i></i>
-  <div class="tool-group"><b>FILE</b><button id="newBtn">＋ Novo</button><button id="importBtn">⇧ Importar</button><button id="exportBtn">⇩ Exportar</button><button id="publishRbxlBtn" class="accent">☁ RBXL → Roblox</button><button id="screenshotBtn">▣ PNG</button><button id="codeStudioBtn">⌘ Code</button></div>
+  <div class="tool-group"><b>ARQUIVO</b><button id="newBtn">＋ Novo</button><button id="importBtn">⇧ Importar</button><button id="exportBtn">⇩ Exportar</button><button id="publishRbxlBtn" class="accent">☁ RBXL → Roblox</button><button id="screenshotBtn">▣ PNG</button><button id="codeStudioBtn">⌘ Code</button></div>
 </nav>
 
 <section class="workspace">
@@ -45,7 +45,7 @@
   <div id="canvas"></div>
   <div class="viewport-top">
     <div class="hud"><span>Perspective</span><span id="gridHud">Grid 1 stud</span><span id="engineHud">WebGL</span></div>
-    <div class="view-actions"><button id="homeView">⌂</button><button id="topView">Top</button><button id="frontView">Front</button><button id="rightView">Right</button></div>
+    <div class="view-actions"><button id="homeView">⌂</button><button id="topView">Topo</button><button id="frontView">Frente</button><button id="rightView">Direita</button></div>
   </div>
   <div class="crosshair">＋</div>
   <div class="hint">Arraste • MMB/RMB orbitar • roda zoom • Shift orbitar</div>
@@ -55,7 +55,7 @@
 </main>
 
 <aside class="sidebar inspector" id="inspectorPanel">
-  <div class="tabs"><button class="tab active" data-panel="properties">Properties</button><button class="tab" data-panel="toolbox">Toolbox</button></div>
+  <div class="tabs"><button class="tab active" data-panel="properties">Propriedades</button><button class="tab" data-panel="toolbox">Ferramentas</button></div>
   <div id="panel"></div>
 </aside>
 </section>
