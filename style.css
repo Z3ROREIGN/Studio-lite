@@ -90,3 +90,11 @@ footer{height:26px;flex:none;background:#080808;border-top:1px solid #1d1d1d;dis
  .health-row11{grid-template-columns:25px 1fr}
  .health-row11 small{grid-column:2}
 }
+
+/* Aviso de manutenção na entrada */
+.maintenance-notice{position:fixed;top:14px;left:50%;transform:translate(-50%,-18px);width:min(520px,calc(100vw - 28px));display:flex;align-items:center;gap:11px;padding:12px 14px;background:#f2b900;color:#16120a;border:1px solid #ffd84a;border-radius:10px;box-shadow:0 14px 45px rgba(0,0,0,.45);z-index:1000;opacity:0;pointer-events:none;animation:maintenanceNotice 5s ease forwards}
+.maintenance-notice .maintenance-icon{font-size:18px;font-weight:900;flex:none}
+.maintenance-notice b{display:block;font-size:12px;letter-spacing:.2px}
+.maintenance-notice small{display:block;margin-top:2px;font-size:10px;line-height:1.35;opacity:.82}
+@keyframes maintenanceNotice{0%{opacity:0;transform:translate(-50%,-18px)}10%,88%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-18px)}}
+@media(max-width:600px){.maintenance-notice{top:9px;width:calc(100vw - 18px);padding:11px 12px}.maintenance-notice small{font-size:9px}}
