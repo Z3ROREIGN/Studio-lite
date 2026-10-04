@@ -52,7 +52,11 @@ function compactState(state){
 // Use somente o parser oficial do projeto. O rbx-reader-rts externo tinha
 // incompatibilidades de runtime que podiam terminar em:
 // "Cannot read properties of undefined (reading 'buffer')".
-const PARSER_URL="/api/roblox/rbx-parser?v=20261004-v21";
+const PARSER_URLS=[
+  "/api/roblox/rbx-parser?v=20261004-v24",
+  "https://cdn.jsdelivr.net/gh/MrSprinkleToes/rbxBinaryParser@6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js",
+  "https://raw.githubusercontent.com/MrSprinkleToes/rbxBinaryParser/6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js"
+];
 let parserPromise=null;
 let parserBlobUrl=null;
 
@@ -211,47 +215,31 @@ function parseXML(text){
 async function loadBinaryParser(){
  if(parserPromise)return parserPromise;
  parserPromise=(async()=>{
-   let response;
-   try{
-     response=await fetch(PARSER_URL,{
-       method:"GET",
-       cache:"no-store",
-       headers:{accept:"text/javascript, application/javascript, */*"}
-     });
-   }catch(e){
-     throw new Error("Não foi possível acessar o parser RBXL do servidor: "+(e?.message||e));
+   const errors=[];
+   for(const url of PARSER_URLS){
+     try{
+       const response=await fetch(url,{method:"GET",cache:"no-store",mode:"cors",headers:{accept:"text/javascript, application/javascript, */*"}});
+       if(!response.ok)throw new Error("HTTP "+response.status);
+       const source=await response.text();
+       if(!source||source.length<1000)throw new Error("resposta vazia/inválida");
+       if(parserBlobUrl)URL.revokeObjectURL(parserBlobUrl);
+       parserBlobUrl=URL.createObjectURL(new Blob([source],{type:"text/javascript"}));
+       const m=await import(parserBlobUrl);
+       const decode=m?.decode||m?.default?.decode;
+       if(typeof decode!=="function")throw new Error("decode() não encontrado");
+       return async buffer=>{
+         if(buffer instanceof Uint8Array)buffer=buffer.buffer.slice(buffer.byteOffset,buffer.byteOffset+buffer.byteLength);
+         if(!(buffer instanceof ArrayBuffer))throw new Error("Buffer RBXL inválido");
+         if(buffer.byteLength<16)throw new Error("Arquivo RBXL inválido ou incompleto");
+         return {__modern:false,result:decode(buffer)};
+       };
+     }catch(e){errors.push(url+" → "+(e?.message||String(e)));}
    }
-   if(!response.ok){
-     throw new Error("Parser RBXL indisponível (HTTP "+response.status+").");
-   }
-   const source=await response.text();
-   if(!source||source.length<1000){
-     throw new Error("O servidor retornou um parser RBXL vazio ou inválido.");
-   }
-   // Importamos via Blob para evitar problemas de MIME/CORS/cache em
-   // import() direto de uma rota serverless.
-   if(parserBlobUrl)URL.revokeObjectURL(parserBlobUrl);
-   parserBlobUrl=URL.createObjectURL(new Blob([source],{type:"text/javascript"}));
-   const m=await import(parserBlobUrl);
-   const decode=m?.decode||m?.default?.decode;
-   if(typeof decode!=="function"){
-     throw new Error("O parser RBXL carregado não expõe a função decode().");
-   }
-   return async buffer=>{
-     if(buffer instanceof Uint8Array){
-       buffer=buffer.buffer.slice(buffer.byteOffset,buffer.byteOffset+buffer.byteLength);
-     }
-     if(!(buffer instanceof ArrayBuffer)){
-       throw new Error("Buffer RBXL inválido: era esperado um ArrayBuffer.");
-     }
-     if(buffer.byteLength<16){
-       throw new Error("Arquivo RBXL inválido ou incompleto.");
-     }
-     return {__modern:false,result:decode(buffer)};
-   };
+   throw new Error("Não foi possível carregar o parser binário RBXL. Tentativas: "+errors.join(" | "));
  })().catch(e=>{parserPromise=null;throw e});
  return parserPromise;
 }
+
 function normalizeBinaryResult(parsed){
  const root=parsed?.result?.root||parsed?.root;
  if(parsed?.__modern){
