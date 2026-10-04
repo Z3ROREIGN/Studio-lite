@@ -29,7 +29,10 @@ export default async function handler(req,res){
     const body=await readBody(req);
     if(!body.length)return res.status(400).json({ok:false,error:"Arquivo vazio"});
     if(body.length>80*1024*1024)return res.status(413).json({ok:false,error:"Arquivo maior que 80 MB"});
-    const parsed=await Promise.resolve(parseBuffer(body));
+    // rbx-reader 1.5.x recebe ArrayBuffer, não Node Buffer.
+    // Passar Buffer diretamente pode quebrar o ByteReader e resultar em HTTP 500.
+    const arrayBuffer=body.buffer.slice(body.byteOffset,body.byteOffset+body.byteLength);
+    const parsed=await Promise.resolve(parseBuffer(arrayBuffer));
     const list=Array.isArray(parsed?.instances)?parsed.instances:[];
     if(!list.length)return res.status(422).json({ok:false,error:"O parser não encontrou instâncias no RBXL."});
     const index=new Map(list.map((x,i)=>[x,i]));
@@ -44,6 +47,6 @@ export default async function handler(req,res){
     return res.status(200).json({ok:true,count:instances.length,instances});
   }catch(error){
     console.error("RBXL server parser",error);
-    return res.status(422).json({ok:false,error:error?.message||String(error)});
+    return res.status(422).json({ok:false,error:error?.message||String(error),stage:"rbxl-parser"});
   }
 }
