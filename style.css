@@ -393,3 +393,97 @@ footer{height:26px;flex:none;background:#080808;border-top:1px solid #1d1d1d;dis
   .rbxl-top{padding:0 7px!important;font-size:10px!important}
   .v21-create-grid{grid-template-columns:1fr 1fr}
 }
+
+
+/* ===== V22 — PRO 300 TOOLKIT ===== */
+#studio300Modal{z-index:1200!important;padding:18px!important;background:rgba(0,0,0,.72)!important;backdrop-filter:blur(10px)}
+.tool300-v21{
+  width:min(1120px,96vw);
+  height:min(820px,92vh);
+  display:flex;flex-direction:column;overflow:hidden;
+  background:linear-gradient(180deg,#101010 0%,#090909 100%);
+  border:1px solid #292929;border-radius:20px;
+  box-shadow:0 35px 120px rgba(0,0,0,.72),inset 0 1px rgba(255,255,255,.035);
+}
+.tool300-v21-head{
+  min-height:86px;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;
+  border-bottom:1px solid #202020;background:linear-gradient(180deg,#151515,#0d0d0d)
+}
+.tool300-v21-head h2{margin:0;font-size:20px;letter-spacing:-.4px;color:#f2f2f2}
+.tool300-v21-head small{display:block;margin-top:5px;color:#707070;font-size:11px}
+#tool300V21Close{
+  width:38px;height:38px;border-radius:10px;border:1px solid #2c2c2c;background:#101010;color:#888;
+  font-size:22px;line-height:1;cursor:pointer
+}
+#tool300V21Close:hover{background:#1b1b1b;color:#fff;border-color:#4a4a4a}
+.tool300-v21-bar{
+  display:grid;grid-template-columns:minmax(0,1fr) 210px auto;gap:10px;align-items:center;
+  padding:12px 16px;border-bottom:1px solid #1d1d1d;background:#0c0c0c
+}
+.tool300-v21-search{
+  height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;
+  border:1px solid #292929;border-radius:10px;background:#111;transition:.16s
+}
+.tool300-v21-search:focus-within{border-color:#555;box-shadow:0 0 0 3px rgba(255,255,255,.035)}
+.tool300-v21-search>span{color:#686868;font-size:16px}
+.tool300-v21-search input{
+  width:100%;height:100%;border:0!important;outline:0!important;background:transparent!important;
+  color:#eee;font-size:12px;padding:0!important
+}
+#tool300V21Category{
+  height:42px;min-width:0;padding:0 11px;border:1px solid #292929;border-radius:10px;
+  background:#111;color:#bbb;outline:0;font-size:11px
+}
+.tool300-v21-count{
+  min-width:88px;height:42px;display:grid;place-items:center;padding:0 12px;
+  border:1px solid #292929;border-radius:10px;background:#111;color:#999;font-size:10px;font-weight:800;white-space:nowrap
+}
+.tool300-v21-grid{
+  flex:1;min-height:0;overflow:auto;padding:16px;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;
+  align-content:start;scrollbar-width:thin
+}
+.tool300-v21-item{
+  min-width:0;min-height:62px;display:grid;grid-template-columns:32px minmax(0,1fr) 22px;
+  align-items:center;gap:9px;padding:8px 10px;text-align:left;
+  background:linear-gradient(180deg,#111,#0c0c0c);border:1px solid #202020;border-radius:11px;
+  color:#ddd;cursor:pointer;transition:transform .14s,border-color .14s,background .14s,box-shadow .14s
+}
+.tool300-v21-item:hover{transform:translateY(-1px);background:linear-gradient(180deg,#171717,#101010);border-color:#3a3a3a;box-shadow:0 8px 25px rgba(0,0,0,.28)}
+.tool300-v21-item.running{border-color:#666;background:#181818;transform:scale(.99)}
+.tool300-v21-index{
+  width:30px;height:30px;display:grid;place-items:center;border:1px solid #252525;border-radius:8px;
+  background:#0a0a0a;color:#555;font:700 9px ui-monospace,monospace
+}
+.tool300-v21-copy{min-width:0}
+.tool300-v21-copy b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#e5e5e5}
+.tool300-v21-copy small{display:block;margin-top:4px;color:#5f5f5f;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tool300-v21-run{display:grid;place-items:center;width:20px;height:20px;border-radius:6px;color:#555;font-size:12px}
+.tool300-v21-item:hover .tool300-v21-run{color:#fff;background:#222}
+.tool300-v21-foot{
+  min-height:52px;padding:9px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  border-top:1px solid #1d1d1d;background:#0b0b0b;color:#666;font-size:10px
+}
+#tool300V21Self{
+  height:34px;padding:0 12px;border:1px solid #303030;border-radius:8px;background:#141414;color:#aaa;
+  font-size:10px;font-weight:800;cursor:pointer
+}
+#tool300V21Self:hover{background:#1c1c1c;color:#fff;border-color:#4a4a4a}
+@media(max-width:900px){
+  #studio300Modal{padding:9px!important}
+  .tool300-v21{width:100%;height:calc(100dvh - 18px);border-radius:15px}
+  .tool300-v21-grid{grid-template-columns:repeat(2,minmax(0,1fr));padding:11px;gap:7px}
+  .tool300-v21-bar{grid-template-columns:minmax(0,1fr) 160px;gap:7px}
+  .tool300-v21-count{grid-column:1/-1;height:32px;min-width:0}
+}
+@media(max-width:560px){
+  .tool300-v21-head{min-height:70px;padding:13px 14px}
+  .tool300-v21-head h2{font-size:16px}
+  .tool300-v21-head small{font-size:9px}
+  .tool300-v21-bar{grid-template-columns:1fr;padding:9px}
+  #tool300V21Category,.tool300-v21-search{height:40px}
+  .tool300-v21-count{grid-column:auto;height:34px}
+  .tool300-v21-grid{grid-template-columns:1fr;padding:9px}
+  .tool300-v21-item{min-height:58px}
+  .tool300-v21-foot{padding:8px 10px}
+}
