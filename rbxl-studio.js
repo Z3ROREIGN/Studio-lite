@@ -1,402 +1,117 @@
-/* Studio RBXL — importador robusto de RBXL/RBXM/RBXLX/RBXMX */
+/* Studio RBXL — Open Cloud script workspace
+ * Conecta a um Place existente e edita somente Script / LocalScript / ModuleScript.
+ * Não cria nem remove instâncias.
+ */
 (()=>{"use strict";
 const $=s=>document.querySelector(s);
-const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
-const C=()=>window.StudioLiteCore||{};
-const S=()=>C().S||window.S||null;
-const STORE="studio-lite-v4";
-const DB="StudioLiteProjectsV1",TABLE="projects",KEY="current";
-const SERVICES=["Workspace","Lighting","Players","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService"];
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const SCRIPT_TYPES=new Set(["Script","LocalScript","ModuleScript"]);
-const VISUAL_TYPES=new Set(["Part","MeshPart","UnionOperation","WedgePart","CornerWedgePart","TrussPart","VehicleSeat","Seat","SpawnLocation"]);
-const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2)+Date.now().toString(36);
-const clone=x=>{try{return JSON.parse(JSON.stringify(x))}catch{return x}};
-const vec=(v,d=[0,0,0])=>{
- if(Array.isArray(v))return [Number(v[0])||0,Number(v[1])||0,Number(v[2])||0];
- if(v&&typeof v==="object"){
-   if(Array.isArray(v.value))return vec(v.value,d);
-   if(Number.isFinite(Number(v.x))||Number.isFinite(Number(v.y))||Number.isFinite(Number(v.z)))
-     return [Number(v.x)||0,Number(v.y)||0,Number(v.z)||0];
- }
- return d.slice();
-};
-const num=v=>Number.isFinite(Number(v))?Number(v):0;
-function colorHex(v){
- if(Array.isArray(v)&&v.length>=3){
-   const a=v.slice(0,3).map(x=>Math.max(0,Math.min(1,Number(x)||0)));
-   return "#"+a.map(x=>Math.round(x*255).toString(16).padStart(2,"0")).join("");
- }
- if(v&&typeof v==="object"){
-   if(["r","g","b"].every(k=>k in v))return colorHex([v.r,v.g,v.b]);
-   if(Array.isArray(v.value))return colorHex(v.value);
- }
- if(typeof v==="number"){
-   const n=v>>>0;
-   return "#"+((n>>16)&255).toString(16).padStart(2,"0")+((n>>8)&255).toString(16).padStart(2,"0")+(n&255).toString(16).padStart(2,"0");
- }
- return null;
-}
-function cframeToTransform(v){
- if(Array.isArray(v)&&v.length>=12){
-   const m=v;
-   const x=m[3]||0,y=m[4]||0,z=m[5]||0;
-   return {position:[x,y,z],rotation:[0,0,0]};
- }
- if(v&&typeof v==="object"){
-   const p=vec(v.position||v.Position);
-   const r=v.rotation;
-   if(Array.isArray(r)&&r.length>=9){
-     const m=r;
-     const sy=Math.sqrt(m[0]*m[0]+m[3]*m[3]);
-     let rx,ry,rz;
-     if(sy>1e-6){
-       rx=Math.atan2(m[7],m[8]);
-       ry=Math.atan2(-m[6],sy);
-       rz=Math.atan2(m[3],m[0]);
-     }else{
-       rx=Math.atan2(-m[5],m[4]); ry=Math.atan2(-m[6],sy); rz=0;
-     }
-     return {position:p,rotation:[rx*180/Math.PI,ry*180/Math.PI,rz*180/Math.PI]};
-   }
-   if(Array.isArray(r)&&r[0]==="matrix"){
-     const m=r[1]||[];
-     return cframeToTransform({position:p,rotation:m});
-   }
-   if(Array.isArray(v)&&v.length>=3)return {position:vec(v),rotation:[0,0,0]};
-   return {position:p,rotation:[0,0,0]};
- }
- return {position:[0,0,0],rotation:[0,0,0]};
-}
-function makeNode(type,p,parent=null,id=null){
- p=p||{};
- const cf=cframeToTransform(getProp(p,"CFrame"));
- const n={
-  id:id??uid(),
-  name:String(getProp(p,"Name")??type),
-  type:String(type||"Part"),
-  position:vec(getProp(p,"Position"),cf.position),
-  rotation:vec(getProp(p,"Orientation"),cf.rotation),
-  size:vec(getProp(p,"Size"),[1,1,1]),
-  color:colorHex(getProp(p,"Color3"))||"#777777",
-  material:String(getProp(p,"Material")??"Plastic"),
-  shape:"box",
-  anchored:Boolean(getProp(p,"Anchored")??false),
-  canCollide:Boolean(getProp(p,"CanCollide")??true),
-  canTouch:Boolean(getProp(p,"CanTouch")??true),
-  canQuery:Boolean(getProp(p,"CanQuery")??true),
-  transparency:Math.max(0,Math.min(1,num(getProp(p,"Transparency")))),
-  locked:Boolean(getProp(p,"Locked")??false),
-  visible:true,
-  parent:parent??null,
-  script:"",
-  language:"luau",
-  sourceClass:String(type||"")
- };
- const ori=getProp(p,"Orientation");if(Array.isArray(ori))n.rotation=vec(ori);
- const shape=String(getProp(p,"Shape")??"").toLowerCase();
- if(shape==="ball"||shape==="sphere")n.shape="sphere";
- else if(shape==="cylinder")n.shape="cylinder";
- else if(shape==="wedge")n.shape="wedge";
- const src=getProp(p,"Source");
- if(typeof src==="string"){n.script=src;n.language="luau"}
- const attrs=getProp(p,"Attributes");
- if(attrs&&typeof attrs==="object")n.attributes=clone(attrs);
- n.rbxProperties=Object.fromEntries(
-   Object.entries(p)
-     .filter(([k])=>k!=="Parent"&&k!=="Children")
-     .map(([k,v])=>[k,compactProperty(v)])
- );
- return n;
-}
-function parseXML(text){
- const doc=new DOMParser().parseFromString(text,"application/xml");
- if(doc.querySelector("parsererror"))throw Error("XML Roblox inválido ou corrompido.");
- const parseValue=el=>{
-   const tag=el.tagName.toLowerCase(),t=(el.textContent||"").trim();
-   if(["string","protectedstring","binarystring","sharedstring"].includes(tag))return t;
-   if(tag==="bool")return t.toLowerCase()==="true";
-   if(["int","int64","float","double","token","brickcolor"].includes(tag))return num(t);
-   if(tag==="color3"){
-     const n=num(t);return colorHex(n)||n;
-   }
-   if(tag==="color3uint8"){
-     const n=num(t);return [((n>>16)&255)/255,((n>>8)&255)/255,(n&255)/255];
-   }
-   if(tag==="vector2")return {x:num(el.querySelector("X")?.textContent),y:num(el.querySelector("Y")?.textContent)};
-   if(tag==="vector3"||tag==="vector3int16")return {x:num(el.querySelector("X")?.textContent),y:num(el.querySelector("Y")?.textContent),z:num(el.querySelector("Z")?.textContent)};
-   if(tag==="coordinateframe"){
-     const p=[num(el.querySelector("X")?.textContent),num(el.querySelector("Y")?.textContent),num(el.querySelector("Z")?.textContent)];
-     const m=["R00","R01","R02","R10","R11","R12","R20","R21","R22"].map(k=>num(el.querySelector(k)?.textContent));
-     return {position:p,rotation:m};
-   }
-   if(tag==="ref")return t==="null"||t==="nil"||!t?null:t;
-   if(tag==="content")return t;
-   if(tag==="physicalproperties")return {raw:t};
-   return t;
- };
- const walk=(item,parent,all,refs)=>{
-   const type=item.getAttribute("class")||"Folder",id=item.getAttribute("referent")||uid(),props={};
-   const pe=item.querySelector(":scope > Properties");
-   if(pe)for(const p of pe.children){const name=p.getAttribute("name");if(name)props[name]=parseValue(p)}
-   const n=makeNode(type,props,parent,id);all.push(n);refs.set(id,n);
-   for(const child of item.querySelectorAll(":scope > Item"))walk(child,n.id,all,refs);
-   return n;
- };
- const all=[],refs=new Map();
- const roots=[...doc.documentElement.children].filter(x=>x.tagName==="Item");
- roots.forEach(x=>walk(x,null,all,refs));
- all.forEach(n=>{
-   const parent=n.rbxProperties?.Parent;
-   if(typeof parent==="string"&&refs.has(parent))n.parent=refs.get(parent).id;
- });
- return all;
-}
-function parseBinaryServerInstances(list){
- if(!Array.isArray(list)||!list.length)throw Error("O parser não encontrou instâncias.");
- const all=list.map((x,i)=>{
-   const raw=x?.properties||x?.Properties||x?.props||{};
-   const props={};
-   for(const [key,val] of Object.entries(raw||{})){
-     if(key==="Parent"||key==="Children")continue;
-     props[key]=val&&typeof val==="object"&&"value" in val?val.value:val;
-   }
-   const className=String(x?.className||x?.ClassName||"Folder");
-   const n=makeNode(className,props,null,"rbx-"+i);
-   n.rbxOriginalId=String(x?.id??i);
-   n.parent=x?.parent==null?null:"rbx-"+String(x.parent);
-   if(SCRIPT_TYPES.has(n.type)&&typeof props.Source==="string")n.script=props.Source;
-   if(x?.attributes&&typeof x.attributes==="object")n.attributes=clone(x.attributes);
-   return n;
- });
- const valid=new Set(all.map(n=>n.id));
- all.forEach(n=>{if(n.parent&&!valid.has(n.parent))n.parent=null});
- return all;
-}
-function normalizeClientInstance(inst,i,all,objectIds){
- const raw=inst?.properties||inst?.Properties||inst?.props||{};
- const props={};
- for(const [key,val] of Object.entries(raw||{})){
-   if(key==="Parent"||key==="Children")continue;
-   props[key]=val&&typeof val==="object"&&"value" in val?val.value:val;
- }
- const className=String(inst?.className||inst?.ClassName||inst?.class||"Folder");
- const ref=inst?.id??inst?.referent??i;
- const n=makeNode(className,props,null,"rbx-"+i);
- n.rbxOriginalId=String(ref);
- if(inst?.attributes&&typeof inst.attributes==="object")n.attributes=clone(inst.attributes);
- all.push(n);
- objectIds.set(ref,i);
- objectIds.set(inst,i);
- return n;
-}
-function convertClientInstances(instances){
- if(!Array.isArray(instances)||!instances.length)throw Error("O parser do navegador não encontrou instâncias.");
- const all=[],objectIds=new Map();
- instances.forEach((inst,i)=>normalizeClientInstance(inst,i,all,objectIds));
- all.forEach((n,i)=>{
-   const inst=instances[i],raw=inst?.properties||inst?.Properties||inst?.props||{};
-   const pv=inst?.parent??(raw?.Parent&&typeof raw.Parent==="object"&&"value" in raw.Parent?raw.Parent.value:raw?.Parent);
-   if(pv!=null){
-     const idx=objectIds.get(pv);
-     if(idx!=null)n.parent="rbx-"+idx;
-     else if(typeof pv==="string"){
-       const byRef=instances.findIndex(x=>String(x?.id??x?.referent??"")===pv);
-       if(byRef>=0)n.parent="rbx-"+byRef;
-     }
-   }
- });
- const valid=new Set(all.map(n=>n.id));
- all.forEach(n=>{if(n.parent&&!valid.has(n.parent))n.parent=null});
- return all;
-}
-function parseBinaryWorker(file){
- return new Promise(async(resolve,reject)=>{
-   let worker;
-   try{worker=new Worker("/rbxl-worker.js?v=20261004-v47",{type:"module"})}
-   catch(e){reject(e);return}
-   const timer=setTimeout(()=>{worker.terminate();reject(Error("O processamento demorou demais e foi cancelado."))},180000);
-   worker.onmessage=event=>{
-     const data=event.data||{};
-     if(data.type==="progress"){statusText(data.message);return}
-     clearTimeout(timer);worker.terminate();
-     if(data.type==="result"){
-       try{resolve(convertClientInstances(data.instances))}catch(e){reject(e)}
-     }else reject(Error(data.message||"Falha no Worker do importador."));
-   };
-   worker.onerror=e=>{
-     clearTimeout(timer);worker.terminate();
-     reject(Error(e?.message||"Falha no Worker do importador."));
-   };
-   try{
-     statusText("Preparando processamento em segundo plano…");
-     const buffer=await file.arrayBuffer();
-     worker.postMessage({buffer,filename:file.name},[buffer]);
-   }catch(e){clearTimeout(timer);worker.terminate();reject(e)}
- });
-}
-async function parseBinary(file){
- try{
-   return await parseBinaryWorker(file);
- }catch(workerError){
-   if(file.size<=4*1024*1024){
-     try{
-       statusText("Worker indisponível; usando fallback do servidor…");
-       const buf=await file.arrayBuffer();
-       const response=await fetch("/api/roblox/rbxl-import",{method:"POST",headers:{"Content-Type":"application/octet-stream","X-RBXL-Filename":file.name},body:buf});
-       let data=null;try{data=await response.json()}catch{}
-       if(!response.ok||!data?.ok){
-      if(response.status===413)throw Error("O servidor rejeitou o arquivo porque a função de importação atingiu o limite de payload. No Vercel, o limite da função é 4,5 MB; use um RBXL/RBXM menor ou publique o importador em um backend com upload maior.");
-      throw Error(data?.error||("Importador respondeu HTTP "+response.status));
-    }
-       return parseBinaryServerInstances(data.instances);
-     }catch(e){workerError=e}
-   }
-   throw Error(workerError?.message||"Não foi possível processar este arquivo RBXL.");
- }
-}
-function detect(bytes,ext){
- // RBXL/RBXM binários começam com "<roblox!" — não são XML.
- if(ext==="rbxlx"||ext==="rbxmx")return true;
- if(ext==="rbxl"||ext==="rbxm"){
-   if(bytes.length>=8){
-     const sig=String.fromCharCode(...bytes.slice(0,8));
-     if(sig==="<roblox!")return false;
-   }
- }
- const h=new TextDecoder("utf-8").decode(bytes.slice(0,512)).replace(/^\uFEFF/,"").trimStart();
- return /^<roblox(?:\s|>)/i.test(h);
-}
-async function parseFile(file){
- if(!file)throw Error("Nenhum arquivo selecionado.");
- const ext=(file.name.split(".").pop()||"").toLowerCase();
- if(!["rbxl","rbxm","rbxlx","rbxmx"].includes(ext))throw Error("Use .rbxl, .rbxm, .rbxlx ou .rbxmx.");
- if(file.size<16)throw Error("O arquivo está vazio ou incompleto.");
- if(file.size>250*1024*1024)throw Error("Limite de 250 MB excedido.");
- const head=new Uint8Array(await file.slice(0,512).arrayBuffer());
- if(detect(head,ext)){
-   const xml=await file.text();
-   return parseXML(xml);
- }
- return parseBinary(file);
-}
-function compact(nodes){return nodes.map(n=>({id:n.id,name:n.name,type:n.type,position:vec(n.position),rotation:vec(n.rotation),size:vec(n.size,[1,1,1]),color:n.color,material:n.material,shape:n.shape,anchored:n.anchored,canCollide:n.canCollide,canTouch:n.canTouch,canQuery:n.canQuery,transparency:n.transparency,locked:n.locked,visible:n.visible,parent:n.parent,script:n.script||"",language:n.language,sourceClass:n.sourceClass,attributes:n.attributes||{},rbxProperties:n.rbxProperties||null,customProperties:n.customProperties||null}))}
-function ensureWorkspaceHierarchy(nodes){
- const services=new Set(SERVICES.filter(x=>x!=="Workspace"));
- let workspace=nodes.find(n=>n.type==="Workspace");
- if(!workspace){
-   workspace={id:uid(),name:"Workspace",type:"Workspace",position:[0,0,0],rotation:[0,0,0],size:[1,1,1],color:"#777777",material:"Plastic",anchored:true,canCollide:false,canTouch:true,canQuery:true,transparency:1,locked:false,visible:false,parent:null,script:"",language:"luau",sourceClass:"Workspace",attributes:{},rbxProperties:{Name:"Workspace",Gravity:196.2}};
-   nodes.unshift(workspace);
- }
- workspace.parent=null;
- const valid=new Set(nodes.map(n=>n.id));
- for(const n of nodes){
-   if(n===workspace)continue;
-   if(n.parent===workspace.id)continue;
-   if(n.parent&&!valid.has(n.parent))n.parent=null;
-   if(!n.parent&&!services.has(n.type))n.parent=workspace.id;
- }
- return nodes;
-}
-async function importFull(file){
- const state=S()||{settings:{theme:"dark",outline:true,autosave:true},grid:1,snap:true};
- statusText("Lendo "+file.name+"…");
- let nodes=compact(await parseFile(file));
- if(!nodes.length)throw Error("Nenhuma instância foi encontrada.");
- nodes=ensureWorkspaceHierarchy(nodes);
- const ids=new Set(nodes.map(n=>n.id));
- nodes.forEach(n=>{if(n.parent&&!ids.has(n.parent))n.parent=null});
- const root=nodes.find(n=>n.type==="Workspace");
- if(root){
-   nodes.forEach(n=>{
-     if(n===root)return;
-     if(!n.parent&&SERVICES.includes(n.type))n.parent=null;
-   });
- }
- const payload={
-   name:file.name.replace(/\.(rbxl|rbxm|rbxlx|rbxmx)$/i,"")||"Imported Roblox Place",
-   nodes,
-   settings:state.settings||{theme:"dark",outline:true,autosave:true},
-   grid:Number(state.grid)||1,
-   snap:state.snap!==false,
-   updatedAt:Date.now(),
-   largeStorage:true
- };
- try{localStorage.removeItem(STORE)}catch{}
- try{
-   localStorage.setItem(STORE,JSON.stringify({
-     name:payload.name,objectCount:nodes.length,
-     settings:payload.settings,grid:payload.grid,snap:payload.snap,
-     largeStorage:true,updatedAt:payload.updatedAt
-   }));
- }catch(e){console.warn("Studio RBXL: localStorage cheio; projeto permanece no IndexedDB",e)}
- await putState(payload);
+const state={apiKey:"",universeId:"",placeId:"",tree:[],files:new Map(),dirty:new Set(),current:null};
+const status=t=>{try{window.StudioLiteCore?.setStatus?.(t)}catch{}try{$("#status").textContent=t;$("#footerStatus").textContent=t}catch{}};
+const icon=t=>SCRIPT_TYPES.has(t)?"▱":t==="Workspace"?"◈":t==="Folder"?"▰":"◇";
 
- // Hidrata o editor atual sem recarregar a página. Isso evita perder projetos
- // grandes e também mantém Explorer/Properties/viewport sincronizados.
- const core=C();
- const live=core.S;
- if(live&&Array.isArray(live.nodes)){
-   const normalizer=core.normalizeNode;
-   live.nodes=nodes.map(n=>normalizer?normalizer(n):n);
-   live.project=payload.name;
-   live.settings=Object.assign({},live.settings||{},payload.settings||{});
-   live.grid=payload.grid;
-   live.snap=payload.snap;
-   live.selected=live.nodes.find(n=>n.type==="Part")?.id||live.nodes.find(n=>n.type!=="Workspace")?.id||live.nodes[0]?.id||null;
-   live.selectedIds=live.selected?[live.selected]:[];
-   live.sourceRbxl=null;
-   live.history=[];
-   live.future=[];
-   core.render?.();
-   core.save?.(false);
-   setTimeout(()=>window.StudioLiteExplorerPro?.refresh?.(),60);
- }
- return payload;
+async function api(action,extra={}){
+ const r=await fetch("/api/roblox/studio-rbxl",{method:"POST",headers:{"Content-Type":"application/json","x-roblox-api-key":state.apiKey},body:JSON.stringify({action,universeId:state.universeId,placeId:state.placeId,...extra})});
+ let d={};try{d=await r.json()}catch{}
+ if(!r.ok||!d.ok)throw Error(d.error||("Studio RBXL HTTP "+r.status));
+ return d;
 }
-function statusText(t){try{C().setStatus?.(t)}catch{}try{$("#status").textContent=t;$("#footerStatus").textContent=t}catch{}}
+function style(){
+ if($("#studioRbxlStyles"))return;
+ const s=document.createElement("style");s.id="studioRbxlStyles";s.textContent=\`
+#studioRbxlModal{position:fixed;inset:0;z-index:99999;background:#05070b;color:#e8edf4;font:13px Inter,system-ui,sans-serif}
+.rbxl-app{height:100%;display:grid;grid-template-rows:62px 1fr;overflow:hidden}
+.rbxl-top{display:flex;align-items:center;gap:14px;padding:0 18px;border-bottom:1px solid #202732;background:#080b10}
+.rbxl-brand{display:flex;align-items:center;gap:10px;min-width:220px}.rbxl-logo{width:34px;height:34px;display:grid;place-items:center;border:1px solid #344052;border-radius:9px;background:#111722;font-weight:800}.rbxl-brand b{display:block;font-size:13px;letter-spacing:.8px}.rbxl-brand small{display:block;color:#758195;font-size:9px;margin-top:2px}
+.rbxl-meta{display:flex;gap:7px;flex:1;min-width:0}.rbxl-pill{border:1px solid #252e3a;background:#0d1219;color:#8e9aab;padding:7px 9px;border-radius:8px;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rbxl-pill strong{color:#dbe4ef}
+.rbxl-actions{display:flex;gap:7px}.rbxl-btn{border:1px solid #2a3441;background:#10161f;color:#d9e1eb;border-radius:8px;padding:9px 12px;cursor:pointer}.rbxl-btn:hover{background:#171e29}.rbxl-btn.primary{background:#176bff;border-color:#3b83ff;color:#fff}.rbxl-btn:disabled{opacity:.45;cursor:not-allowed}
+.rbxl-body{display:grid;grid-template-columns:290px 1fr;min-height:0}
+.rbxl-tree{min-height:0;border-right:1px solid #202732;background:#080b10;display:flex;flex-direction:column}
+.rbxl-tree-head{padding:14px;border-bottom:1px solid #202732}.rbxl-tree-head b{font-size:11px;letter-spacing:.6px}.rbxl-tree-head span{float:right;color:#687588;font-size:10px}
+.rbxl-search{margin-top:10px;width:100%;box-sizing:border-box;background:#0d1219;border:1px solid #26303d;color:#e9eef5;border-radius:8px;padding:9px 10px;outline:none}
+.rbxl-list{padding:9px;overflow:auto;min-height:0}.rbxl-row{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:7px;color:#9ba7b7;cursor:pointer;user-select:none}.rbxl-row:hover{background:#111822;color:#e6ecf4}.rbxl-row.active{background:#172234;color:#fff}.rbxl-row .arrow{width:12px;color:#687588}.rbxl-row .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rbxl-row .type{margin-left:auto;color:#596679;font-size:9px}
+.rbxl-editor{min-width:0;min-height:0;background:#06090d;display:grid;grid-template-rows:48px 1fr 38px}
+.rbxl-filebar{display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid #202732;background:#090d13}.rbxl-filetab{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #283240;border-radius:7px;background:#10161f;min-width:0}.rbxl-filetab b{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rbxl-filetab small{color:#667488}.rbxl-dirty{color:#6ea8ff;font-size:16px}
+.rbxl-codewrap{position:relative;min-height:0}.rbxl-code{width:100%;height:100%;box-sizing:border-box;resize:none;border:0;outline:0;background:#070a0f;color:#dce5f0;padding:18px 22px;font:13px/1.65 "SFMono-Regular",Consolas,"Liberation Mono",monospace;tab-size:2}
+.rbxl-welcome{height:100%;display:grid;place-items:center;padding:30px;box-sizing:border-box}.rbxl-card{max-width:580px;border:1px solid #27313e;background:#0b1017;border-radius:16px;padding:28px;box-shadow:0 20px 80px #0008}.rbxl-card h2{margin:0 0 8px;font-size:20px}.rbxl-card p{margin:0;color:#8591a2;line-height:1.6}.rbxl-card .badgegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:18px}.rbxl-badge{padding:10px;border:1px solid #242e3b;border-radius:9px;color:#9ca8b7;font-size:10px}.rbxl-badge b{display:block;color:#e0e7ef;margin-bottom:3px}
+.rbxl-status{display:flex;align-items:center;gap:8px;padding:0 14px;border-top:1px solid #202732;color:#728096;font-size:10px;background:#080b10}.rbxl-dot{width:6px;height:6px;border-radius:50%;background:#4f8cff}.rbxl-auth{position:absolute;inset:0;z-index:3;display:grid;place-items:center;background:#05070bdd;backdrop-filter:blur(8px)}.rbxl-auth-card{width:min(560px,92vw);border:1px solid #293443;background:#0b1017;border-radius:18px;padding:25px;box-shadow:0 30px 100px #000}.rbxl-auth-card h2{margin:0 0 5px}.rbxl-auth-card p{color:#8290a2;font-size:11px;line-height:1.55;margin:0 0 18px}.rbxl-form{display:grid;gap:10px}.rbxl-form label{display:grid;gap:5px;color:#aab5c4;font-size:10px}.rbxl-form input{background:#080c12;border:1px solid #293442;color:#fff;padding:11px;border-radius:8px;outline:none}.rbxl-form input:focus{border-color:#4a8cff}.rbxl-help{display:flex;gap:8px;align-items:center;margin-top:13px;color:#647286;font-size:9px}.rbxl-error{color:#ff8e8e!important}.rbxl-loading{padding:14px;color:#7e8a9d}
+@media(max-width:760px){.rbxl-meta{display:none}.rbxl-brand{min-width:0}.rbxl-body{grid-template-columns:220px 1fr}.rbxl-code{padding:13px;font-size:12px}}
+@media(max-width:560px){.rbxl-body{grid-template-columns:1fr}.rbxl-tree{display:none}.rbxl-top{padding:0 9px;gap:7px}.rbxl-brand{flex:1}.rbxl-actions{gap:4px}.rbxl-btn{padding:8px}}
+\`;document.head.appendChild(s);
+}
 function open(){
- const existing=$("#studioRbxlModal");
- if(existing){existing.remove();return true;}
- try{
-   if(!document.body)throw Error("Página ainda não terminou de carregar.");
-   const bg=document.createElement("div");bg.id="studioRbxlModal";bg.className="modal-bg";
-   bg.innerHTML='<div class="rbxl-studio-modal" role="dialog" aria-modal="true" aria-label="Studio RBXL"><div class="modal-head"><div><h2>▣ Studio RBXL</h2><small>Importador completo de RBXL, RBXM, RBXLX e RBXMX</small></div><button id="rbxlClose" type="button">×</button></div><div class="rbxl-drop" id="rbxlDrop" tabindex="0"><input id="rbxlPicker" type="file" accept=".rbxl,.rbxm,.rbxlx,.rbxmx" hidden><strong>Selecionar arquivo Roblox</strong><span>Toque aqui para escolher um Place ou Model</span><small>O projeto será carregado no Explorer, Workspace e Properties sem recarregar a página.</small></div><div class="rbxl-checks"><span>✓ Workspace</span><span>✓ Explorer</span><span>✓ Properties</span><span>✓ Scripts Luau</span></div><div id="rbxlProgress" class="rbxl-progress">Pronto para importar.</div></div>';
-   document.body.appendChild(bg);
-   const picker=$("#rbxlPicker"),drop=$("#rbxlDrop"),progress=$("#rbxlProgress");
-   const close=()=>{bg.remove();document.removeEventListener("keydown",escClose,true)};
-   const escClose=e=>{if(e.key==="Escape")close()};
-   $("#rbxlClose").onclick=close;
-   bg.addEventListener("click",e=>{if(e.target===bg)close()});
-   document.addEventListener("keydown",escClose,true);
-   const choose=()=>picker?.click();
-   drop.onclick=e=>{if(e.target!==picker)choose()};
-   drop.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();choose()}};
-   picker.onchange=()=>{const f=picker.files?.[0];if(f)process(f)};
-   async function process(f){progress.innerHTML='<span class="spin"></span> Lendo '+esc(f.name)+'…';try{const p=await importFull(f);progress.innerHTML='<b>✓ Importado com sucesso</b><span>'+p.nodes.length+' instâncias • '+p.nodes.filter(n=>SCRIPT_TYPES.has(n.type)).length+' scripts</span>';setTimeout(()=>{window.StudioLiteExplorerPro?.refresh?.();statusText("Studio RBXL pronto");},120)}catch(e){console.error("Studio RBXL",e);progress.innerHTML='<b class="error">Falha na importação</b><span>'+esc(e.message||String(e))+'</span>';statusText("Falha na importação")}}
-   setTimeout(()=>drop?.focus(),0);
-   return true;
- }catch(e){console.error("Studio RBXL UI",e);statusText("Não foi possível abrir o Studio RBXL");return false;}
+ style();const old=$("#studioRbxlModal");if(old){old.remove();return true}
+ const bg=document.createElement("div");bg.id="studioRbxlModal";
+ bg.innerHTML=\`
+ <div class="rbxl-app" role="dialog" aria-modal="true" aria-label="Studio RBXL">
+  <header class="rbxl-top">
+   <div class="rbxl-brand"><div class="rbxl-logo">S</div><div><b>STUDIO RBXL</b><small>OPEN CLOUD SCRIPT WORKSPACE</small></div></div>
+   <div class="rbxl-meta"><div class="rbxl-pill">Universe <strong id="rbxlUniverse">—</strong></div><div class="rbxl-pill">Place <strong id="rbxlPlace">—</strong></div><div class="rbxl-pill">Modo <strong>Somente edição</strong></div></div>
+   <div class="rbxl-actions"><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar</button><button class="rbxl-btn" id="rbxlClose">×</button></div>
+  </header>
+  <div class="rbxl-body">
+   <aside class="rbxl-tree"><div class="rbxl-tree-head"><b>WORKSPACE</b><span id="rbxlCount">0 arquivos</span><input id="rbxlSearch" class="rbxl-search" placeholder="⌕ Procurar script..."></div><div id="rbxlTree" class="rbxl-list"><div class="rbxl-loading">Conecte um Place para carregar o Workspace.</div></div></aside>
+   <main class="rbxl-editor">
+    <div class="rbxl-filebar"><div class="rbxl-filetab"><span>▱</span><b id="rbxlFileName">Nenhum arquivo</b><small id="rbxlFileType"></small><span id="rbxlDirty" class="rbxl-dirty"></span></div><div style="margin-left:auto;color:#657287;font-size:9px">Ctrl/⌘ + S salva • Esc fecha</div></div>
+    <div class="rbxl-codewrap"><div id="rbxlWelcome" class="rbxl-welcome"><div class="rbxl-card"><h2>Workspace de código</h2><p>Conecte uma experiência Roblox existente. O Studio RBXL carrega a hierarquia e permite editar somente os arquivos de código já existentes. Não há comandos para criar ou excluir instâncias.</p><div class="badgegrid"><div class="rbxl-badge"><b>▱ Script</b>Editar Source</div><div class="rbxl-badge"><b>▱ LocalScript</b>Editar Source</div><div class="rbxl-badge"><b>▱ ModuleScript</b>Editar Source</div></div></div></div><textarea id="rbxlCode" class="rbxl-code" spellcheck="false" autocomplete="off" autocapitalize="off" style="display:none"></textarea></div>
+    <div class="rbxl-status"><span class="rbxl-dot"></span><span id="rbxlStatus">Aguardando conexão</span><span id="rbxlHint" style="margin-left:auto"></span></div>
+   </main>
+  </div>
+  <div id="rbxlAuth" class="rbxl-auth"><div class="rbxl-auth-card"><h2>Conectar ao Roblox Open Cloud</h2><p>Informe a chave da API e os IDs da experiência. A chave é usada apenas nesta sessão e não é gravada no projeto, no localStorage ou no GitHub.</p><form id="rbxlForm" class="rbxl-form">
+    <label>Chave de API <input id="rbxlApiKey" type="password" required autocomplete="off" placeholder="Sua chave x-api-key"></label>
+    <label>Universe ID <input id="rbxlUniverseInput" inputmode="numeric" required placeholder="Ex.: 1234567890"></label>
+    <label>Place ID <input id="rbxlPlaceInput" inputmode="numeric" required placeholder="Ex.: 9876543210"></label>
+    <button class="rbxl-btn primary" type="submit">Conectar e carregar Workspace</button><div id="rbxlAuthError" class="rbxl-help rbxl-error"></div>
+   </form><div class="rbxl-help">✓ Somente leitura da hierarquia • ✓ Edição apenas de scripts existentes • ✓ Sem criar • ✓ Sem excluir</div></div></div>
+ </div>\`;
+ document.body.appendChild(bg);
+ const close=()=>{bg.remove();document.removeEventListener("keydown",key,true)};
+ const key=e=>{if(e.key==="Escape"){close();return}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();saveCurrent()}};
+ $("#rbxlClose").onclick=close;document.addEventListener("keydown",key,true);
+ $("#rbxlForm").onsubmit=async e=>{e.preventDefault();await connect()};
+ $("#rbxlSearch").oninput=()=>renderTree($("#rbxlSearch").value);
+ $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;
+ return true;
+}
+function markDirty(){if(!state.current)return;const n=state.files.get(state.current);if(!n)return;n.source=$("#rbxlCode").value;state.dirty.add(n.id);$("#rbxlDirty").textContent="•";$("#rbxlSave").disabled=false;$("#rbxlPublish").disabled=false;$("#rbxlStatus").textContent="Alteração local não salva";status("Studio RBXL: alteração pendente")}
+async function connect(){
+ const key=$("#rbxlApiKey").value.trim(),u=$("#rbxlUniverseInput").value.trim(),p=$("#rbxlPlaceInput").value.trim(),err=$("#rbxlAuthError");err.textContent="";
+ if(!key||!/^\d+$/.test(u)||!/^\d+$/.test(p)){err.textContent="Informe uma chave válida e IDs numéricos.";return}
+ state.apiKey=key;state.universeId=u;state.placeId=p;$("#rbxlAuth").querySelector("button").disabled=true;$("#rbxlAuth").querySelector("button").textContent="Conectando…";$("#rbxlStatus").textContent="Carregando hierarquia…";
+ try{const d=await api("load");state.tree=Array.isArray(d.tree)?d.tree:[];state.files=new Map(state.tree.filter(n=>SCRIPT_TYPES.has(n.type)).map(n=>[n.id,{...n,source:String(n.source||"")} ]));$("#rbxlUniverse").textContent=u;$("#rbxlPlace").textContent=p;$("#rbxlAuth").remove();renderTree();$("#rbxlCount").textContent=state.files.size+" arquivos";$("#rbxlStatus").textContent=state.tree.length+" instâncias carregadas";status("Studio RBXL conectado")}
+ catch(e){err.textContent=e.message||String(e);$("#rbxlStatus").textContent="Falha na conexão"}
+ finally{const b=$("#rbxlAuth")?.querySelector("button");if(b){b.disabled=false;b.textContent="Conectar e carregar Workspace"}}
+}
+function renderTree(filter=""){
+ const root=$("#rbxlTree");if(!root)return;root.innerHTML="";
+ if(!state.tree.length){root.innerHTML='<div class="rbxl-loading">Nenhuma instância foi retornada pelo Roblox.</div>';return}
+ const all=[{id:"__workspace__",parent:null,name:"Workspace",type:"Workspace",virtual:true},...state.tree.map(n=>({...n,parent:n.parent==="root"?"__workspace__":n.parent}))],by=new Map();
+ all.forEach(n=>by.set(n.id,[]));all.forEach(n=>{if(n.parent&&by.has(n.parent))by.get(n.parent).push(n)});
+ if(filter){state.tree.filter(n=>SCRIPT_TYPES.has(n.type)&&((n.name+" "+n.type).toLowerCase().includes(filter.toLowerCase()))).forEach(n=>{const row=document.createElement("div");row.className="rbxl-row"+(state.current===n.id?" active":"");row.innerHTML='<span class="arrow"></span><span>▱</span><span class="name">'+esc(n.name)+'</span><span class="type">'+esc(n.type)+'</span>';row.onclick=()=>selectFile(n.id);root.appendChild(row)});return}
+ const draw=(parent,depth)=>{for(const n of (by.get(parent)||[]).sort((a,b)=>{const as=SCRIPT_TYPES.has(a.type),bs=SCRIPT_TYPES.has(b.type);return as===bs?a.name.localeCompare(b.name):as?1:-1})){const row=document.createElement("div");row.className="rbxl-row"+(state.current===n.id?" active":"");row.style.paddingLeft=(8+depth*15)+"px";row.innerHTML='<span class="arrow">'+(n.hasChildren?"›":"")+'</span><span>'+icon(n.type)+'</span><span class="name">'+esc(n.name)+'</span><span class="type">'+esc(n.type)+'</span>';if(SCRIPT_TYPES.has(n.type))row.onclick=()=>selectFile(n.id);else row.onclick=()=>{$("#rbxlStatus").textContent=n.name+" • somente leitura"};root.appendChild(row);draw(n.id,depth+1)}};
+ draw("__workspace__",0);
+}
+function selectFile(id){const n=state.files.get(id);if(!n)return;state.current=id;$("#rbxlWelcome").style.display="none";$("#rbxlCode").style.display="block";$("#rbxlCode").value=n.source||"";$("#rbxlFileName").textContent=n.name;$("#rbxlFileType").textContent=n.type;$("#rbxlDirty").textContent=state.dirty.has(id)?"•":"";$("#rbxlHint").textContent=n.readError?"Source indisponível":n.enabled===false?"Desabilitado":"Luau";$("#rbxlStatus").textContent=n.name+" aberto";renderTree($("#rbxlSearch").value);setTimeout(()=>$("#rbxlCode").focus(),0)}
+async function saveCurrent(){
+ if(!state.current){$("#rbxlStatus").textContent="Selecione um script existente.";return}
+ const n=state.files.get(state.current);if(!n)return;
+ if(!state.dirty.has(n.id)){$("#rbxlStatus").textContent="Nenhuma alteração para salvar.";return}
+ const b=$("#rbxlSave");b.disabled=true;b.textContent="Salvando…";$("#rbxlStatus").textContent="Enviando Source para Roblox…";
+ try{await api("update",{instanceId:n.id,scriptType:n.type,source:n.source});state.dirty.delete(n.id);$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+n.name+" salvo no Roblox";status("Script salvo no Roblox")}
+ catch(e){$("#rbxlStatus").textContent="Falha ao salvar: "+e.message;status("Falha ao salvar script")}
+ finally{b.textContent="Salvar";b.disabled=!state.dirty.size}
+}
+async function publishAll(){
+ const changes=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&{instanceId:n.id,scriptType:n.type,source:n.source}}).filter(Boolean);
+ if(!changes.length){$("#rbxlStatus").textContent="Nenhuma alteração pendente para publicar.";return}
+ const b=$("#rbxlPublish");b.disabled=true;b.textContent="Publicando…";$("#rbxlStatus").textContent="Publicando "+changes.length+" arquivo(s)…";
+ try{const d=await api("updateMany",{changes});state.dirty.clear();$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+(d.saved??changes.length)+" arquivo(s) atualizado(s) no Roblox";status("Publicação concluída")}
+ catch(e){$("#rbxlStatus").textContent="Falha na publicação: "+e.message;status("Falha na publicação")}
+ finally{b.textContent="Publicar";b.disabled=!state.dirty.size}
 }
 function install(){
- window.StudioLiteRBXL={open,importFile:importFull};
- const bind=()=>{
-   const b=$("#studioRbxlBtn");
-   if(b){
-     b.type="button";
-     b.setAttribute("data-studio-rbxl","true");
-     b.onclick=e=>{e.preventDefault();e.stopPropagation();open()};
-   }
- };
- bind();
- document.addEventListener("click",e=>{
-   const target=e.target?.closest?.("#studioRbxlBtn,[data-studio-rbxl]");
-   if(!target)return;
-   e.preventDefault();
-   e.stopPropagation();
-   open();
- },true);
- window.addEventListener("pageshow",bind);
+ window.StudioLiteRBXL={open};const bind=()=>{const b=$("#studioRbxlBtn");if(!b)return;b.type="button";b.dataset.studioRbxl="true";b.onclick=e=>{e.preventDefault();e.stopPropagation();open()}};bind();
+ document.addEventListener("click",e=>{const b=e.target?.closest?.("#studioRbxlBtn,[data-studio-rbxl]");if(!b)return;e.preventDefault();e.stopPropagation();open()},true);window.addEventListener("pageshow",bind)
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
-const st=document.createElement("style");st.textContent='.rbxl-studio-modal{width:min(780px,96vw);max-height:92vh;overflow:auto;background:#0a0d12;border:1px solid #27303b;border-radius:18px;padding:18px;box-shadow:0 30px 120px #000}.rbxl-drop{display:grid;gap:8px;place-items:center;text-align:center;padding:44px 16px;border:1px dashed #46505e;border-radius:14px;background:#0d1219;cursor:pointer}.rbxl-drop strong{font-size:17px}.rbxl-drop span{color:#9aa6b5;font-size:12px}.rbxl-drop small{max-width:560px;color:#657181;font-size:10px;line-height:1.5}.rbxl-checks{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:10px}.rbxl-checks span{padding:10px;border:1px solid #202a35;border-radius:9px;background:#0d1117;color:#9aa6b5;font-size:11px}.rbxl-progress{min-height:38px;margin-top:12px;color:#9aa6b5;font-size:11px}.rbxl-progress b{display:block;color:#dce7f4;margin-bottom:4px}.rbxl-progress .error{color:#ff8b8b}.spin{display:inline-block;width:12px;height:12px;border:2px solid #333;border-top-color:#fff;border-radius:50%;animation:rbxlspin .7s linear infinite;vertical-align:-2px;margin-right:5px}@keyframes rbxlspin{to{transform:rotate(360deg)}}@media(max-width:600px){.rbxl-studio-modal{padding:12px;border-radius:13px}.rbxl-drop{padding:34px 12px}.rbxl-checks{grid-template-columns:1fr}}';document.head.appendChild(st);
 })();
