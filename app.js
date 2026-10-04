@@ -287,7 +287,7 @@ render();
 save(false);
 
 /* ===== CORE BRIDGE — cross-layer scope repair ===== */
-window.StudioLiteCore={get S(){return S},get renderer(){return renderer},get scene(){return scene},get camera(){return camera},get fallbackCanvas(){return fallbackCanvas},get fallbackCtx(){return fallbackCtx},render,save,undo,redo,add,duplicate,remove,rename,setTool,focus,view,toggleGrid,screenshot,newProject,commandPalette,exportProject,publish,importFile,togglePanels,commit,initFallbackCanvas,drawFallback,resize,normalizeNode,clone};
+window.StudioLiteCore={get S(){return S},get renderer(){return renderer},get scene(){return scene},get camera(){return camera},get fallbackCanvas(){return fallbackCanvas},get fallbackCtx(){return fallbackCtx},render,save,undo,redo,add,duplicate,remove,rename,setTool,focus,view,toggleGrid,screenshot,newProject,commandPalette,exportProject,publish,importFile,togglePanels,commit,initFallbackCanvas,drawFallback,resize,normalizeNode,clone}; window.StudioLiteOpenCode=openCodeStudio; window.StudioLiteOpenScript=openScript;
 try{Object.defineProperties(window,{S:{configurable:true,get:()=>S},renderer:{configurable:true,get:()=>renderer},scene:{configurable:true,get:()=>scene},camera:{configurable:true,get:()=>camera},fallbackCanvas:{configurable:true,get:()=>fallbackCanvas},fallbackCtx:{configurable:true,get:()=>fallbackCtx}});Object.assign(window,{render,save,undo,redo,add,duplicate,remove,rename,setTool,focus,view,toggleGrid,screenshot,newProject,commandPalette,exportProject,publish,importFile,togglePanels,commit,initFallbackCanvas,drawFallback,resize,normalizeNode,clone});}catch(e){console.warn("Core bridge",e)}
 
 })();
@@ -1292,7 +1292,7 @@ function bindReliable(){
   fullscreenBtn:()=>{document.fullscreenElement?document.exitFullscreen?.():document.documentElement.requestFullscreen?.()},
   gridToggleBtn:()=>core().toggleGrid?.(),commandBtn:()=>core().commandPalette?.(),newBtn:()=>core().newProject?.(),screenshotBtn:()=>core().screenshot?.(),
   exportBtn:()=>core().exportProject?.(),publishRbxlBtn:()=>core().publish?.(),validateBtn:()=>{const d=window.StudioLiteDiagnostics?.run?.();toast(d?.ok?"✓ Projeto saudável":"⚠ Diagnóstico encontrou pontos para revisar")},
-  codeStudioBtn:()=>q("#codeStudioBtn")?.dataset?.v21Busy?null:q("#codeStudioBtn")?.click(),
+  codeStudioBtn:()=>window.StudioLiteOpenCode?.({title:"Novo Código",language:"luau"}),
   studioRbxlBtn:()=>window.StudioLiteRBXL?.open?.()
  };
  Object.entries(map).forEach(([id,fn])=>{const b=q("#"+id);if(b){b.onclick=e=>{e.preventDefault();e.stopPropagation();try{fn()}catch(err){console.error(err);toast("Esta função encontrou um erro controlado")}}}});
