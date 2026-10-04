@@ -26,11 +26,16 @@ export default async function handler(req, res) {
     const universeId = String(req.headers["x-roblox-universe-id"] || "").trim();
     const placeId = String(req.headers["x-roblox-place-id"] || "").trim();
     const fileName = String(req.headers["x-roblox-file-name"] || "place.rbxl").trim();
-    const apiKey = process.env.ROBLOX_OPEN_CLOUD_API_KEY;
+
+    // The key belongs to the user making this publication request.
+    // It is intentionally NOT stored in Vercel Environment Variables,
+    // Supabase, localStorage, cookies, or the repository.
+    const apiKey = String(req.headers["x-roblox-api-key"] || "").trim();
 
     if (!apiKey) {
-      res.status(500).json({
-        error: "ROBLOX_OPEN_CLOUD_API_KEY is not configured in Vercel.",
+      res.status(401).json({
+        error: "API Key do Roblox não informada.",
+        code: "MISSING_ROBLOX_API_KEY",
       });
       return;
     }
@@ -50,6 +55,11 @@ export default async function handler(req, res) {
       : "application/octet-stream";
 
     const body = await readBody(req);
+
+    if (!body.length) {
+      res.status(400).json({ error: "O arquivo enviado está vazio." });
+      return;
+    }
 
     const upstream = await fetch(
       `https://apis.roblox.com/universes/v1/${universeId}/places/${placeId}/versions?versionType=Published`,
@@ -72,6 +82,7 @@ export default async function handler(req, res) {
       payload = { message: text };
     }
 
+    // Never echo the API key back to the browser.
     res.status(upstream.status).json({
       ok: upstream.ok,
       ...payload,
