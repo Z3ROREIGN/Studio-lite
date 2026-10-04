@@ -132,7 +132,7 @@ function exec(name,args=[]){
  if(name==="downloadText")return download(String(a||"studio.txt"),String(args[1]??""),"text/plain");
  if(name==="exportJSON")return download((s.project||"studio")+".json",JSON.stringify({name:s.project,nodes:nodes(),settings:s.settings},null,2),"application/json");
  if(name==="exportScene"||name==="exportSceneSummary")return JSON.stringify({project:s.project,objects:nodes().length,bounds:bounds(nodes())},null,2);
- if(name==="importJSON")try{const d=typeof a==="string"?JSON.parse(a):a;if(!Array.isArray(d.nodes))return false;s.nodes=d.nodes;repairAll(s);refresh();save();return true}catch{return false}
+ if(name==="importJSON")try{const d=typeof a==="string"?JSON.parse(a):a;if(!Array.isArray(d.nodes))return false;s.nodes=d.nodes.map(x=>({...x}));s.nodes.forEach(x=>{x.id=x.id||crypto.randomUUID?.()||Math.random().toString(36).slice(2);x.name=String(x.name||x.type||"Object");x.position=Array.isArray(x.position)?x.position:[0,0,0];x.rotation=Array.isArray(x.rotation)?x.rotation:[0,0,0];x.size=Array.isArray(x.size)?x.size:[1,1,1]});s.selected=s.nodes[0]?.id||null;refresh();save();return true}catch{return false}
  if(name==="copyText")return navigator.clipboard?.writeText?.(String(a??"")).then(()=>true).catch(()=>false)||false;
  if(name==="readClipboard")return navigator.clipboard?.readText?.()||"";
  if(name==="writeClipboard")return navigator.clipboard?.writeText?.(String(a??"")).then(()=>true).catch(()=>false)||false;
