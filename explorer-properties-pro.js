@@ -37,6 +37,30 @@ function rename(n=selected()){if(!n)return;const v=prompt("Novo nome",n.name);if
 function icon(n){const t=n?.type||"Folder";return {Part:"▣",MeshPart:"◆",Folder:"▱",Model:"◇",Script:"◇",LocalScript:"◇",ModuleScript:"◇",SpawnLocation:"⌂",Camera:"◉",Terrain:"▰",PointLight:"☼",Attachment:"⊙",Tool:"⚒"}[t]||"•"}
 function kind(n){if(/Script$/.test(n.type))return"script";if(["Folder","Model","Tool","Configuration"].includes(n.type))return"folder";if(/Value$/.test(n.type))return"value";return"object"}
 function treeChildren(parent){return nodes().filter(n=>(n.parent||null)===parent)}
+function renderInto(list,depth,host){
+ const filter=(q("#treeSearch")?.value||"").trim().toLowerCase();
+ list.forEach(n=>{
+  const children=treeChildren(n.id);
+  const matches=!filter||String(n.name||"").toLowerCase().includes(filter)||String(n.type||"").toLowerCase().includes(filter);
+  const childMatches=children.some(c=>String(c.name||"").toLowerCase().includes(filter)||String(c.type||"").toLowerCase().includes(filter));
+  if(filter&&!matches&&!childMatches)return;
+  const row=document.createElement("div");
+  row.className="expro-row"+(state()?.selected===n.id?" selected":"");
+  row.style.paddingLeft=(6+depth*16)+"px";
+  const arrow=document.createElement("button");arrow.className="expro-arrow"+(children.length?"":" empty");arrow.textContent=children.length?(n._explorerExpanded!==false?"⌄":"›"):"·";arrow.title=children.length?"Expandir/Recolher":"";
+  const ic=document.createElement("span");ic.className="expro-icon "+kind(n);ic.textContent=icon(n);
+  const name=document.createElement("span");name.className="expro-name";name.textContent=n.name||n.type;
+  const type=document.createElement("span");type.className="expro-type";type.textContent=n.type;
+  const plus=document.createElement("button");plus.className="expro-more";plus.title="Adicionar filho";plus.textContent="＋";
+  row.append(arrow,ic,name,type,plus);host.appendChild(row);
+  row.onclick=e=>{if(e.target.closest(".expro-more")||e.target.closest(".expro-arrow"))return;const st=state();if(st){st.selected=n.id;st.selectedIds=[n.id]}C().render?.();drawTree();drawProperties()};
+  row.ondblclick=()=>{/Script$/.test(n.type)?window.openScript?.(n.id):rename(n)};
+  row.oncontextmenu=e=>{e.preventDefault();const st=state();if(st){st.selected=n.id;st.selectedIds=[n.id]}drawProperties();openContext(n,e.clientX,e.clientY)};
+  arrow.onclick=e=>{e.stopPropagation();if(!children.length)return;n._explorerExpanded=!(n._explorerExpanded!==false);drawTree()};
+  plus.onclick=e=>{e.stopPropagation();const st=state();if(st){st.selected=n.id;st.selectedIds=[n.id]}drawProperties();openAddMenu(n.id,e.clientX,e.clientY)};
+  if(children.length&&(n._explorerExpanded!==false||filter)){const child=document.createElement("div");child.className="expro-children";host.appendChild(child);renderInto(children,depth+1,child)}
+ });
+}
 function drawTree(){
  const host=q("#tree");if(!host)return;
  const filter=(q("#treeSearch")?.value||"").trim().toLowerCase();
