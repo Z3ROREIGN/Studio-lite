@@ -365,3 +365,31 @@ footer{height:26px;flex:none;background:#080808;border-top:1px solid #1d1d1d;dis
   .toolbar button{font-size:10px!important;padding:0 7px!important}
   .mobile-controls button{height:44px;min-height:44px}
 }
+
+
+/* ===== V21 RELIABILITY UI ===== */
+@media(min-width:851px){
+  .workspace.inspector-collapsed{grid-template-columns:255px minmax(0,1fr) 0}
+  .workspace.inspector-collapsed .inspector{width:0;min-width:0;border:0;opacity:0;pointer-events:none;overflow:hidden}
+}
+.rbxl-top{border-color:#3a3a3a!important;font-weight:800!important}
+.rbxl-top:hover{border-color:#777!important;background:#171717!important}
+#studioRbxlTopBtn{flex:none}
+.v21-toolbox{display:flex!important;flex-direction:column;gap:8px;min-height:100%}
+.v21-toolbox-head{display:flex;justify-content:space-between;align-items:center;padding:2px 0 4px}
+.v21-toolbox-head small{color:#555}
+.v21-toolbox-group{display:block}
+.v21-toolbox .asset{margin:4px 0;min-height:46px}
+.v21-create-title{font-size:9px;letter-spacing:1.2px;color:#555;font-weight:900;margin:14px 0 7px}
+.v21-create-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+.v21-create-grid button{min-height:34px;background:#0d0d0d;border:1px solid #252525;color:#aaa;border-radius:6px;padding:0 7px}
+.v21-create-grid button:hover{color:#fff;background:#161616;border-color:#444}
+.v21-value-editor{margin-top:4px}
+@media(max-width:850px){
+  #studioRbxlTopBtn{display:inline-flex!important}
+  .v21-create-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:430px){
+  .rbxl-top{padding:0 7px!important;font-size:10px!important}
+  .v21-create-grid{grid-template-columns:1fr 1fr}
+}
