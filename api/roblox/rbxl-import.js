@@ -1,5 +1,3 @@
-import * as RBXReaderModule from "rbx-reader";
-
 export const config = {
   api: {
     bodyParser: false,
@@ -75,7 +73,14 @@ function descriptorValue(value) {
   return value;
 }
 
-function getReader() {
+async function getReader() {
+  let RBXReaderModule;
+  try {
+    RBXReaderModule = await import("rbx-reader");
+  } catch (error) {
+    throw new Error("Não foi possível carregar o rbx-reader no runtime da Function: " + (error?.message || String(error)));
+  }
+
   const candidates = [
     RBXReaderModule,
     RBXReaderModule?.default,
@@ -165,7 +170,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const reader = getReader();
+    const reader = await getReader();
 
     // rbx-reader 1.5.x recebe ArrayBuffer, não Node Buffer.
     const arrayBuffer = body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength);
