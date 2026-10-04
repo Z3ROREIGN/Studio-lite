@@ -1,4 +1,6 @@
-import RBXReader from "rbx-reader";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
 
 export const config = { api: { bodyParser: false }, maxDuration: 60 };
 
@@ -33,8 +35,14 @@ export default async function handler(req,res){
     const header=body.subarray(0,16);
     const expected=[0x3C,0x72,0x6F,0x62,0x6C,0x6F,0x78,0x21,0x89,0xFF,0x0D,0x0A,0x1A,0x0A,0x00,0x00];
     if(header.length<expected.length||!expected.every((v,i)=>header[i]===v))throw Error("Arquivo não é um RBXL/RBXM binário válido.");
-    // Use a entrada pública do pacote. O subpath dist/BinaryParser.js não é
-    // garantido pelo empacotamento ESM/serverless da Vercel.
+    // Carrega pelo entrypoint CommonJS oficial para evitar incompatibilidade
+    // do bundler ESM da Vercel com o pacote rbx-reader.
+    let RBXReader;
+    try{
+      RBXReader=require("rbx-reader");
+    }catch(loadError){
+      throw Error(`Não foi possível carregar o rbx-reader no servidor: ${loadError?.message||String(loadError)}`);
+    }
     const reader=RBXReader?.default||RBXReader;
     const parseBuffer=reader?.parseBuffer;
     const parse=reader?.parse;
