@@ -93,7 +93,7 @@ function convertClientInstances(instances){
  instances.forEach((inst,i)=>normalizeClientInstance(inst,i,all,objectIds));
  all.forEach((n,i)=>{
    const inst=instances[i],raw=inst?.properties||inst?.Properties||inst?.props||{};
-   const pv=raw?.Parent&&typeof raw.Parent==="object"&&"value" in raw.Parent?raw.Parent.value:raw?.Parent;
+   const pv=inst?.parent??(raw?.Parent&&typeof raw.Parent==="object"&&"value" in raw.Parent?raw.Parent.value:raw?.Parent);
    if(pv!=null){
      const idx=objectIds.get(pv);
      if(idx!=null)n.parent="rbx-"+idx;
@@ -110,7 +110,7 @@ function convertClientInstances(instances){
 function parseBinaryWorker(file){
  return new Promise(async(resolve,reject)=>{
    let worker;
-   try{worker=new Worker("/rbxl-worker.js?v=20261004-v42",{type:"module"})}
+   try{worker=new Worker("/rbxl-worker.js?v=20261004-v43",{type:"module"})}
    catch(e){reject(e);return}
    const timer=setTimeout(()=>{worker.terminate();reject(Error("O processamento demorou demais e foi cancelado."))},180000);
    worker.onmessage=event=>{
