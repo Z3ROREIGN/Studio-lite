@@ -1,397 +1,128 @@
-/* Studio Lite — RBXL Full Import Studio
- * Binary parser: MrSprinkleToes/rbxBinaryParser (MIT), loaded on demand.
- * XML/RBXLX is parsed natively.
- */
+/* Studio RBXL — importador robusto de RBXL/RBXM/RBXLX/RBXMX */
 (()=>{"use strict";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+const C=()=>window.StudioLiteCore||{};
+const S=()=>C().S||window.S||null;
 const STORE="studio-lite-v4";
-const LARGE_DB="StudioLiteProjectsV1";
-const LARGE_STORE="projects";
-const LARGE_KEY="current";
-let largeSaveTimer=null;
-function openLargeDB(){
-  return new Promise((resolve,reject)=>{
-    if(!window.indexedDB){reject(new Error("IndexedDB indisponível"));return}
-    const req=indexedDB.open(LARGE_DB,1);
-    req.onupgradeneeded=()=>{try{if(!req.result.objectStoreNames.contains(LARGE_STORE))req.result.createObjectStore(LARGE_STORE)}catch(e){reject(e)}};
-    req.onsuccess=()=>resolve(req.result);
-    req.onerror=()=>reject(req.error||new Error("Falha ao abrir armazenamento"));
-  });
+const DB="StudioLiteProjectsV1",TABLE="projects",KEY="current";
+const SERVICES=["Workspace","Lighting","Players","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService"];
+const SCRIPT_TYPES=new Set(["Script","LocalScript","ModuleScript"]);
+const VISUAL_TYPES=new Set(["Part","MeshPart","UnionOperation","WedgePart","CornerWedgePart","TrussPart","VehicleSeat","Seat","SpawnLocation"]);
+const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2)+Date.now().toString(36);
+const clone=x=>{try{return JSON.parse(JSON.stringify(x))}catch{return x}};
+const vec=(v,d=[0,0,0])=>Array.isArray(v)?[Number(v[0])||0,Number(v[1])||0,Number(v[2])||0]:d.slice();
+const num=v=>Number.isFinite(Number(v))?Number(v):0;
+function openDB(){return new Promise((ok,no)=>{if(!indexedDB)return no(Error("IndexedDB indisponível"));const r=indexedDB.open(DB,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(TABLE))r.result.createObjectStore(TABLE)};r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error||Error("Falha no IndexedDB"))})}
+async function putState(state){const db=await openDB();return new Promise((ok,no)=>{const tx=db.transaction(TABLE,"readwrite");tx.objectStore(TABLE).put(state,KEY);tx.oncomplete=()=>{db.close();ok()};tx.onerror=()=>{db.close();no(tx.error)}})}
+function getProp(p,n){if(!p)return undefined;const v=p[n];if(v&&typeof v==="object"&&"value" in v)return v.value;return v}
+function rgb(v){if(Array.isArray(v)&&v.length>=3){return "#"+v.slice(0,3).map(x=>Math.max(0,Math.min(255,Math.round(num(x)*255))).toString(16).padStart(2,"0")).join("")}if(v&&typeof v==="object"&&["r","g","b"].every(k=>k in v))return rgb([v.r,v.g,v.b]);if(typeof v==="number"){const n=v>>>0;return "#"+((n>>16)&255).toString(16).padStart(2,"0")+((n>>8)&255).toString(16).padStart(2,"0")+(n&255).toString(16).padStart(2,"0")}return null}
+function makeNode(type,p,parent=null,id=null){
+ p=p||{};const n={id:id??uid(),name:String(getProp(p,"Name")??type),type:String(type||"Part"),
+  position:vec(getProp(p,"Position")),rotation:[0,0,0],size:vec(getProp(p,"Size"),[1,1,1]),
+  color:rgb(getProp(p,"Color3"))||"#777777",material:String(getProp(p,"Material")??"Plastic"),
+  shape:"box",anchored:Boolean(getProp(p,"Anchored")??false),canCollide:Boolean(getProp(p,"CanCollide")??true),
+  transparency:Math.max(0,Math.min(1,num(getProp(p,"Transparency")))),locked:Boolean(getProp(p,"Locked")??false),
+  visible:true,parent:parent??null,script:"",language:"luau",sourceClass:String(type||"")};
+ const ori=getProp(p,"Orientation");if(Array.isArray(ori))n.rotation=vec(ori);
+ const shape=String(getProp(p,"Shape")??"").toLowerCase();if(shape==="ball")n.shape="sphere";else if(shape==="cylinder")n.shape="cylinder";
+ const src=getProp(p,"Source");if(typeof src==="string"){n.script=src;n.language="luau"}
+ const attrs=getProp(p,"Attributes");if(attrs&&typeof attrs==="object")n.customProperties={Attributes:clone(attrs)};
+ n.rbxProperties=clone(p);
+ return n;
 }
-function idbPutState(state){
-  return openLargeDB().then(db=>new Promise((resolve,reject)=>{
-    const tx=db.transaction(LARGE_STORE,"readwrite");
-    tx.objectStore(LARGE_STORE).put(state,LARGE_KEY);
-    tx.oncomplete=()=>{db.close();resolve(true)};
-    tx.onerror=()=>{db.close();reject(tx.error||new Error("Falha ao salvar projeto"))};
-  }));
-}
-function idbGetState(){
-  return openLargeDB().then(db=>new Promise((resolve,reject)=>{
-    const req=db.transaction(LARGE_STORE,"readonly").objectStore(LARGE_STORE).get(LARGE_KEY);
-    req.onsuccess=()=>{const v=req.result;db.close();resolve(v||null)};
-    req.onerror=()=>{db.close();reject(req.error||new Error("Falha ao ler projeto"))};
-  }));
-}
-function compactNode(n){
-  const x={id:n.id,name:n.name,type:n.type,position:vec3(n.position),rotation:vec3(n.rotation),size:vec3(n.size),
-    color:n.color,material:n.material,shape:n.shape,anchored:n.anchored,canCollide:n.canCollide,
-    transparency:n.transparency,locked:n.locked,visible:n.visible,parent:n.parent,script:n.script||"",
-    language:n.language,sourceClass:n.sourceClass,rbxProperties:n.rbxProperties||null};
-  if(n.customProperties&&typeof n.customProperties==="object")x.customProperties=n.customProperties;
-  return x;
-}
-function compactState(state){
-  return {name:state.name||"Imported Roblox Place",nodes:(state.nodes||[]).map(compactNode),
-    settings:state.settings||{theme:"dark",outline:true,autosave:true},grid:state.grid||1,snap:state.snap!==false,
-    updatedAt:Date.now(),largeStorage:true};
-}
-// Use somente o parser oficial do projeto. O rbx-reader-rts externo tinha
-// incompatibilidades de runtime que podiam terminar em:
-// "Cannot read properties of undefined (reading 'buffer')".
-const PARSER_URLS=[
-  "https://cdn.jsdelivr.net/npm/rbx-reader-rts@1.0.8/+esm",
-  "/api/roblox/rbx-parser?v=20261004-v30",
-  "https://cdn.jsdelivr.net/gh/MrSprinkleToes/rbxBinaryParser@6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js"
-];
-let parserPromise=null;
-
-/*
- * IMPORTANTE:
- * O parser antigo exporta decode(), mas algumas versões conseguem carregar
- * corretamente e só quebram quando decode() recebe um RBXL real. Antes,
- * escolhíamos esse parser apenas porque decode existia e nunca chegávamos
- * ao rbx-reader-rts. Agora cada parser é TESTADO com o arquivo real e,
- * se falhar, o próximo parser é tentado automaticamente.
- */
-async function loadBinaryParser(){
-  if(parserPromise)return parserPromise;
-  parserPromise=(async()=>{
-    const candidates=[];
-    for(const url of PARSER_URLS){
-      try{
-        const m=await import(url);
-        const parseBuffer=m?.parseBuffer||m?.default?.parseBuffer;
-        const parseRBX=m?.parseRBX||m?.default?.parseRBX;
-        const decode=m?.decode||m?.default?.decode;
-        if(typeof parseBuffer==="function"||typeof parseRBX==="function"||typeof decode==="function"){
-          candidates.push({url,parseBuffer,parseRBX,decode});
-        }
-      }catch{}
-    }
-    if(!candidates.length)throw new Error("Nenhum decodificador RBXL está disponível.");
-    return async buffer=>{
-      const ab=buffer instanceof ArrayBuffer?buffer:(buffer instanceof Uint8Array?buffer.buffer.slice(buffer.byteOffset,buffer.byteOffset+buffer.byteLength):null);
-      if(!ab||ab.byteLength<16)throw new Error("Arquivo RBXL vazio ou incompleto.");
-      const failures=[];
-      for(const candidate of candidates){
-        try{
-          let result;
-          if(typeof candidate.parseBuffer==="function")result=await candidate.parseBuffer(ab);
-          else if(typeof candidate.parseRBX==="function")result=await candidate.parseRBX(new Uint8Array(ab));
-          else result=await candidate.decode(ab);
-          if(result&&(result.root||result.instances||result.Instances||Array.isArray(result)))return {result,parser:candidate.url};
-          failures.push(candidate.url+" → resultado vazio");
-        }catch(e){failures.push(candidate.url+" → "+(e?.message||String(e)))}
-      }
-      throw new Error("Não foi possível decodificar o arquivo. "+failures.join(" | "));
-    };
-  })().catch(e=>{parserPromise=null;throw e});
-  return parserPromise;
-}
-function prepareBinaryImport(){return loadBinaryParser().then(()=>true).catch(()=>false)}
-
-function normalizeBinaryResult(parsed){
- const result=parsed?.result??parsed;
- const root=result?.root;
- const roots=root?.Children||root?.children;
- if(Array.isArray(roots)&&roots.length)return roots;
- const flat=result?.instances||result?.Instances;
- if(Array.isArray(flat)&&flat.length)return flat;
- if(Array.isArray(result))return result;
- if(root&&typeof root==="object")return [root];
- return [];
-}
-
-function fromBinaryObjectTree(objects){
- const list=Array.isArray(objects)?objects:[];
- const nodes=[];
- const objectToNode=new Map();
- const normalizeProps=obj=>{
-   const props={};
-   const source=obj?.Properties||obj?.properties||{};
-   if(source&&typeof source==="object"){
-     for(const [k,v] of Object.entries(source)){
-       props[k]=v?.value!==undefined?v.value:v;
-     }
-   }
-   for(const [k,v] of Object.entries(obj||{})){
-     if(!["Children","children","ClassName","className","class","Type","Properties","properties","Parent","parent"].includes(k)&&props[k]===undefined)props[k]=v;
-   }
-   return props;
+function parseXML(text){
+ const doc=new DOMParser().parseFromString(text,"application/xml");
+ if(doc.querySelector("parsererror"))throw Error("XML Roblox inválido ou corrompido.");
+ const parseValue=el=>{
+   const tag=el.tagName.toLowerCase(),t=(el.textContent||"").trim();
+   if(["string","protectedstring","binarystring","sharedstring","token"].includes(tag))return t;
+   if(tag==="bool")return t.toLowerCase()==="true";
+   if(["int","int64","float","double"].includes(tag))return num(t);
+   if(tag==="color3")return Number(t)||t;
+   if(tag==="vector3"||tag==="vector3int16"){return {x:num(el.querySelector("X")?.textContent),y:num(el.querySelector("Y")?.textContent),z:num(el.querySelector("Z")?.textContent)}}
+   if(tag==="coordinateframe"){const a=[...el.querySelectorAll("X,Y,Z")].map(x=>num(x.textContent));return a.length>=3?a.slice(0,3):t}
+   if(tag==="ref")return t;
+   return t;
  };
- const create=(obj,parentId=null)=>{
-   if(!obj||typeof obj!=="object"||objectToNode.has(obj))return objectToNode.get(obj)?.id||null;
-   const cls=String(obj.ClassName||obj.className||obj.class||obj.Type||"Part");
-   const props=normalizeProps(obj);
-   const name=props.Name??obj.Name??obj.name??cls;
-   props.Name=name;
-   let targetParent=parentId;
-   if(services.has(cls)&&cls!=="Workspace")targetParent="service:"+cls;
-   const n=makeNode(cls,props,targetParent);
-   n.rbxProperties=props;
-   if(services.has(cls)&&cls!=="Workspace"){
-     n.__serviceRoot=true;n.visible=false;
-   }
-   nodes.push(n);
-   objectToNode.set(obj,n);
-   const children=obj.Children||obj.children;
-   if(Array.isArray(children))children.forEach(ch=>create(ch,n.id));
-   return n.id;
+ const walk=(item,parent,all,refs)=>{
+   const type=item.getAttribute("class")||"Folder", id=item.getAttribute("referent")||uid(), props={};
+   const pe=item.querySelector(":scope > Properties");
+   if(pe)for(const p of pe.children){const name=p.getAttribute("name");if(name)props[name]=parseValue(p)}
+   const n=makeNode(type,props,parent,id);all.push(n);refs.set(id,n);
+   for(const child of item.querySelectorAll(":scope > Item"))walk(child,n.id,all,refs);
+   return n;
  };
- list.forEach(obj=>create(obj,null));
- // Binary parsers can return a flat instance list. Reconnect Parent references
- // after all nodes exist instead of silently flattening the Explorer.
- list.forEach(obj=>{
-   const n=objectToNode.get(obj);
-   if(!n)return;
-   const parent=obj.Parent||obj.parent||obj?.Properties?.Parent||obj?.properties?.Parent;
-   if(parent&&typeof parent==="object"){
-     const p=objectToNode.get(parent);
-     if(p&&p.id!==n.id)n.parent=p.id;
-   }
+ const all=[],refs=new Map();const items=[...doc.documentElement.children].filter(x=>x.tagName==="Item");
+ items.forEach(x=>walk(x,null,all,refs));
+ all.forEach(n=>{for(const [k,v] of Object.entries(n.rbxProperties||{})){if(k==="Parent"&&typeof v==="string"&&refs.has(v))n.parent=refs.get(v).id}});
+ return all;
+}
+function parseBinaryServerInstances(list){
+ if(!Array.isArray(list))return [];
+ const idMap=new Map(),raw=[];
+ list.forEach((x,i)=>{const id=String(x.id??i);idMap.set(id,i);raw.push(x)});
+ return raw.map((x,i)=>{
+   const props=clone(x.properties||{});if(x.attributes)props.Attributes=x.attributes;
+   const n=makeNode(x.className||"Part",props,null,"rbx-"+i);
+   n.rbxOriginalId=String(x.id??i);
+   n.parent=x.parent==null?null:"rbx-"+String(x.parent);
+   if(SCRIPT_TYPES.has(n.type)&&typeof props.Source==="string")n.script=props.Source;
+   return n;
  });
+}
+async function parseBinary(file){
+ const buf=await file.arrayBuffer();
+ let response;
+ try{response=await fetch("/api/roblox/rbxl-import",{method:"POST",headers:{"Content-Type":"application/octet-stream","X-RBXL-Filename":file.name},body:buf})}
+ catch(e){throw Error("Não foi possível conectar ao importador do servidor.")}
+ let data=null;try{data=await response.json()}catch{}
+ if(!response.ok||!data?.ok)throw Error(data?.error||("Importador respondeu HTTP "+response.status));
+ const nodes=parseBinaryServerInstances(data.instances);
+ const valid=new Set(nodes.map(n=>n.id));
+ nodes.forEach(n=>{if(n.parent&&!valid.has(n.parent))n.parent=null});
  return nodes;
 }
-
-function cleanNodes(nodes){
- const valid=new Set(nodes.map(n=>n.id));
- const serviceNames=new Set([...services]);
- return nodes.map(n=>{
-   const x=clone(n);
-   if(x.parent&&!valid.has(x.parent)&&!String(x.parent).startsWith("service:"))x.parent=null;
-   if(String(x.parent||"").startsWith("service:")){
-     const serviceName=String(x.parent).slice(8);
-     if(!serviceNames.has(serviceName))x.parent=null;
-   }
-   delete x.__serviceRoot;
-   return x;
- });
-}
-async function parseServerBinary(file){
- const buf=await file.arrayBuffer();
- const response=await fetch("/api/roblox/rbxl-import",{
-   method:"POST",
-   headers:{"Content-Type":"application/octet-stream","X-RBXL-Filename":file.name},
-   body:buf
- });
- let data=null;
- try{data=await response.json()}catch{}
- if(!response.ok||!data?.ok){
-   throw new Error(data?.error||("Servidor RBXL respondeu HTTP "+response.status));
- }
- const list=Array.isArray(data.instances)?data.instances:[];
- return list.map(x=>{
-   const props=x.properties||{};
-   if(x.attributes&&typeof x.attributes==="object")props.Attributes=x.attributes;
-   const n=makeNode(x.className||"Part",props,null,x.id);
-   n.parent=x.parent==null?null:"server:"+x.parent;
-   n.rbxProperties=props;
-   return n;
- });
-}
-function repairServerParents(nodes){
- const byServer=new Map(nodes.map((n,i)=>["server:"+String(n.rbxOriginalId??i),n.id]));
- return nodes.map(n=>{
-   if(typeof n.parent==="string"&&n.parent.startsWith("server:"))n.parent=byServer.get(n.parent)||null;
-   return n;
- });
+function detect(bytes,ext){
+ const h=new TextDecoder("utf-8").decode(bytes.slice(0,300)).replace(/^\uFEFF/,"").trimStart();
+ return ext==="rbxlx"||ext==="rbxmx"||h.startsWith("<roblox");
 }
 async function parseFile(file){
- const ext=String(file?.name||"").toLowerCase().split(".").pop();
- const allowed=["rbxl","rbxlx","rbxm","rbxmx"];
- if(!allowed.includes(ext))throw new Error("Formato não suportado. Use RBXL, RBXLX, RBXM ou RBXMX.");
- if(!file||file.size<=0)throw new Error("O arquivo está vazio.");
- if(file.size>80*1024*1024)throw new Error("O arquivo é maior que o limite de 80 MB.");
- const buf=await file.arrayBuffer();
- if(!(buf instanceof ArrayBuffer)||buf.byteLength===0)throw new Error("Não foi possível ler o arquivo.");
- const bytes=new Uint8Array(buf);
- const head=new TextDecoder("utf-8").decode(bytes.slice(0,256)).replace(/^\uFEFF/,"").trimStart();
- const binary=bytes.length>=8&&String.fromCharCode(...bytes.slice(0,8))==="<roblox!";
- const xml=head.startsWith("<roblox")||ext==="rbxlx"||ext==="rbxmx";
- if(xml){
-   try{
-     const nodes=parseXML(new TextDecoder("utf-8").decode(bytes));
-     if(!Array.isArray(nodes)||!nodes.length)throw new Error("O XML não contém instâncias.");
-     return nodes;
-   }catch(e){throw new Error("Não foi possível ler o XML Roblox: "+(e?.message||String(e)))}
- }
- if(binary){
-   try{
-     const serverNodes=await parseServerBinary(file);
-     if(serverNodes.length)return repairServerParents(serverNodes);
-   }catch(e){console.warn("Servidor RBXL indisponível; usando parser do navegador.",e)}
-   try{
-     const decode=await loadBinaryParser();
-     const parsed=await decode(buf);
-     const nodes=fromBinaryObjectTree(normalizeBinaryResult(parsed));
-     if(nodes.length)return nodes;
-   }catch(e){console.warn("Parser RBXL do navegador falhou.",e)}
-   throw new Error("Não foi possível importar este arquivo binário Roblox. O formato pode usar dados que este Studio ainda não consegue converter.");
- }
- throw new Error("Arquivo Roblox inválido ou formato não reconhecido.");
+ if(!file)throw Error("Nenhum arquivo selecionado.");
+ const ext=(file.name.split(".").pop()||"").toLowerCase();
+ if(!["rbxl","rbxm","rbxlx","rbxmx"].includes(ext))throw Error("Use .rbxl, .rbxm, .rbxlx ou .rbxmx.");
+ if(file.size<16)throw Error("O arquivo está vazio ou incompleto.");
+ if(file.size>80*1024*1024)throw Error("Limite de 80 MB excedido.");
+ const buf=new Uint8Array(await file.arrayBuffer());
+ if(detect(buf,ext))return parseXML(new TextDecoder("utf-8").decode(buf));
+ return parseBinary(file);
 }
-function summarize(nodes){
- const scripts=nodes.filter(n=>scriptClasses.has(n.type)).length;
- const visual=nodes.filter(n=>visualClasses.has(n.type)).length;
- const servicesFound=[...new Set(nodes.map(n=>n.parent).filter(x=>String(x).startsWith("service:")).map(x=>String(x).slice(8)))];
- return {total:nodes.length,scripts,visual,services:servicesFound.length,serviceNames:servicesFound};
-}
-function backup(){
-  // Backup de RBXL não deve duplicar o Place inteiro no LocalStorage.
-  try{
-    const current=readState();
-    localStorage.setItem(STORE+"-before-rbxl",JSON.stringify({name:current.name||"Meu Primeiro Jogo",count:Number(current.objectCount||current.nodes?.length||0),at:Date.now()}));
-  }catch{}
-}
+function compact(nodes){return nodes.map(n=>({id:n.id,name:n.name,type:n.type,position:vec(n.position),rotation:vec(n.rotation),size:vec(n.size,[1,1,1]),color:n.color,material:n.material,shape:n.shape,anchored:n.anchored,canCollide:n.canCollide,transparency:n.transparency,locked:n.locked,visible:n.visible,parent:n.parent,script:n.script||"",language:n.language,sourceClass:n.sourceClass,rbxProperties:n.rbxProperties||null,customProperties:n.customProperties||null}))}
 async function importFull(file){
- if(!file)return;
- status("Lendo Place Roblox…");
- const nodes=cleanNodes(await parseFile(file));
- if(!nodes.length)throw new Error("O Place não possui instâncias compatíveis.");
- backup();
- const state=readState();
- const name=file.name.replace(/\.(rbxl|rbxlx)$/i,"")||"Imported Roblox Place";
- const saved=await writeState({...state,name,nodes});
- localStorage.setItem("studio-lite-last-rbxl",JSON.stringify({file:file.name,...summarize(nodes),at:new Date().toISOString(),storage:saved.largeStorage?"indexeddb":"localstorage"}));
- return summarize(nodes);
+ const state=S();if(!state)throw Error("Studio ainda não terminou de carregar.");
+ statusText("Lendo "+file.name+"…");
+ const nodes=compact(await parseFile(file));if(!nodes.length)throw Error("Nenhuma instância foi encontrada.");
+ const root=nodes.find(n=>n.type==="Workspace");nodes.forEach(n=>{if(n.parent&&nodes.some(x=>x.id===n.parent))return;if(!n.parent&&root&&n!==root&&SERVICES.includes(n.type))n.parent=null});
+ const payload={name:file.name.replace(/\.(rbxl|rbxm|rbxlx|rbxmx)$/i,"")||"Imported Roblox Place",nodes,settings:state.settings||{theme:"dark",outline:true,autosave:true},grid:state.grid||1,snap:state.snap!==false,updatedAt:Date.now(),largeStorage:true};
+ localStorage.setItem(STORE,JSON.stringify({name:payload.name,objectCount:nodes.length,settings:payload.settings,grid:payload.grid,snap:payload.snap,largeStorage:true,updatedAt:payload.updatedAt}));
+ await putState(payload);
+ localStorage.setItem("studio-lite-last-rbxl",JSON.stringify({file:file.name,count:nodes.length,scripts:nodes.filter(n=>SCRIPT_TYPES.has(n.type)).length,visual:nodes.filter(n=>VISUAL_TYPES.has(n.type)).length,at:new Date().toISOString()}));
+ return payload;
 }
-
-function openStudioImport(){
- if($("#studioRbxlModal")){$("#studioRbxlModal").remove();return}
+function statusText(t){try{C().setStatus?.(t)}catch{}try{$("#status").textContent=t;$("#footerStatus").textContent=t}catch{}}
+function open(){
+ if($("#studioRbxlModal"))return $("#studioRbxlModal").remove();
  const bg=document.createElement("div");bg.id="studioRbxlModal";bg.className="modal-bg";
- bg.innerHTML='<div class="rbxl-studio-modal">'+
- '<div class="modal-head"><div><h2>▣ Roblox Place Studio</h2><small>Importe o Place inteiro e transforme o Explorer em um projeto editável.</small></div><button id="rbxlClose">×</button></div>'+
- '<div class="rbxl-hero"><div class="rbxl-hero-icon">RBXL</div><div><b>Full Place Import</b><p>Carrega a hierarquia completa, serviços, Models, Folders, scripts e propriedades disponíveis no arquivo.</p></div></div>'+
- '<label class="rbxl-drop" id="rbxlDrop"><input id="rbxlPicker" type="file" accept=".rbxl,.rbxlx,.rbxm,.rbxmx" hidden><strong>Arraste seu .RBXL aqui</strong><span>ou toque para escolher • RBXL/RBXM binário + RBXLX/RBMX XML</span><small>O arquivo é processado localmente no navegador. Uma cópia do projeto atual é mantida como backup local.</small></label>'+
- '<div class="rbxl-features"><div><b>Explorer completo</b><span>Hierarquia e serviços</span></div><div><b>Code Studio</b><span>Script / LocalScript / ModuleScript</span></div><div><b>Properties</b><span>Transformações e dados importados</span></div><div><b>Search</b><span>Encontre qualquer instância</span></div></div>'+
- '<div class="rbxl-actions"><button id="rbxlCancel">Cancelar</button></div><div id="rbxlProgress" class="rbxl-progress"></div></div>';
- document.body.appendChild(bg);
- const picker=$("#rbxlPicker"),drop=$("#rbxlDrop"),progress=$("#rbxlProgress");
-prepareBinaryImport().then(ok=>{
-  progress.innerHTML=ok
-    ? "<span>✓ Importador binário pronto</span>"
-    : "<span>Importador binário será ativado automaticamente quando necessário.</span>";
-});
- const close=()=>bg.remove();
- $("#rbxlClose").onclick=close;$("#rbxlCancel").onclick=close;
- drop.onclick=()=>picker.click();
- ["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("drag")}));
- ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("drag")}));
- drop.addEventListener("drop",e=>{const f=e.dataTransfer?.files?.[0];if(f)process(f)});
+ bg.innerHTML='<div class="rbxl-studio-modal"><div class="modal-head"><div><h2>▣ Studio RBXL — Importação completa</h2><small>RBXL/RBXM binário • RBXLX/RBMX XML • hierarquia + propriedades + scripts</small></div><button id="rbxlClose">×</button></div><div class="rbxl-drop" id="rbxlDrop"><input id="rbxlPicker" type="file" accept=".rbxl,.rbxm,.rbxlx,.rbxmx" hidden><strong>Selecionar Place Roblox</strong><span>Toque aqui para escolher o arquivo</span><small>O Place é convertido para uma árvore editável. Arquivos grandes usam IndexedDB, evitando o erro de quota do localStorage.</small></div><div class="rbxl-checks"><span>✓ Explorer hierárquico</span><span>✓ Scripts editáveis</span><span>✓ Properties preservadas</span><span>✓ Backup local</span></div><div id="rbxlProgress" class="rbxl-progress">Pronto para importar.</div></div>';
+ document.body.appendChild(bg);const picker=$("#rbxlPicker"),drop=$("#rbxlDrop"),progress=$("#rbxlProgress");
+ const close=()=>bg.remove();$("#rbxlClose").onclick=close;drop.onclick=()=>picker.click();
  picker.onchange=()=>{const f=picker.files?.[0];if(f)process(f)};
- async function process(file){
-   progress.innerHTML='<span class="spin"></span> Importando '+esc(file.name)+'…';
-   try{
-     const summary=await importFull(file);
-     progress.innerHTML='<b>✓ Importação concluída</b><span>'+summary.total+' instâncias • '+summary.scripts+' scripts • '+summary.visual+' objetos 3D • '+summary.services+' serviços</span>';
-     setTimeout(()=>location.reload(),700);
-   }catch(err){
-     console.error("RBXL Full Import",err);
-     progress.innerHTML='<b class="error">Não foi possível importar</b><span>'+esc(err?.message||String(err))+'</span>';
-     status("Falha na importação");
-   }
- }
-}
-async function hydrateLargeProject(){
-  try{
-    const saved=await idbGetState();
-    if(!saved||!Array.isArray(saved.nodes)||!saved.nodes.length)return;
-    const core=window.StudioLiteCore;
-    const s=core?.S||window.S;
-    if(!s||!Array.isArray(s.nodes))return;
-    s.nodes=saved.nodes.map(x=>({...x}));
-    s.project=saved.name||s.project||"Imported Roblox Place";
-    s.settings=saved.settings||s.settings||{};
-    s.grid=saved.grid||1;
-    s.snap=saved.snap!==false;
-    core.render?.();
-    core.setStatus?.("Projeto RBXL carregado");
-  }catch(e){console.warn("Studio Lite: hydrate",e)}
-}
-function bridgeLargeSave(){
-  const core=window.StudioLiteCore;
-  if(!core||typeof core.save!=="function"||core.__largeSaveBridge)return;
-  const original=core.save.bind(core);
-  core.save=(...args)=>{
-    const result=original(...args);
-    try{
-      const s=core.S||window.S;
-      if(s&&Array.isArray(s.nodes)){
-        const state={name:s.project||"Meu Primeiro Jogo",nodes:s.nodes,settings:s.settings||{},grid:s.grid||1,snap:s.snap!==false};
-        clearTimeout(largeSaveTimer);
-        largeSaveTimer=setTimeout(()=>idbPutState(compactState(state)).catch(()=>{}),120);
-      }
-    }catch{}
-    return result;
-  };
-  core.__largeSaveBridge=true;
+ async function process(f){progress.innerHTML='<span class="spin"></span> Lendo '+esc(f.name)+'…';try{const p=await importFull(f);progress.innerHTML='<b>✓ Importado com sucesso</b><span>'+p.nodes.length+' instâncias • '+p.nodes.filter(n=>SCRIPT_TYPES.has(n.type)).length+' scripts</span>';setTimeout(()=>location.reload(),450)}catch(e){console.error("Studio RBXL",e);progress.innerHTML='<b class="error">Falha na importação</b><span>'+esc(e.message||String(e))+'</span>';statusText("Falha na importação")}}
 }
 function install(){
- const existing=$("#studioRbxlBtn");
- if(existing){
-   existing.onclick=openStudioImport;
-   existing.title="Importar Place Roblox completo";
- }else{
-   const toolbar=[...document.querySelectorAll(".toolbar .tool-group")].find(x=>/ARQUIVO/.test(x.textContent||""));
-   if(toolbar){
-     const b=document.createElement("button");b.id="studioRbxlBtn";b.className="accent";b.title="Importar Place Roblox completo";b.textContent="▣ Studio RBXL";b.onclick=openStudioImport;toolbar.appendChild(b);
-   }
- }
- const imp=$("#importBtn");
- if(imp){imp.title="Importação rápida JSON/RBXLX. Use Studio RBXL para Place completo."}
- const oldInput=$("#fileInput");
- if(oldInput)oldInput.accept=".rbxl,.rbxlx,.rbxm,.rbxmx,.json";
- window.StudioLiteRBXL={open:openStudioImport,importFile:importFull};
+ const b=$("#studioRbxlBtn");if(b)b.onclick=open;
+ window.StudioLiteRBXL={open,importFile:importFull};
 }
-if(document.readyState==="loading"){
-  document.addEventListener("DOMContentLoaded",()=>{install();setTimeout(()=>{bridgeLargeSave();hydrateLargeProject();prepareBinaryImport()},80)});
-}else{
-  setTimeout(()=>{install();bridgeLargeSave();hydrateLargeProject();prepareBinaryImport()},0);
-}
-
-const style=document.createElement("style");style.textContent=
-'.rbxl-studio-modal{width:min(860px,100%);max-height:min(900px,94vh);overflow:auto;background:#090909;border:1px solid #2b2b2b;border-radius:16px;box-shadow:0 30px 120px #000;padding:18px}'+
-'.rbxl-hero{display:flex;gap:12px;align-items:center;padding:15px;border:1px solid #242424;border-radius:12px;background:linear-gradient(135deg,#111,#0b0b0b);margin:12px 0}'+
-'.rbxl-hero-icon{width:58px;height:58px;display:grid;place-items:center;border:1px solid #3a3a3a;border-radius:12px;background:#151515;color:#fff;font:800 12px ui-monospace;letter-spacing:1px}'+
-'.rbxl-hero b{font-size:15px}.rbxl-hero p{margin:4px 0 0;color:#777;font-size:11px;line-height:1.5}'+
-'.rbxl-drop{display:grid;place-items:center;text-align:center;gap:6px;padding:38px 16px;border:1px dashed #444;border-radius:14px;background:#0d0d0d;cursor:pointer;transition:.18s}.rbxl-drop:hover,.rbxl-drop.drag{border-color:#fff;background:#151515;transform:translateY(-1px)}'+
-'.rbxl-drop strong{font-size:16px}.rbxl-drop span{font-size:11px;color:#999}.rbxl-drop small{max-width:600px;color:#555;font-size:10px;line-height:1.5}'+
-'.rbxl-features{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:10px}.rbxl-features div{border:1px solid #202020;border-radius:9px;padding:10px;background:#0d0d0d}.rbxl-features b{display:block;font-size:10px}.rbxl-features span{display:block;color:#666;font-size:9px;margin-top:3px;line-height:1.4}.rbxl-actions{display:flex;justify-content:flex-end;margin-top:12px}.rbxl-progress{min-height:22px;margin-top:10px;color:#999;font-size:11px}.rbxl-progress span{display:block;margin-top:4px}.rbxl-progress .error{color:#f87171}.spin{width:12px;height:12px;border:2px solid #333;border-top-color:#fff;border-radius:50%;animation:rbxlspin .7s linear infinite;display:inline-block!important;vertical-align:-2px}@keyframes rbxlspin{to{transform:rotate(360deg)}}'+
-'@media(max-width:700px){.rbxl-studio-modal{padding:12px;border-radius:12px}.rbxl-features{grid-template-columns:repeat(2,1fr)}.rbxl-drop{padding:30px 12px;min-height:150px}}';
-document.head.appendChild(style);
-})();
-/* V15 — direct ESM parser loading fixes Blob/import failures */
-/* V14 — keep imported Roblox services visible in Explorer */
-(()=>{"use strict";
-const STORE="studio-lite-v4";
-const SERVICES=["Workspace","Lighting","Players","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService","CollectionService","HttpService","MarketplaceService","TweenService","RunService","DataStoreService","MemoryStoreService","MessagingService","TeleportService","UserInputService","ContextActionService","GuiService","Debris","InsertService","LocalizationService","PathfindingService","PhysicsService","SocialService","PolicyService","BadgeService","GroupService","UserService","AnalyticsService"];
-function run(){
- try{
-  const raw=localStorage.getItem(STORE); if(!raw)return;
-  const s=JSON.parse(raw); if(!Array.isArray(s.nodes))return;
-  const nodes=s.nodes.map(n=>({...n,rbxProperties:n.rbxProperties||{}}));
-  const byType=new Map(nodes.map(n=>[n.type,n]));
-  const referenced=[...new Set(nodes.map(n=>String(n.parent||"").startsWith("service:")?String(n.parent).slice(8):"").filter(Boolean))];
-  for(const name of referenced){
-   if(!SERVICES.includes(name)||byType.has(name))continue;
-   nodes.unshift({id:"service:"+name,name,type:name,service:true,position:[0,0,0],rotation:[0,0,0],size:[1,1,1],color:"#64748b",material:"Plastic",anchored:true,canCollide:false,transparency:0,locked:false,visible:false,parent:null,rbxProperties:{}});
-  }
-  s.nodes=nodes;
-  try{localStorage.setItem(STORE,JSON.stringify({name:s.name,objectCount:nodes.length,settings:s.settings,grid:s.grid,snap:s.snap,largeStorage:true,updatedAt:Date.now()}))}catch{}
- }catch(e){console.warn("RBXL service repair",e)}
-}
-run();
-window.StudioLiteRBXLServiceFix={run};
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install);else setTimeout(install,0);
+const st=document.createElement("style");st.textContent='.rbxl-studio-modal{width:min(780px,96vw);max-height:92vh;overflow:auto;background:#0a0d12;border:1px solid #27303b;border-radius:18px;padding:18px;box-shadow:0 30px 120px #000}.rbxl-drop{display:grid;gap:8px;place-items:center;text-align:center;padding:44px 16px;border:1px dashed #46505e;border-radius:14px;background:#0d1219;cursor:pointer}.rbxl-drop strong{font-size:17px}.rbxl-drop span{color:#9aa6b5;font-size:12px}.rbxl-drop small{max-width:560px;color:#657181;font-size:10px;line-height:1.5}.rbxl-checks{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:10px}.rbxl-checks span{padding:10px;border:1px solid #202a35;border-radius:9px;background:#0d1117;color:#9aa6b5;font-size:11px}.rbxl-progress{min-height:38px;margin-top:12px;color:#9aa6b5;font-size:11px}.rbxl-progress b{display:block;color:#dce7f4;margin-bottom:4px}.rbxl-progress .error{color:#ff8b8b}.spin{display:inline-block;width:12px;height:12px;border:2px solid #333;border-top-color:#fff;border-radius:50%;animation:rbxlspin .7s linear infinite;vertical-align:-2px;margin-right:5px}@keyframes rbxlspin{to{transform:rotate(360deg)}}@media(max-width:600px){.rbxl-studio-modal{padding:12px;border-radius:13px}.rbxl-drop{padding:34px 12px}.rbxl-checks{grid-template-columns:1fr}}';document.head.appendChild(st);
 })();
