@@ -265,10 +265,15 @@ function openStudioImport(){
  }
 }
 function install(){
- if($("#studioRbxlBtn"))return;
- const toolbar=[...document.querySelectorAll(".toolbar .tool-group")].find(x=>/ARQUIVO/.test(x.textContent||""));
- if(toolbar){
-   const b=document.createElement("button");b.id="studioRbxlBtn";b.className="accent";b.title="Importar Place Roblox completo";b.textContent="▣ Studio RBXL";b.onclick=openStudioImport;toolbar.appendChild(b);
+ const existing=$("#studioRbxlBtn");
+ if(existing){
+   existing.onclick=openStudioImport;
+   existing.title="Importar Place Roblox completo";
+ }else{
+   const toolbar=[...document.querySelectorAll(".toolbar .tool-group")].find(x=>/ARQUIVO/.test(x.textContent||""));
+   if(toolbar){
+     const b=document.createElement("button");b.id="studioRbxlBtn";b.className="accent";b.title="Importar Place Roblox completo";b.textContent="▣ Studio RBXL";b.onclick=openStudioImport;toolbar.appendChild(b);
+   }
  }
  const imp=$("#importBtn");
  if(imp){imp.title="Importação rápida JSON/RBXLX. Use Studio RBXL para Place completo."}
@@ -289,5 +294,25 @@ const style=document.createElement("style");style.textContent=
 '@media(max-width:700px){.rbxl-studio-modal{padding:12px;border-radius:12px}.rbxl-features{grid-template-columns:repeat(2,1fr)}.rbxl-drop{padding:30px 12px;min-height:150px}}';
 document.head.appendChild(style);
 })();
-/* V13 — service hierarchy normalization */
-(()=>{"use strict";const STORE="studio-lite-v4";const SERVICE_SET=new Set(["Workspace","Lighting","Players","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService","CollectionService","HttpService","MarketplaceService","TweenService","RunService","DataStoreService","MemoryStoreService","MessagingService","TeleportService","UserInputService","ContextActionService","GuiService","Debris","InsertService","LocalizationService","PathfindingService","PhysicsService","SocialService","PolicyService","BadgeService","GroupService","UserService","AnalyticsService"]);function norm(v){if(v==null||typeof v!=="object")return v;if(Array.isArray(v))return v.map(norm);if(v.type&&v.value!==undefined)return norm(v.value);const o={};for(const[k,x]of Object.entries(v))o[k]=norm(x);return o}function run(){try{const raw=localStorage.getItem(STORE);if(!raw)return;const s=JSON.parse(raw);if(!Array.isArray(s.nodes))return;const roots=new Map();s.nodes.forEach(n=>{if(SERVICE_SET.has(n.type)&&n.type!=="Workspace")roots.set(n.id,n.type)});const ids=new Set(s.nodes.map(n=>n.id));const out=[];for(const rawNode of s.nodes){const n=JSON.parse(JSON.stringify(rawNode));n.rbxProperties=norm(n.rbxProperties||{});if(roots.has(n.id))continue;if(roots.has(n.parent))n.parent="service:"+roots.get(n.parent);else if(n.parent&&!String(n.parent).startsWith("service:")&&!ids.has(n.parent))n.parent=null;out.push(n)}if(out.length!==s.nodes.length||out.some((n,i)=>n.parent!==s.nodes[i]?.parent)){s.nodes=out;localStorage.setItem(STORE,JSON.stringify(s))}}catch(e){console.warn("RBXL service migration",e)}}run();window.StudioLiteRBXLServiceFix={run};})();
+/* V14 — keep imported Roblox services visible in Explorer */
+(()=>{"use strict";
+const STORE="studio-lite-v4";
+const SERVICES=["Workspace","Lighting","Players","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService","CollectionService","HttpService","MarketplaceService","TweenService","RunService","DataStoreService","MemoryStoreService","MessagingService","TeleportService","UserInputService","ContextActionService","GuiService","Debris","InsertService","LocalizationService","PathfindingService","PhysicsService","SocialService","PolicyService","BadgeService","GroupService","UserService","AnalyticsService"];
+function run(){
+ try{
+  const raw=localStorage.getItem(STORE); if(!raw)return;
+  const s=JSON.parse(raw); if(!Array.isArray(s.nodes))return;
+  const nodes=s.nodes.map(n=>({...n,rbxProperties:n.rbxProperties||{}}));
+  const byType=new Map(nodes.map(n=>[n.type,n]));
+  const referenced=[...new Set(nodes.map(n=>String(n.parent||"").startsWith("service:")?String(n.parent).slice(8):"").filter(Boolean))];
+  for(const name of referenced){
+   if(!SERVICES.includes(name)||byType.has(name))continue;
+   nodes.unshift({id:"service:"+name,name,type:name,service:true,position:[0,0,0],rotation:[0,0,0],size:[1,1,1],color:"#64748b",material:"Plastic",anchored:true,canCollide:false,transparency:0,locked:false,visible:false,parent:null,rbxProperties:{}});
+  }
+  s.nodes=nodes;
+  localStorage.setItem(STORE,JSON.stringify(s));
+ }catch(e){console.warn("RBXL service repair",e)}
+}
+run();
+window.StudioLiteRBXLServiceFix={run};
+})();
