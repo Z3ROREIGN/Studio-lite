@@ -249,7 +249,23 @@ export default function Home() {
     try {
       const r = await fetch("/api/import", { method: "POST", body: form });
       const d = await r.json();
-      setStatus(r.ok ? "Arquivo válido: " + d.type : "Falha: " + d.error);
+      if (!r.ok) {
+        setStatus("Falha: " + d.error);
+        return;
+      }
+      if (d.type === "rbxlx") {
+        const parsed = await fetch("/api/import/parse", { method: "POST", body: form });
+        const result = await parsed.json();
+        if (parsed.ok && Array.isArray(result.nodes)) {
+          setNodes(result.nodes);
+          setSelected(result.nodes[0]?.id || "spawn");
+          setStatus(result.count + " objetos importados para o editor");
+        } else {
+          setStatus("Arquivo válido, mas a estrutura não pôde ser convertida");
+        }
+      } else {
+        setStatus("RBXL binário validado para publicação");
+      }
     } catch {
       setStatus("Falha ao analisar");
     }
