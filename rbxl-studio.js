@@ -170,9 +170,10 @@ async function importFull(file){
  const nodes=compact(await parseFile(file));if(!nodes.length)throw Error("Nenhuma instância foi encontrada.");
  const root=nodes.find(n=>n.type==="Workspace");nodes.forEach(n=>{if(n.parent&&nodes.some(x=>x.id===n.parent))return;if(!n.parent&&root&&n!==root&&SERVICES.includes(n.type))n.parent=null});
  const payload={name:file.name.replace(/\.(rbxl|rbxm|rbxlx|rbxmx)$/i,"")||"Imported Roblox Place",nodes,settings:state.settings||{theme:"dark",outline:true,autosave:true},grid:state.grid||1,snap:state.snap!==false,updatedAt:Date.now(),largeStorage:true};
- localStorage.setItem(STORE,JSON.stringify({name:payload.name,objectCount:nodes.length,settings:payload.settings,grid:payload.grid,snap:payload.snap,largeStorage:true,updatedAt:payload.updatedAt}));
+ try{localStorage.removeItem(STORE)}catch{}
+ try{localStorage.setItem(STORE,JSON.stringify({name:payload.name,objectCount:nodes.length,settings:payload.settings,grid:payload.grid,snap:payload.snap,largeStorage:true,updatedAt:payload.updatedAt}))}catch(e){console.warn("Studio RBXL: localStorage cheio; metadados não serão armazenados",e)}
  await putState(payload);
- localStorage.setItem("studio-lite-last-rbxl",JSON.stringify({file:file.name,count:nodes.length,scripts:nodes.filter(n=>SCRIPT_TYPES.has(n.type)).length,visual:nodes.filter(n=>VISUAL_TYPES.has(n.type)).length,at:new Date().toISOString()}));
+ try{localStorage.setItem("studio-lite-last-rbxl",JSON.stringify({file:file.name,count:nodes.length,scripts:nodes.filter(n=>SCRIPT_TYPES.has(n.type)).length,visual:nodes.filter(n=>VISUAL_TYPES.has(n.type)).length,at:new Date().toISOString()}))}catch{}
  return payload;
 }
 function statusText(t){try{C().setStatus?.(t)}catch{}try{$("#status").textContent=t;$("#footerStatus").textContent=t}catch{}}
