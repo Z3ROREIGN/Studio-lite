@@ -38,3 +38,13 @@ footer{height:26px;flex:none;background:#080808;border-top:1px solid #1d1d1d;dis
 .code-studio-window{width:min(1180px,100%);height:min(820px,100%)}
 .code-meta{display:block;color:#666;font-size:10px;margin-top:3px}.code-actions{display:flex;gap:5px;align-items:center}.code-toolbar{min-height:40px;display:flex;align-items:center;gap:7px;padding:6px 10px;border-bottom:1px solid #222;background:#0b0b0b}.code-toolbar select{height:30px;min-width:145px;background:#111;border:1px solid #2b2b2b;border-radius:6px;color:#ddd;padding:0 8px}.code-toolbar button{height:30px;padding:0 10px}.code-toolbar span{color:#555;font-size:10px;margin-left:auto}.code-studio-window .editor{flex:1}.code-studio-window .script-area{tab-size:4;white-space:pre;font-variant-ligatures:none}.code-studio-window .script-foot{display:flex;gap:4px;align-items:center}
 @media(max-width:700px){.code-studio-window{height:100%;border-radius:8px}.code-actions button:nth-child(1),.code-actions button:nth-child(2){display:none}.code-actions{gap:3px}.code-toolbar select{min-width:120px;flex:1}.code-toolbar span{display:none}}
+
+/* ===== V8 HARDENING / NAVIGATION ===== */
+.back-top{height:32px;padding:0 10px;display:inline-flex;align-items:center;gap:5px;border:1px solid #2a2a2a;border-radius:7px;background:#0d0d0d;color:#ddd;font-weight:700;cursor:pointer}
+.back-top:hover{background:#181818;border-color:#444}
+.studio-back-layer{display:inline-flex!important;align-items:center;gap:6px}
+@media(max-width:700px){
+ .back-top{order:-1;height:34px;padding:0 9px;font-size:12px}
+ .topbar{gap:6px}.topbar .brand small{display:none}.topbar .project{min-width:0}
+ .topbar .actions button{min-width:34px}
+}
