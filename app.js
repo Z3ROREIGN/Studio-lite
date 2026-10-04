@@ -15,34 +15,38 @@ function toast(t){const d=document.createElement("div");d.className="toast";d.te
 function cur(){return S.nodes.find(n=>n.id===S.selected)}
 function commit(){S.history.push({nodes:clone(S.nodes),selected:S.selected,project:S.project});if(S.history.length>60)S.history.shift();S.future=[]}
 function restore(s){S.nodes=clone(s.nodes);S.selected=s.selected;S.project=s.project;$("#projectName").value=S.project;render()}
-function save(notify=true){
+async function save(notify=true){
  const state={name:S.project,nodes:S.nodes,settings:S.settings,grid:S.grid,snap:S.snap};
  const json=JSON.stringify(state);
  const LARGE_LIMIT=1200000;
+ const saveIDB=()=>new Promise((resolve,reject)=>{
+   if(!window.indexedDB)return reject(Error("IndexedDB indisponível"));
+   try{
+     const req=indexedDB.open("StudioLiteProjectsV1",1);
+     req.onupgradeneeded=()=>{try{if(!req.result.objectStoreNames.contains("projects"))req.result.createObjectStore("projects")}catch{}};
+     req.onerror=()=>reject(req.error||Error("Falha ao abrir IndexedDB"));
+     req.onsuccess=()=>{try{
+       const db=req.result,tx=db.transaction("projects","readwrite");
+       tx.objectStore("projects").put(state,"current");
+       tx.oncomplete=()=>{try{db.close()}catch{};resolve()};
+       tx.onerror=()=>{try{db.close()}catch{};reject(tx.error||Error("Falha ao salvar projeto"))};
+     }catch(e){reject(e)}};
+   }catch(e){reject(e)}
+ });
  try{
    if(json.length<=LARGE_LIMIT){
-     localStorage.setItem("studio-lite-v4",json);
+     try{localStorage.removeItem("studio-lite-v4");localStorage.setItem("studio-lite-v4",json)}
+     catch(e){console.warn("localStorage cheio; usando IndexedDB",e)}
    }else{
-     const index={name:S.project,objectCount:S.nodes.length,settings:S.settings,grid:S.grid,snap:S.snap,largeStorage:true,updatedAt:Date.now()};
-     localStorage.setItem("studio-lite-v4",JSON.stringify(index));
-     if(window.indexedDB){
-       const req=indexedDB.open("StudioLiteProjectsV1",1);
-       req.onupgradeneeded=()=>{try{if(!req.result.objectStoreNames.contains("projects"))req.result.createObjectStore("projects")}catch{}};
-       req.onsuccess=()=>{try{
-         const db=req.result,tx=db.transaction("projects","readwrite");
-         tx.objectStore("projects").put(state,"current");
-         tx.oncomplete=()=>db.close();
-         tx.onerror=()=>{try{db.close()}catch{}};
-       }catch{}};
-     }
+     try{localStorage.removeItem("studio-lite-v4")}catch{}
    }
+   await saveIDB();
    status("Salvo localmente");
-   if(notify)toast(json.length>LARGE_LIMIT?"Projeto grande salvo no armazenamento do navegador":"Projeto salvo neste dispositivo");
+   if(notify)toast(json.length>LARGE_LIMIT?"Projeto grande salvo no IndexedDB":"Projeto salvo no armazenamento local");
  }catch(err){
    console.error("Studio Lite save",err);
-   try{localStorage.setItem("studio-lite-v4",JSON.stringify({name:S.project,objectCount:S.nodes.length,settings:S.settings,grid:S.grid,snap:S.snap,largeStorage:true,updatedAt:Date.now()}))}catch{}
-   status("Salvo em modo protegido");
-   if(notify)toast("Projeto mantido em modo de armazenamento protegido");
+   status("Falha ao salvar no armazenamento");
+   if(notify)toast("Não foi possível salvar: armazenamento do navegador indisponível");
  }
 }
 function undo(){if(!S.history.length)return toast("Nada para desfazer");S.future.push({nodes:clone(S.nodes),selected:S.selected,project:S.project});restore(S.history.pop());save(false);toast("Desfeito")}
