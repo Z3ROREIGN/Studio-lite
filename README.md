@@ -81,6 +81,16 @@ README.md
 A interface e o fluxo de publicação estão implementados em JavaScript puro. A conversão completa de RBXL binário, física real, colaboração multiplayer e publicação de cenas geradas do zero exigem serviços/conversores adicionais e não são simulados como se fossem recursos reais.
 
 
+## Novidades da versão 4.2 PRO
+
+- Botão **RBXL → Roblox** para abrir rapidamente o fluxo de publicação.
+- Upload direto de `.rbxl` e `.rbxlx` para o Place escolhido.
+- `.rbxl` importado é mantido na sessão e pode ser usado diretamente na publicação.
+- Content-Type automático: `application/octet-stream` para RBXL e `application/xml` para RBXLX.
+- Validação de extensão antes do envio.
+- Exibição do arquivo selecionado e tamanho no fluxo de publicação.
+- Publicação continua usando a API Key somente em memória, sem salvar a chave.
+
 ## Novidades da versão 4.0 PRO
 
 - Primitivas 3D: Part, Sphere, Cylinder e Wedge
