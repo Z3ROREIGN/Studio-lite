@@ -19,7 +19,7 @@ function panelState(){
  q("#mobileControls [data-m=explorer]")?.classList.toggle("active",exOpen);
  q("#mobileControls [data-m=inspector]")?.classList.toggle("active",insOpen);
  let shade=q("#mobilePanelShade");
- if(!shade){shade=document.createElement("button");shade.id="mobilePanelShade";shade.type="button";shade.setAttribute("aria-label","Fechar painel");q("#viewport")?.appendChild(shade);shade.onclick=()=>{if(exOpen)q("#explorerToggle")?.click();else if(insOpen)q("#inspectorToggle")?.click()}}
+ if(!shade){shade=document.createElement("button");shade.id="mobilePanelShade";shade.type="button";shade.setAttribute("aria-label","Fechar painel");q("#viewport")?.appendChild(shade);shade.onclick=()=>{const exNow=q("#explorerPanel")?.classList.contains("open"),insNow=q("#inspectorPanel")?.classList.contains("open");if(exNow)q("#explorerToggle")?.click();else if(insNow)q("#inspectorToggle")?.click();panelState()}}
  shade.hidden=!(exOpen||insOpen);
 }
 function mobileToolbar(){
