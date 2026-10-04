@@ -417,7 +417,7 @@ function topModal8(){return [...document.querySelectorAll("#modalRoot .modal-bg"
 function closeTop8(){
  const m=topModal8(); if(m){m.remove();return true}
  const openPanel=document.querySelector(".sidebar.open"); if(openPanel){openPanel.classList.remove("open");return true}
- if(window.S?.playing){try{play()}catch{}return true}
+ const pb=document.querySelector("#playBadge"); if(pb?.classList.contains("on")){document.querySelector("#playBtn")?.click();return true}
  return false;
 }
 window.studioBack=closeTop8;
