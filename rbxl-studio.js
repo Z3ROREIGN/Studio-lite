@@ -150,8 +150,16 @@ async function parseBinary(file){
  }
 }
 function detect(bytes,ext){
- const h=new TextDecoder("utf-8").decode(bytes.slice(0,300)).replace(/^\uFEFF/,"").trimStart();
- return ext==="rbxlx"||ext==="rbxmx"||h.startsWith("<roblox");
+ // RBXL/RBXM binários começam com "<roblox!" — não são XML.
+ if(ext==="rbxlx"||ext==="rbxmx")return true;
+ if(ext==="rbxl"||ext==="rbxm"){
+   if(bytes.length>=8){
+     const sig=String.fromCharCode(...bytes.slice(0,8));
+     if(sig==="<roblox!")return false;
+   }
+ }
+ const h=new TextDecoder("utf-8").decode(bytes.slice(0,512)).replace(/^\uFEFF/,"").trimStart();
+ return /^<roblox(?:\s|>)/i.test(h);
 }
 async function parseFile(file){
  if(!file)throw Error("Nenhum arquivo selecionado.");
