@@ -31,6 +31,30 @@ function duplicateOffset(distance=2,axis="x"){
   return created.length;
 }
 
-window.StudioLiteExtra={duplicateOffset};
+/* Função extra #302: alinhar objetos selecionados.
+   Alinha os objetos pelo centro do primeiro selecionado nos eixos X/Y/Z.
+   Uso: StudioLiteExtra.alignSelected("x") */
+function alignSelected(axis="x"){
+  const core=getCore(),state=getState(),selected=getSelected();
+  if(!state||selected.length<2) return false;
+  const index={x:0,y:1,z:2}[String(axis).toLowerCase()]??0;
+  const anchor=selected[0];
+  const target=Array.isArray(anchor?.position)?Number(anchor.position[index])||0:0;
+  if(typeof core.commit==="function") core.commit();
+  let changed=0;
+  for(let i=1;i<selected.length;i++){
+    const node=selected[i];
+    if(!node) continue;
+    node.position=Array.isArray(node.position)?[...node.position]:[0,0,0];
+    node.position[index]=target;
+    changed++;
+  }
+  if(typeof core.render==="function") core.render();
+  if(typeof core.save==="function") core.save(false);
+  window.toast?.(`Alinhados ${changed} objeto(s) no eixo ${["X","Y","Z"][index]}`);
+  return changed;
+}
+
+window.StudioLiteExtra={duplicateOffset,alignSelected};
 window.StudioLite300Extra=window.StudioLiteExtra;
 })();
