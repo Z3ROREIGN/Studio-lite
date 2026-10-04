@@ -65,8 +65,8 @@ function drawTree(){
  const host=q("#tree");if(!host)return;
  const filter=(q("#treeSearch")?.value||"").trim().toLowerCase();
  host.innerHTML="";
- const head=document.createElement("div");head.className="expro-root-head";head.innerHTML='<span class="expro-chevron">⌄</span><span class="expro-icon">⌂</span><b>Workspace</b><span class="expro-count">'+nodes().length+'</span><button class="expro-add-root" title="Adicionar">＋</button>';host.appendChild(head);
- head.querySelector("button").onclick=e=>{e.stopPropagation();openAddMenu(null,e.clientX,e.clientY)};
+ const head=document.createElement("div");head.className="expro-root-head";head.innerHTML='<span class="expro-chevron">⌄</span><span class="expro-icon">⌂</span><b>Workspace</b><span class="expro-count">'+nodes().length+'</span><button class="expro-add-root" data-root-add="all" title="Adicionar objeto">＋</button><button class="expro-add-root" data-root-add="script" title="Adicionar Script">◇</button><button class="expro-add-root" data-root-add="folder" title="Adicionar Folder">▱</button>';host.appendChild(head);
+ head.querySelectorAll("button").forEach(b=>b.onclick=e=>{e.stopPropagation();const a=b.dataset.rootAdd;if(a==="script")add("Script",null);else if(a==="folder")add("Folder",null);else openAddMenu(null,e.clientX,e.clientY)});
  const roots=treeChildren(null);
  // roots use same renderer but keep Workspace header
  renderInto(roots,0,host);
