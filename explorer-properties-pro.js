@@ -22,7 +22,7 @@ function add(type,parentId=null){
  commit();
  const scripts=/^(Script|LocalScript|ModuleScript)$/.test(type), values=/Value$/.test(type);
  const container=["Folder","Model","Tool","Configuration","RemoteEvent","RemoteFunction","BindableEvent","BindableFunction"].includes(type);
- const n={id:uid(),name:type,type,position:[0,2,0],rotation:[0,0,0],size:[2,2,2],color:"#3b82f6",material:"Plastic",anchored:true,canCollide:!container&&!scripts&&!values,transparency:0,locked:false,visible:!container&&!scripts&&!values,parent:parent&&["Folder","Model","Tool","Configuration"].includes(parent.type)?parent.id:null,attributes:{}};
+ const n={id:uid(),name:type,type,position:[0,2,0],rotation:[0,0,0],size:[2,2,2],color:"#3b82f6",material:"Plastic",anchored:true,canCollide:!container&&!scripts&&!values,transparency:0,locked:false,visible:!container&&!scripts&&!values,parent:parent?parent.id:null,attributes:{}};
  if(type==="SpawnLocation"){n.size=[2,1,2];n.color="#22c55e"}
  if(type==="Sphere"){n.size=[4,4,4];n.shape="sphere"}
  if(type==="Cylinder"){n.size=[3,4,3];n.shape="cylinder"}
@@ -67,7 +67,7 @@ function openAddMenu(parentId,x,y,service){
 }
 function openContext(n,x,y){closeMenus();const m=document.createElement("div");m.id="exproMenu";m.className="expro-menu expro-context";m.innerHTML='<div class="expro-menu-title">'+esc(n.name)+' <small>'+esc(n.type)+'</small></div><button data-a="add">＋ Adicionar filho</button><button data-a="script">◇ Adicionar Script</button><button data-a="folder">▱ Adicionar Folder</button><button data-a="rename">✎ Renomear</button><button data-a="duplicate">⧉ Duplicar</button><button data-a="delete" class="danger">⌫ Excluir</button>';
  document.body.appendChild(m);positionMenu(m,x,y);
- m.querySelector('[data-a="add"]').onclick=()=>openAddMenu(["Folder","Model","Tool","Configuration"].includes(n.type)?n.id:null,x,y);
+ m.querySelector('[data-a="add"]').onclick=()=>openAddMenu(n.id,x,y);
  m.querySelector('[data-a="script"]').onclick=()=>{closeMenus();add("Script",n.id)};
  m.querySelector('[data-a="folder"]').onclick=()=>{closeMenus();add("Folder",n.id)};
  m.querySelector('[data-a="rename"]').onclick=()=>{closeMenus();rename(n)};
@@ -90,7 +90,7 @@ function drawProperties(){
  if(!n){p.innerHTML='<div class="expro-empty"><b>Nenhum objeto selecionado</b><span>Selecione um item no Explorer ou na cena.</span></div>';return}
  const head=document.createElement("div");head.className="expro-object-head";head.innerHTML='<div class="expro-big-icon">'+icon(n)+'</div><div><b>'+esc(n.name)+'</b><small>'+esc(n.type)+' • '+esc(n.id).slice(0,8)+'</small></div><button id="exproPropMenu">⋮</button>';p.appendChild(head);
  section(p,"IDENTIDADE");propInput(p,"Name",n.name,v=>n.name=String(v).slice(0,100));propInput(p,"Class",n.type,()=>{}).querySelector("input").disabled=true;
- const parents=[["","Workspace"],...nodes().filter(x=>["Folder","Model","Tool","Configuration"].includes(x.type)).map(x=>[x.id,x.name+" • "+x.type])];select(p,"Parent",n.parent||"",parents.map(x=>x[0]),v=>{if(v&&validParent(n,v))n.parent=v||null});
+ const parents=[["","Workspace"],...nodes().filter(x=>x.id!==n.id).map(x=>[x.id,x.name+" • "+x.type])];select(p,"Parent",n.parent||"",parents.map(x=>x[0]),v=>{if(v&&validParent(n,v))n.parent=v||null});
  const parentRow=p.lastElementChild;const ps=parentRow.querySelector("select");parents.forEach((x,i)=>ps.options[i].textContent=x[1]);
  if(!/^(Folder|Model|Tool|Configuration|RemoteEvent|RemoteFunction|BindableEvent|BindableFunction|Attachment|Decal|Texture|SurfaceGui|BillboardGui|Highlight|Camera|PointLight|SpotLight|SurfaceLight|ParticleEmitter|Beam|Trail|ProximityPrompt|ClickDetector|Sky|Atmosphere|Terrain)$/.test(n.type)){
    section(p,"TRANSFORM");vector(p,"Position",n.position,v=>n.position=v);vector(p,"Rotation",n.rotation,v=>n.rotation=v);vector(p,"Size",n.size,v=>n.size=v.map(x=>Math.max(.05,Math.abs(x))));
@@ -106,7 +106,7 @@ function drawProperties(){
  section(p,"ATTRIBUTES");const attrs=n.attributes&&typeof n.attributes==="object"?n.attributes:{};const keys=Object.keys(attrs);keys.forEach(k=>propInput(p,k,attrs[k],v=>{n.attributes[k]=v}));
  const ab=document.createElement("button");ab.className="expro-secondary";ab.textContent="＋ Adicionar Attribute";ab.onclick=()=>{const k=prompt("Nome do Attribute");if(!k)return;commit();n.attributes??={};n.attributes[k]="";save();drawProperties()};p.appendChild(ab);
  const json=document.createElement("textarea");json.className="expro-json";json.value=JSON.stringify(n.rbxProperties||{},null,2);section(p,"ROBLOX PROPERTIES");p.appendChild(json);const apply=document.createElement("button");apply.className="expro-secondary";apply.textContent="Aplicar propriedades RBX";apply.onclick=()=>{try{const o=JSON.parse(json.value||"{}");commit();n.rbxProperties=o;Object.entries(o).forEach(([k,v])=>{if(k==="Name")n.name=String(v);if(k==="Source"&&/Script$/.test(n.type))n.script=String(v)});save();refresh();toast("Propriedades RBX atualizadas")}catch{toast("JSON de propriedades inválido")}};p.appendChild(apply);
- section(p,"HIERARCHY ACTIONS");const actions=document.createElement("div");actions.className="expro-actions";[["＋ Filho",()=>openAddMenu(["Folder","Model","Tool","Configuration"].includes(n.type)?n.id:null,innerWidth/2,100)],["◇ Script",()=>add("Script",n.id)],["▱ Folder",()=>add("Folder",n.id)],["⧉ Duplicar",()=>{state().selected=n.id;API().duplicateSelected?.()}],["⌫ Excluir",()=>remove(n)]].forEach(([t,f])=>{const b=document.createElement("button");b.textContent=t;b.onclick=f;actions.appendChild(b)});p.appendChild(actions);
+ section(p,"HIERARCHY ACTIONS");const actions=document.createElement("div");actions.className="expro-actions";[["＋ Filho",()=>openAddMenu(n.id,innerWidth/2,100)],["◇ Script",()=>add("Script",n.id)],["▱ Folder",()=>add("Folder",n.id)],["⧉ Duplicar",()=>{state().selected=n.id;API().duplicateSelected?.()}],["⌫ Excluir",()=>remove(n)]].forEach(([t,f])=>{const b=document.createElement("button");b.textContent=t;b.onclick=f;actions.appendChild(b)});p.appendChild(actions);
 }
 function install(){
  const tree=q("#tree");if(!tree)return;
