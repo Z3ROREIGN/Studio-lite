@@ -1144,3 +1144,180 @@ const F={
 window.StudioLiteProTools=F;
 window.StudioLiteAPI={...F};
 })();
+
+
+/* =========================================================
+   STUDIO LITE V21 — RELIABILITY / TOOLBOX / EXPLORER / RBXL
+   ========================================================= */
+(()=>{
+"use strict";
+const q=s=>document.querySelector(s), qa=s=>[...document.querySelectorAll(s)];
+const core=()=>window.StudioLiteCore||{};
+const state=()=>core().S||window.S||null;
+const TYPES=[
+ ["Part","Bloco físico"],["MeshPart","MeshPart"],["UnionOperation","União"],["SpawnLocation","Ponto de spawn"],
+ ["Seat","Assento"],["VehicleSeat","Assento de veículo"],["TrussPart","Truss"],["WedgePart","Cunha"],
+ ["CornerWedgePart","Cunha de canto"],["Sphere","Esfera"],["Cylinder","Cilindro"],["Model","Modelo"],
+ ["Folder","Pasta"],["Tool","Ferramenta"],["Script","Script Luau"],["LocalScript","LocalScript Luau"],
+ ["ModuleScript","ModuleScript Luau"],["RemoteEvent","RemoteEvent"],["RemoteFunction","RemoteFunction"],
+ ["BindableEvent","BindableEvent"],["BindableFunction","BindableFunction"],["Attachment","Attachment"],
+ ["Decal","Decal"],["Texture","Texture"],["SurfaceGui","SurfaceGui"],["BillboardGui","BillboardGui"],
+ ["Highlight","Highlight"],["Camera","Câmera"],["PointLight","PointLight"],["SpotLight","SpotLight"],
+ ["SurfaceLight","SurfaceLight"],["ParticleEmitter","ParticleEmitter"],["Beam","Beam"],["Trail","Trail"],
+ ["ProximityPrompt","ProximityPrompt"],["ClickDetector","ClickDetector"],["Sky","Sky"],["Atmosphere","Atmosphere"],
+ ["Configuration","Configuration"],["StringValue","StringValue"],["BoolValue","BoolValue"],["IntValue","IntValue"],
+ ["NumberValue","NumberValue"],["ObjectValue","ObjectValue"],["Color3Value","Color3Value"],["Vector3Value","Vector3Value"],
+ ["Terrain","Terrain"]
+];
+const SERVICES=[
+ ["Workspace","Workspace"],["Lighting","Serviços de iluminação"],["Players","Jogadores"],["ReplicatedFirst","ReplicatedFirst"],
+ ["ReplicatedStorage","Armazenamento replicado"],["ServerScriptService","Scripts do servidor"],["ServerStorage","Armazenamento do servidor"],
+ ["StarterGui","Interface inicial"],["StarterPack","Itens iniciais"],["StarterPlayer","Jogador inicial"],["Teams","Times"],
+ ["SoundService","Áudio"],["Chat","Chat"],["TextChatService","TextChatService"],["MaterialService","Materiais"],
+ ["TestService","Testes"],["VoiceChatService","Voice Chat"],["CollectionService","Tags"],["HttpService","HTTP"],
+ ["MarketplaceService","Marketplace"],["TweenService","Tweens"],["RunService","Ciclo do jogo"],["DataStoreService","DataStore"],
+ ["MemoryStoreService","MemoryStore"],["MessagingService","Mensagens"],["TeleportService","Teleporte"]
+];
+window.ROBLOX_TYPES=TYPES;
+window.ROBLOX_SERVICES=SERVICES.map(([name,desc])=>[name,"",desc]);
+
+function s(){return state()}
+function nodes(){return s()?.nodes||[]}
+function selected(){
+ const st=s(); if(!st)return null;
+ return nodes().find(n=>n.id===st.selected)||nodes().find(n=>st.selectedIds?.includes(n.id))||null;
+}
+function selectedIds(){
+ const st=s(); if(!st)return [];
+ const ids=Array.isArray(st.selectedIds)?st.selectedIds.filter(id=>nodes().some(n=>n.id===id)):[];
+ if(ids.length)return ids;
+ return st.selected?[st.selected]:[];
+}
+function commit(){core().commit?.()}
+function refresh(full=true){try{core().render?.(full)}catch(e){console.warn("V21 render",e)}}
+function save(){try{core().save?.(false)}catch{}}
+function toast(t){try{window.toast?.(t)}catch{}}
+function setStatus(t){try{window.status?.(t)}catch{}}
+function normalizeType(n){
+ if(!n)return;
+ if(n.sourceClass&&typeof n.sourceClass==="string")n.type=n.sourceClass;
+ const cls=n.rbxProperties?.ClassName;
+ if(cls&&typeof cls==="string"&&n.sourceClass==null)n.type=cls;
+ n.type=String(n.type||"Part");
+ n.position=Array.isArray(n.position)?n.position.slice(0,3).map(Number):[0,0,0];
+ n.rotation=Array.isArray(n.rotation)?n.rotation.slice(0,3).map(Number):[0,0,0];
+ n.size=Array.isArray(n.size)?n.size.slice(0,3).map(v=>Math.max(.1,Math.abs(Number(v)||1))):[1,1,1];
+ n.parent=n.parent||null;
+ if(/^(Script|LocalScript|ModuleScript)$/.test(n.type)){
+   n.visible=false;n.canCollide=false;n.script=String(n.script??"");n.language=n.language||"luau";
+ }
+ return n;
+}
+function repairTypes(){
+ const st=s();if(!st)return;
+ st.nodes.forEach(normalizeType);
+ if(!st.selected&&st.nodes[0])st.selected=st.nodes[0].id;
+ st.selectedIds=(st.selectedIds||[]).filter(id=>st.nodes.some(n=>n.id===id));
+ if(!st.selectedIds.length&&st.selected)st.selectedIds=[st.selected];
+}
+function reliableAdd(type){
+ type=type==="Wedge"?"WedgePart":type;
+ repairTypes();
+ try{
+   if(typeof window.addRobloxObject==="function"){window.addRobloxObject(type);return true}
+   if(typeof window.add==="function"){window.add(type);return true}
+ }catch(e){console.error(e)}
+ const st=s();if(!st)return false;
+ commit();
+ const n={id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),name:type,type,position:[0,2,0],rotation:[0,0,0],size:[2,2,2],color:"#3b82f6",material:"Plastic",shape:"box",anchored:true,canCollide:true,transparency:0,locked:false,visible:true,parent:null};
+ if(/Script$/.test(type)){n.visible=false;n.canCollide=false;n.script="-- Novo Script\n\nprint(\"Hello from Roblox!\")";n.language="luau"}
+ if(/Value$/.test(type)){n.visible=false;n.canCollide=false;n.value=type==="BoolValue"?false:type==="StringValue"?"":0}
+ if(["Folder","Model","Tool","Configuration","RemoteEvent","RemoteFunction","BindableEvent","BindableFunction"].includes(type)){n.visible=false;n.canCollide=false}
+ const cur=selected();if(cur&&["Folder","Model","Tool","Configuration"].includes(cur.type))n.parent=cur.id;
+ st.nodes.push(n);st.selected=n.id;st.selectedIds=[n.id];refresh();save();toast(type+" criado");if(/Script$/.test(type))setTimeout(()=>window.openScript?.(n.id),40);return true;
+}
+function togglePanelsReliable(which){
+ const ex=q("#explorerPanel"),ins=q("#inspectorPanel"),ws=q(".workspace");
+ if(which==="explorer"){
+   const open=ex?.classList.contains("open");
+   ex?.classList.toggle("open",!open);
+   if(innerWidth>850){ex?.classList.toggle("collapsed",!!open);ws?.classList.toggle("explorer-collapsed",!!open)}
+   if(!open)ins?.classList.remove("open");
+ }else{
+   const open=ins?.classList.contains("open")||ins?.classList.contains("collapsed");
+   if(innerWidth<=850){
+     ins?.classList.toggle("open",!open);
+     if(!open)ex?.classList.remove("open");
+   }else{
+     ins?.classList.toggle("collapsed",!!open);
+     ws?.classList.toggle("inspector-collapsed",!!open);
+   }
+ }
+ q("#explorerToggle")?.setAttribute("aria-expanded",String(!!ex?.classList.contains("open")&&!ex?.classList.contains("collapsed")));
+ q("#inspectorToggle")?.setAttribute("aria-expanded",String(!!ins?.classList.contains("open")&&!ins?.classList.contains("collapsed")));
+}
+function openTab(name){
+ const b=q('.tab[data-panel="'+name+'"]');if(b){b.click();return true}return false;
+}
+function repairInspector(){
+ const st=s(),n=selected(),root=q("#panel .panel");if(!st||!n||!root||root.querySelector("#v21Hierarchy"))return;
+ const box=document.createElement("div");box.id="v21Hierarchy";
+ box.innerHTML='<div class="section-title">HIERARQUIA</div><div class="field"><span>Parent</span><select id="v21Parent"></select></div><div class="v21-create-title">ADICIONAR COMO FILHO</div><div class="v21-create-grid"><button data-v21-add="Part">＋ Part</button><button data-v21-add="Folder">＋ Folder</button><button data-v21-add="Model">＋ Model</button><button data-v21-add="Script">◇ Script</button><button data-v21-add="LocalScript">◇ LocalScript</button><button data-v21-add="ModuleScript">◇ ModuleScript</button></div>';
+ root.appendChild(box);
+ const sel=q("#v21Parent"), options=[["","Workspace"]].concat(nodes().filter(x=>["Folder","Model","Tool","Configuration"].includes(x.type)).map(x=>[x.id,x.name+" • "+x.type]));
+ const current=n.parent||"";
+ options.forEach(([id,label])=>{const o=document.createElement("option");o.value=id;o.textContent=label;if(id===current)o.selected=true;sel.appendChild(o)});
+ sel.onchange=()=>{const parent=sel.value||null;if(parent===n.id)return;let p=parent;while(p){if(p===n.id)return toast("Hierarquia inválida");p=nodes().find(x=>x.id===p)?.parent||null}commit();n.parent=parent;refresh();save();toast("Parent atualizado")};
+ box.querySelectorAll("[data-v21-add]").forEach(b=>b.onclick=()=>{st.selected=n.id;st.selectedIds=[n.id];reliableAdd(b.dataset.v21Add)});
+ if(/Value$/.test(n.type)){
+   const valueBox=document.createElement("div");valueBox.className="v21-value-editor";
+   valueBox.innerHTML='<div class="section-title">VALUE</div><div class="field"><span>Value</span><input id="v21Value"></div>';
+   root.appendChild(valueBox);const input=valueBox.querySelector("#v21Value");input.value=String(n.value??"");input.onchange=()=>{commit();n.value=input.value;save();toast("Value atualizado")};
+ }
+}
+function toolboxV21(){
+ const p=q("#panel");if(!p)return;
+ p.innerHTML='<div class="panel v21-toolbox"><div class="v21-toolbox-head"><b>TOOLBOX</b><small>Instâncias editáveis</small></div><input id="v21AssetSearch" class="search" placeholder="⌕ Pesquisar classe..."><div id="v21AssetList"></div></div>';
+ const list=q("#v21AssetList");
+ const groups=[["BASIC",TYPES.slice(0,14)],["SCRIPTS",TYPES.filter(x=>/Script$/.test(x[0]))],["NETWORK",TYPES.filter(x=>/Event$|Function$/.test(x[0]))],["VALUES",TYPES.filter(x=>/Value$/.test(x[0]))],["UI / VISUAL",TYPES.filter(x=>["Decal","Texture","SurfaceGui","BillboardGui","Highlight","Camera","Attachment"].includes(x[0]))],["LIGHTING / FX",TYPES.filter(x=>["PointLight","SpotLight","SurfaceLight","ParticleEmitter","Beam","Trail","Sky","Atmosphere"].includes(x[0]))],["OTHER",TYPES.filter(x=>!["Part","MeshPart","UnionOperation","SpawnLocation","Seat","VehicleSeat","TrussPart","WedgePart","CornerWedgePart","Sphere","Cylinder","Model","Folder","Tool","Script","LocalScript","ModuleScript","RemoteEvent","RemoteFunction","BindableEvent","BindableFunction","Decal","Texture","SurfaceGui","BillboardGui","Highlight","Camera","Attachment","PointLight","SpotLight","SurfaceLight","ParticleEmitter","Beam","Trail","Sky","Atmosphere"].includes(x[0]))]];
+ groups.forEach(([title,items])=>{if(!items.length)return;const g=document.createElement("div");g.className="v21-toolbox-group";g.innerHTML='<div class="section-title">'+title+'</div>';items.forEach(([type,desc])=>{const b=document.createElement("button");b.className="asset";b.dataset.search=(type+" "+desc).toLowerCase();b.innerHTML='<span class="asset-icon">◇</span><span><b>'+type+'</b><small>'+desc+'</small></span><strong>＋</strong>';b.onclick=()=>reliableAdd(type);g.appendChild(b)});list.appendChild(g)});
+ const input=q("#v21AssetSearch");input.oninput=()=>{const term=input.value.toLowerCase().trim();list.querySelectorAll(".asset").forEach(b=>b.style.display=!term||b.dataset.search.includes(term)?"flex":"none")};
+}
+function bindReliable(){
+ const map={
+  explorerToggle:()=>togglePanelsReliable("explorer"),collapseBtn:()=>togglePanelsReliable("explorer"),inspectorToggle:()=>togglePanelsReliable("inspector"),
+  undoBtn:()=>core().undo?.(),redoBtn:()=>core().redo?.(),saveBtn:()=>core().save?.(true),duplicateBtn:()=>core().duplicate?.(),deleteBtn:()=>core().remove?.(),renameBtn:()=>core().rename?.(),
+  focusBtn:()=>core().focus?.(),gridBtn:()=>{const st=s();st.grid=st.grid===1?.5:st.grid===.5?.25:st.grid===.25?.1:1;refresh();save();toast("Grid "+st.grid)},
+  snapBtn:()=>{const st=s();st.snap=!st.snap;q("#snapBtn").textContent="Snap: "+(st.snap?"ON":"OFF");save();toast("Snap "+(st.snap?"ativado":"desativado"))},
+  fullscreenBtn:()=>{document.fullscreenElement?document.exitFullscreen?.():document.documentElement.requestFullscreen?.()},
+  gridToggleBtn:()=>core().toggleGrid?.(),commandBtn:()=>core().commandPalette?.(),newBtn:()=>core().newProject?.(),screenshotBtn:()=>core().screenshot?.(),
+  exportBtn:()=>core().exportProject?.(),publishRbxlBtn:()=>core().publish?.(),validateBtn:()=>{const d=window.StudioLiteDiagnostics?.run?.();toast(d?.ok?"✓ Projeto saudável":"⚠ Diagnóstico encontrou pontos para revisar")},
+  codeStudioBtn:()=>q("#codeStudioBtn")?.dataset?.v21Busy?null:q("#codeStudioBtn")?.click(),
+  studioRbxlBtn:()=>window.StudioLiteRBXL?.open?.()
+ };
+ Object.entries(map).forEach(([id,fn])=>{const b=q("#"+id);if(b){b.onclick=e=>{e.preventDefault();e.stopPropagation();try{fn()}catch(err){console.error(err);toast("Esta função encontrou um erro controlado")}}}});
+ q("#playBtn")?.addEventListener("click",()=>setTimeout(()=>repairTypes(),0),{passive:true});
+ qa("[data-add]").forEach(b=>b.addEventListener("click",e=>{e.preventDefault();e.stopImmediatePropagation();reliableAdd(b.dataset.add)},true));
+ const tabTool=q('.tab[data-panel="toolbox"]');
+ tabTool?.addEventListener("click",e=>{e.preventDefault();e.stopImmediatePropagation();const st=s();if(st)st.panel="toolbox";toolboxV21()},true);
+ q(".topbar")?.querySelector("#studioRbxlTopBtn")||(()=>{
+   const b=document.createElement("button");b.id="studioRbxlTopBtn";b.type="button";b.className="back-top rbxl-top";b.textContent="▣ RBXL";b.title="Studio RBXL — importar Place completo";b.onclick=()=>window.StudioLiteRBXL?.open?.();q(".topbar .actions")?.prepend(b);
+ })();
+ repairTypes();
+ openTab("properties");
+ setTimeout(repairInspector,60);
+}
+function observeInspector(){
+ const panel=q("#panel");if(!panel)return;
+ new MutationObserver(()=>repairInspector()).observe(panel,{childList:true,subtree:true});
+ repairInspector();
+}
+function boot21(){
+ repairTypes();
+ bindReliable();
+ observeInspector();
+ setTimeout(()=>{repairTypes();refresh();repairInspector()},250);
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot21);else setTimeout(boot21,80);
+window.StudioLiteV21={version:"21.0.0",repairTypes,add:reliableAdd,togglePanels:togglePanelsReliable,toolbox:toolboxV21};
+})();
