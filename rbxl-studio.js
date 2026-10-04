@@ -298,6 +298,35 @@ function cleanNodes(nodes){
    return x;
  });
 }
+async function parseServerBinary(file){
+ const buf=await file.arrayBuffer();
+ const response=await fetch("/api/roblox/rbxl-import",{
+   method:"POST",
+   headers:{"Content-Type":"application/octet-stream","X-RBXL-Filename":file.name},
+   body:buf
+ });
+ let data=null;
+ try{data=await response.json()}catch{}
+ if(!response.ok||!data?.ok){
+   throw new Error(data?.error||("Servidor RBXL respondeu HTTP "+response.status));
+ }
+ const list=Array.isArray(data.instances)?data.instances:[];
+ return list.map(x=>{
+   const props=x.properties||{};
+   if(x.attributes&&typeof x.attributes==="object")props.Attributes=x.attributes;
+   const n=makeNode(x.className||"Part",props,null,x.id);
+   n.parent=x.parent==null?null:"server:"+x.parent;
+   n.rbxProperties=props;
+   return n;
+ });
+}
+function repairServerParents(nodes){
+ const byServer=new Map(nodes.map((n,i)=>["server:"+String(n.rbxOriginalId??i),n.id]));
+ return nodes.map(n=>{
+   if(typeof n.parent==="string"&&n.parent.startsWith("server:"))n.parent=byServer.get(n.parent)||null;
+   return n;
+ });
+}
 async function parseFile(file){
  const buf=await file.arrayBuffer();
  if(!(buf instanceof ArrayBuffer)||buf.byteLength===0)throw new Error("Não foi possível ler o conteúdo do arquivo RBXL.");
@@ -308,6 +337,12 @@ async function parseFile(file){
    return parseXML(text);
  }
  if(sig==="<roblox!"){
+   try{
+     const serverNodes=await parseServerBinary(file);
+     if(serverNodes.length)return repairServerParents(serverNodes);
+   }catch(serverError){
+     console.warn("RBXL server parser failed, trying browser parser",serverError);
+   }
    const decode=await loadBinaryParser();
    const parsed=await decode(buf);
    return fromBinaryObjectTree(normalizeBinaryResult(parsed));
