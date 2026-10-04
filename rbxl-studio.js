@@ -115,29 +115,56 @@ function normalizeBinaryResult(parsed){
 }
 
 function fromBinaryObjectTree(objects){
+ const list=Array.isArray(objects)?objects:[];
  const nodes=[];
- const walk=(obj,parent)=>{
-   if(!obj||typeof obj!=="object")return;
-   const cls=String(obj.ClassName||obj.className||obj.class||obj.Type||"Part");
+ const objectToNode=new Map();
+ const normalizeProps=obj=>{
    const props={};
-   const sourceProps=obj.Properties||obj.properties||{};
-   if(sourceProps&&typeof sourceProps==="object")Object.assign(props,sourceProps);
-   for(const [k,v] of Object.entries(obj)){
-     if(!["Children","children","ClassName","className","class","Type","Properties","properties","Parent","parent"].includes(k))props[k]=v;
+   const source=obj?.Properties||obj?.properties||{};
+   if(source&&typeof source==="object"){
+     for(const [k,v] of Object.entries(source)){
+       props[k]=v?.value!==undefined?v.value:v;
+     }
    }
-   const name=props.Name??props.name??obj.Name??obj.name??cls;
+   for(const [k,v] of Object.entries(obj||{})){
+     if(!["Children","children","ClassName","className","class","Type","Properties","properties","Parent","parent"].includes(k)&&props[k]===undefined)props[k]=v;
+   }
+   return props;
+ };
+ const create=(obj,parentId=null)=>{
+   if(!obj||typeof obj!=="object"||objectToNode.has(obj))return objectToNode.get(obj)?.id||null;
+   const cls=String(obj.ClassName||obj.className||obj.class||obj.Type||"Part");
+   const props=normalizeProps(obj);
+   const name=props.Name??obj.Name??obj.name??cls;
    props.Name=name;
-   let targetParent=parent;
+   let targetParent=parentId;
    if(services.has(cls)&&cls!=="Workspace")targetParent="service:"+cls;
    const n=makeNode(cls,props,targetParent);
-   if(services.has(cls)&&cls!=="Workspace"){n.__serviceRoot=true;n.visible=false;nodes.push(n);targetParent=n.id}
-   else nodes.push(n);
-   const children=obj.Children||obj.children||[];
-   if(Array.isArray(children))children.forEach(ch=>walk(ch,targetParent));
+   n.rbxProperties=props;
+   if(services.has(cls)&&cls!=="Workspace"){
+     n.__serviceRoot=true;n.visible=false;
+   }
+   nodes.push(n);
+   objectToNode.set(obj,n);
+   const children=obj.Children||obj.children;
+   if(Array.isArray(children))children.forEach(ch=>create(ch,n.id));
+   return n.id;
  };
- (Array.isArray(objects)?objects:[]).forEach(x=>walk(x,null));
+ list.forEach(obj=>create(obj,null));
+ // Binary parsers can return a flat instance list. Reconnect Parent references
+ // after all nodes exist instead of silently flattening the Explorer.
+ list.forEach(obj=>{
+   const n=objectToNode.get(obj);
+   if(!n)return;
+   const parent=obj.Parent||obj.parent||obj?.Properties?.Parent||obj?.properties?.Parent;
+   if(parent&&typeof parent==="object"){
+     const p=objectToNode.get(parent);
+     if(p&&p.id!==n.id)n.parent=p.id;
+   }
+ });
  return nodes;
 }
+
 function cleanNodes(nodes){
  const valid=new Set(nodes.map(n=>n.id));
  const serviceNames=new Set([...services]);
