@@ -286,6 +286,10 @@ studioFixInit();
 render();
 save(false);
 
+/* ===== CORE BRIDGE — cross-layer scope repair ===== */
+window.StudioLiteCore={get S(){return S},get renderer(){return renderer},get scene(){return scene},get camera(){return camera},get fallbackCanvas(){return fallbackCanvas},get fallbackCtx(){return fallbackCtx},render,save,undo,redo,add,duplicate,remove,rename,setTool,focus,view,toggleGrid,screenshot,newProject,commandPalette,exportProject,publish,initFallbackCanvas,drawFallback,resize,normalizeNode,clone};
+try{Object.defineProperties(window,{S:{configurable:true,get:()=>S},renderer:{configurable:true,get:()=>renderer},scene:{configurable:true,get:()=>scene},camera:{configurable:true,get:()=>camera},fallbackCanvas:{configurable:true,get:()=>fallbackCanvas},fallbackCtx:{configurable:true,get:()=>fallbackCtx}});Object.assign(window,{render,save,undo,redo,add,duplicate,remove,rename,setTool,focus,view,toggleGrid,screenshot,newProject,commandPalette,exportProject,publish,initFallbackCanvas,drawFallback,resize,normalizeNode,clone});}catch(e){console.warn("Core bridge",e)}
+
 })();
 
 
