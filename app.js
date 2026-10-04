@@ -259,3 +259,119 @@ render();
 save(false);
 
 })();
+
+
+/* =========================================================
+   UNIVERSAL EXPERIENCE LAYER — v6.0
+   Progressive rendering + clean workspace + Party/Team tools
+   ========================================================= */
+(()=>{"use strict";
+const q=s=>document.querySelector(s), qa=s=>[...document.querySelectorAll(s)];
+const escU=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const KEY="studio-lite-universal-v6";
+const U={mode:localStorage.getItem(KEY+".mode")||"auto",grid:true,party:JSON.parse(localStorage.getItem(KEY+".party")||'{"name":"Meu Party","max":6,"members":[{"name":"Você","team":"Builder","ready":true}],"code":"LOCAL-001"}'),density:localStorage.getItem(KEY+".density")||"comfortable"};
+const saveU=()=>{localStorage.setItem(KEY+".mode",U.mode);localStorage.setItem(KEY+".party",JSON.stringify(U.party));localStorage.setItem(KEY+".density",U.density)};
+
+function addStyle(){
+ if(q("#universalStyle"))return;
+ const s=document.createElement("style");s.id="universalStyle";
+ s.textContent=`
+ .u-dock{position:absolute;right:10px;top:48px;z-index:7;display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;max-width:min(430px,70vw);pointer-events:auto}
+ .u-dock button{height:29px;padding:0 9px;background:#090909e8;border:1px solid #292929;color:#aaa;border-radius:7px;font-size:10px}
+ .u-dock button.active{color:#fff;border-color:#666;background:#202020}
+ .u-pop{position:fixed;inset:0;z-index:180;background:#000b;backdrop-filter:blur(12px);display:grid;place-items:center;padding:12px}
+ .u-card{width:min(760px,100%);max-height:min(820px,94vh);overflow:auto;background:#0b0b0b;border:1px solid #303030;border-radius:15px;box-shadow:0 30px 100px #000;padding:18px}
+ .u-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}.u-head h2{margin:0;font-size:18px}.u-head small{display:block;color:#666;margin-top:3px}
+ .u-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.u-card button,.u-card input,.u-card select{background:#101010;color:#ddd;border:1px solid #292929;border-radius:7px;padding:9px}
+ .u-card input,.u-card select{width:100%}.u-wide{grid-column:1/-1}.u-box{border:1px solid #222;background:#0e0e0e;border-radius:9px;padding:11px}.u-muted{color:#666;font-size:11px;line-height:1.5}
+ .u-members{display:grid;gap:6px;margin-top:8px}.u-member{display:flex;align-items:center;gap:8px;padding:8px;border:1px solid #222;border-radius:8px}.u-member b{flex:1}.u-dot{width:8px;height:8px;border-radius:50%;background:#555}.u-dot.on{background:#22c55e;box-shadow:0 0 9px #22c55e}
+ .u-scene{position:absolute;inset:0;overflow:hidden;perspective:900px;background:linear-gradient(#a9c7df 0%,#d7e7ef 55%,#7b9a63 55%,#5e7f4a 100%);display:none;touch-action:none}
+ .u-scene.on{display:block}.u-world{position:absolute;left:50%;top:54%;width:0;height:0;transform-style:preserve-3d;transform:translate(-50%,-50%) rotateX(58deg) rotateZ(-25deg)}
+ .u-ground{position:absolute;width:900px;height:900px;left:-450px;top:-450px;background:repeating-linear-gradient(0deg,#ffffff0c 0 1px,transparent 1px 40px),repeating-linear-gradient(90deg,#ffffff0c 0 1px,transparent 1px 40px);border:1px solid #ffffff22;transform:rotateX(90deg);transform-origin:center;box-shadow:0 0 0 100vmax #0000}
+ .u-cube{position:absolute;transform-style:preserve-3d;cursor:pointer}.u-face{position:absolute;backface-visibility:visible;border:1px solid #ffffff35;background:#3b82f6dd;box-shadow:inset 0 0 20px #0002}.u-label{position:absolute;left:50%;top:-20px;transform:translateX(-50%) rotateZ(25deg) rotateX(-58deg);white-space:nowrap;color:#fff;background:#090909cc;border:1px solid #333;border-radius:5px;padding:2px 5px;font:9px system-ui;pointer-events:none}
+ .u-status{position:absolute;left:10px;bottom:10px;background:#090909dc;border:1px solid #292929;color:#ddd;border-radius:8px;padding:7px 9px;font-size:10px;z-index:2}
+ .u-clean .tree-row{height:28px}.u-clean .panel{padding:9px}.u-clean .section-title{margin-top:11px}
+ @media(max-width:700px){.u-dock{top:44px;right:7px;max-width:90vw}.u-grid{grid-template-columns:1fr}.u-card{padding:13px}.u-wide{grid-column:auto}.u-scene .u-ground{width:600px;height:600px;left:-300px;top:-300px}}
+ `;
+ document.head.appendChild(s);
+}
+function pop(title,sub,body){
+ const w=document.createElement("div");w.className="u-pop";
+ w.innerHTML='<div class="u-card"><div class="u-head"><div><h2>'+escU(title)+'</h2><small>'+escU(sub||"")+'</small></div><button data-close>✕</button></div><div class="u-body">'+body+'</div></div>';
+ w.querySelector("[data-close]").onclick=()=>w.remove();w.addEventListener("click",e=>{if(e.target===w)w.remove()});document.body.appendChild(w);return w;
+}
+function getNodes(){
+ try{const x=JSON.parse(localStorage.getItem("studio-lite-v4")||"{}");return Array.isArray(x.nodes)?x.nodes:[]}
+ catch{return[]}
+}
+function setMode(mode){
+ U.mode=mode;saveU();
+ const old=q("#uScene");if(old)old.remove();
+ const canvas=q("#canvas");
+ const fallback=canvas?.querySelector(".fallback-canvas");
+ if(mode==="css3d"){makeCSS3D();if(fallback)fallback.style.display="none"}
+ else if(fallback)fallback.style.display="";
+ const b=qa(".u-mode");b.forEach(x=>x.classList.toggle("active",x.dataset.mode===mode));
+ const hud=q("#engineHud");if(hud)hud.textContent=mode==="auto"?"AUTO":mode.toUpperCase();
+}
+function makeCSS3D(){
+ let sc=q("#uScene");if(!sc){sc=document.createElement("div");sc.id="uScene";sc.className="u-scene";q("#canvas").appendChild(sc)}
+ sc.classList.add("on");sc.innerHTML='<div class="u-world"><div class="u-ground"></div></div><div class="u-status">CSS 3D COMPAT • toque/clique nos objetos • zoom do navegador continua disponível</div>';
+ const world=sc.querySelector(".u-world");
+ const nodes=getNodes().filter(n=>n.visible!==false&&!["Folder","Script","LocalScript","ModuleScript"].includes(n.type));
+ nodes.forEach(n=>{
+   const x=Math.max(.2,Math.min(18,Number(n.size?.[0]||2))),y=Math.max(.2,Math.min(18,Number(n.size?.[1]||2))),z=Math.max(.2,Math.min(18,Number(n.size?.[2]||2)));
+   const el=document.createElement("div");el.className="u-cube";el.dataset.id=n.id;
+   el.style.width=x*18+"px";el.style.height=y*18+"px";el.style.left=(Number(n.position?.[0]||0)*18)+"px";el.style.top=(-Number(n.position?.[2]||0)*18)+"px";
+   el.style.transform="translate(-50%,-50%) translateZ("+((Number(n.position?.[1]||0))*18)+"px)";
+   const col=n.color||"#64748b", faces=[["front","translateZ("+(z*9)+"px)"],["back","rotateY(180deg) translateZ("+(z*9)+"px)"],["right","rotateY(90deg) translateZ("+(x*9)+"px)"],["left","rotateY(-90deg) translateZ("+(x*9)+"px)"],["top","rotateX(90deg) translateZ("+(y*9)+"px)"],["bottom","rotateX(-90deg) translateZ("+(y*9)+"px)"]];
+   faces.forEach(([name,tr])=>{const f=document.createElement("div");f.className="u-face";f.style.width=x*18+"px";f.style.height=y*18+"px";f.style.transform=tr;f.style.background=col+"dd";el.appendChild(f)});
+   const lab=document.createElement("div");lab.className="u-label";lab.textContent=n.name||n.type;el.appendChild(lab);
+   el.onclick=()=>{const row=qa(".tree-row").find(r=>r.textContent.includes(n.name));row?.click();el.style.filter="brightness(1.35)";setTimeout(()=>el.style.filter="",300)};
+   world.appendChild(el);
+ });
+}
+function addDock(){
+ if(q("#uDock"))return;
+ const d=document.createElement("div");d.id="uDock";d.className="u-dock";
+ d.innerHTML='<button class="u-mode" data-mode="auto">AUTO</button><button class="u-mode" data-mode="webgl">WEBGL</button><button class="u-mode" data-mode="css3d">CSS 3D</button><button class="u-mode" data-mode="2d">2D</button><button id="uParty">PARTY</button><button id="uLayout">LAYOUT</button>';
+ q(".viewport")?.appendChild(d);
+ qa(".u-mode").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+ q("#uParty").onclick=partyUI;q("#uLayout").onclick=layoutUI;
+}
+function partyUI(){
+ const m=U.party.members||[];
+ const w=pop("Party & Teams","Sessão local pronta para organizar testes, equipes e jogadores.",
+ '<div class="u-grid"><div class="u-box"><b>Nome da Party</b><input id="pName" value="'+escU(U.party.name)+'"></div><div class="u-box"><b>Código</b><input id="pCode" value="'+escU(U.party.code)+'"><button id="pGen" style="margin-top:5px;width:100%">Gerar novo</button></div><div class="u-box"><b>Limite</b><select id="pMax"><option>2</option><option>4</option><option>6</option><option>8</option><option>12</option></select></div><div class="u-box"><b>Seu time</b><select id="pTeam"><option>Builder</option><option>Script</option><option>Design</option><option>Tester</option><option>Red</option><option>Blue</option></select></div><div class="u-box u-wide"><b>Membros</b><div class="u-members" id="pMembers"></div></div><button class="u-wide" id="pAdd">＋ Adicionar participante de teste</button><button class="u-wide" id="pReady">Alternar Ready</button><button class="u-wide" id="pSave">Salvar Party</button></div>');
+ w.querySelector("#pMax").value=String(U.party.max);w.querySelector("#pTeam").value=m[0]?.team||"Builder";
+ const draw=()=>{w.querySelector("#pMembers").innerHTML=(U.party.members||[]).map((x,i)=>'<div class="u-member"><i class="u-dot '+(x.ready?"on":"")+'"></i><b>'+escU(x.name)+'</b><span>'+escU(x.team)+'</span>'+(i?'<button data-i="'+i+'">✕</button>':"")+'</div>').join("");qa("#pMembers [data-i]").forEach(b=>b.onclick=()=>{U.party.members.splice(Number(b.dataset.i),1);draw();saveU()})};
+ draw();
+ w.querySelector("#pGen").onclick=()=>{U.party.code=Math.random().toString(36).slice(2,8).toUpperCase();w.querySelector("#pCode").value=U.party.code};
+ w.querySelector("#pAdd").onclick=()=>{if(U.party.members.length>=U.party.max)return alert("Party cheia");U.party.members.push({name:"Player "+U.party.members.length,team:"Tester",ready:false});draw()};
+ w.querySelector("#pReady").onclick=()=>{U.party.members[0].ready=!U.party.members[0].ready;draw()};
+ w.querySelector("#pSave").onclick=()=>{U.party.name=w.querySelector("#pName").value||"Minha Party";U.party.max=Number(w.querySelector("#pMax").value);U.party.members[0].team=w.querySelector("#pTeam").value;U.party.code=w.querySelector("#pCode").value||"LOCAL-001";saveU();w.remove();partyUI()};
+}
+function layoutUI(){
+ const w=pop("Workspace","Organização rápida para uma interface limpa.",'<div class="u-grid"><button id="dense">Compactar Explorer/Properties</button><button id="comfort">Espaçamento confortável</button><button id="focus">Modo foco: ocultar painéis</button><button id="resetLayout">Restaurar layout</button><div class="u-box u-wide u-muted">No celular, os painéis continuam como gavetas. No desktop, o foco reduz distrações sem apagar ferramentas.</div></div>');
+ w.querySelector("#dense").onclick=()=>{document.body.classList.add("u-clean");U.density="compact";saveU();w.remove()};
+ w.querySelector("#comfort").onclick=()=>{document.body.classList.remove("u-clean");U.density="comfortable";saveU();w.remove()};
+ w.querySelector("#focus").onclick=()=>{q(".explorer")?.classList.toggle("focus-hidden");q(".inspector")?.classList.toggle("focus-hidden");w.remove()};
+ w.querySelector("#resetLayout").onclick=()=>{document.body.classList.remove("u-clean");q(".explorer")?.classList.remove("focus-hidden");q(".inspector")?.classList.remove("focus-hidden");U.density="comfortable";saveU();w.remove()};
+}
+function addUniversalCommands(){
+ const cmd=q("#commandBtn");if(cmd){const old=cmd.onclick;cmd.addEventListener("click",()=>setTimeout(()=>{},0))}
+ document.addEventListener("keydown",e=>{
+   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();partyUI()}
+   if(e.key==="F6"){e.preventDefault();const order=["auto","webgl","css3d","2d"],i=order.indexOf(U.mode);setMode(order[(i+1)%order.length])}
+   if(e.key==="F7"){e.preventDefault();partyUI()}
+   if(e.key==="F8"){e.preventDefault();layoutUI()}
+ });
+}
+function bootUniversal(){
+ addStyle();addDock();addUniversalCommands();
+ if(U.density==="compact")document.body.classList.add("u-clean");
+ setTimeout(()=>{if(U.mode==="css3d")setMode("css3d");else if(U.mode==="2d")setMode("2d");else if(U.mode==="webgl")setMode("webgl")},350);
+ setInterval(()=>{if(U.mode==="css3d")makeCSS3D()},1200);
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",bootUniversal);else bootUniversal();
+})();
