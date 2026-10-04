@@ -27,11 +27,14 @@ function childrenOf(item: any): any[] {
 }
 
 function propertyMap(item: any) {
-  const properties = item?.Properties?.Item ?? item?.Properties;
-  const list = Array.isArray(properties) ? properties : properties ? [properties] : [];
+  const properties = item?.Properties ?? {};
   const map: Record<string, any> = {};
-  for (const property of list) {
-    if (property?.["@_name"]) map[property["@_name"]] = property;
+  for (const [tag, value] of Object.entries(properties)) {
+    const list = Array.isArray(value) ? value : [value];
+    for (const property of list) {
+      const name = (property as any)?.["@_name"];
+      if (name) map[name] = property;
+    }
   }
   return map;
 }
@@ -49,7 +52,7 @@ function parseItem(item: any, index: number): ParsedNode | null {
     numberValue(sizeValue?.["@_z"], 4),
   ];
 
-  const colorValue = props.Color?.Color3;
+  const colorValue = props.Color?.Color3 ?? props.Color?.Color3uint8;
   const color = colorValue
     ? "#" + [colorValue["@_r"], colorValue["@_g"], colorValue["@_b"]]
         .map((v) => Math.round(numberValue(v, 1) * 255).toString(16).padStart(2, "0"))
@@ -58,12 +61,18 @@ function parseItem(item: any, index: number): ParsedNode | null {
 
   const anchored = String(props.Anchored?.bool ?? "true") !== "false";
   const canCollide = String(props.CanCollide?.bool ?? "true") !== "false";
+  const cframe = props.CFrame?.CoordinateFrame;
+  const position: [number, number, number] = [
+    numberValue(cframe?.X, 0),
+    numberValue(cframe?.Y, 0),
+    numberValue(cframe?.Z, 0),
+  ];
 
   return {
     id: String(item?.["@_referent"] ?? "imported-" + index).replace(/[^a-zA-Z0-9_-]/g, "-"),
     name,
     type,
-    position: [0, 0, 0],
+    position,
     rotation: [0, 0, 0],
     size,
     color,
