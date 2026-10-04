@@ -32,9 +32,12 @@ export default async function handler(req,res){
     // rbx-reader 1.5.x recebe ArrayBuffer, não Node Buffer.
     // Passar Buffer diretamente pode quebrar o ByteReader e resultar em HTTP 500.
     const arrayBuffer=body.buffer.slice(body.byteOffset,body.byteOffset+body.byteLength);
-    const parse=reader?.parseBuffer;
-    if(typeof parse!=="function")throw Error("O pacote rbx-reader não expôs parseBuffer no runtime.");
-    const parsed=await Promise.resolve(parse.call(reader,arrayBuffer));
+    const header=body.subarray(0,16);
+    const expected=[0x3C,0x72,0x6F,0x62,0x6C,0x6F,0x78,0x21,0x89,0xFF,0x0D,0x0A,0x1A,0x0A,0x00,0x00];
+    if(header.length<expected.length||!expected.every((v,i)=>header[i]===v))throw Error("Arquivo não é um RBXL/RBXM binário válido.");
+    const parse=BinaryParser?.parse;
+    if(typeof parse!=="function")throw Error("O BinaryParser do rbx-reader não foi carregado no runtime.");
+    const parsed=await Promise.resolve(parse.call(BinaryParser,arrayBuffer));
     const list=Array.isArray(parsed?.instances)?parsed.instances:[];
     if(!list.length)return res.status(422).json({ok:false,error:"O parser não encontrou instâncias no RBXL."});
     const index=new Map(list.map((x,i)=>[x,i]));
