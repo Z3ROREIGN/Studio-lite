@@ -487,3 +487,77 @@ footer{height:26px;flex:none;background:#080808;border-top:1px solid #1d1d1d;dis
   .tool300-v21-item{min-height:58px}
   .tool300-v21-foot{padding:8px 10px}
 }
+
+
+/* ===== STUDIO RBXL PRO UI v2026.10 ===== */
+:root{
+  --bg:#07090d;--panel:#0b0f15;--panel2:#0f141c;--panel3:#121923;
+  --line:rgba(255,255,255,.075);--line2:rgba(255,255,255,.12);
+  --text:#edf2f7;--muted:#7d8999;--soft:#aeb8c5;--accent:#7c9cff;
+  --accent2:#9a7cff;--good:#31d38b;--danger:#ff5f6d;
+}
+html,body{background:
+ radial-gradient(900px 500px at 52% -15%,rgba(95,120,255,.09),transparent 60%),
+ #07090d}
+body{letter-spacing:.01em}
+button{background:linear-gradient(180deg,#141a23,#10151c);border-color:rgba(255,255,255,.09);box-shadow:inset 0 1px 0 rgba(255,255,255,.025),0 1px 2px rgba(0,0,0,.18)}
+button:hover{background:linear-gradient(180deg,#1a2230,#141a23);border-color:rgba(140,165,255,.28);box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.topbar{height:64px;padding:0 16px;gap:16px;background:rgba(8,11,16,.92);border-bottom:1px solid var(--line);backdrop-filter:blur(18px);box-shadow:0 8px 30px rgba(0,0,0,.16)}
+.brand{min-width:220px;gap:11px}.logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(145deg,#fff,#cdd7ff);box-shadow:0 0 25px rgba(120,145,255,.16)}
+.brand b{font-size:12px;letter-spacing:2px}.brand small{color:#687386;font-size:8px}
+.project{padding:0 12px;height:38px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.025)}
+.project input{width:min(330px,35vw);font-size:12px}.project #status{color:#8995a5}
+.actions{gap:7px}.actions button{height:36px;padding:0 12px;border-radius:9px}
+.actions button.primary{background:linear-gradient(135deg,#718cff,#9276ff);border-color:rgba(170,185,255,.42);color:#fff;font-weight:800;box-shadow:0 7px 24px rgba(100,115,255,.18)}
+.toolbar{min-height:66px;padding:9px 12px;gap:10px;background:rgba(9,12,17,.94);border-bottom:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.12);overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
+.toolbar .tool-group{padding:6px 7px;border:1px solid rgba(255,255,255,.055);border-radius:12px;background:rgba(255,255,255,.018);box-shadow:inset 0 1px 0 rgba(255,255,255,.018)}
+.toolbar .tool-group>b{color:#667387;font-size:8px;letter-spacing:1.4px;margin:0 5px 0 2px}
+.toolbar button{height:31px;padding:0 9px;border-radius:8px;font-size:11px;white-space:nowrap}
+.toolbar button.accent{background:linear-gradient(135deg,#657fff,#8b73ff);color:#fff;border-color:rgba(170,180,255,.32);font-weight:750}
+.toolbar i{width:1px;height:28px;background:var(--line);flex:none}
+.workspace{gap:0;background:#070a0f}
+.sidebar{background:linear-gradient(180deg,#0b0f15,#090d13);border-color:var(--line);box-shadow:0 0 35px rgba(0,0,0,.12)}
+.explorer{width:275px}.inspector{width:315px}
+.side-head{height:58px;padding:0 13px;border-bottom:1px solid var(--line)}
+.side-head b{font-size:12px;letter-spacing:.4px}.side-head small{color:#687587;font-size:9px}
+.tree-search{padding:10px;border-bottom:1px solid rgba(255,255,255,.045)}
+.tree-search input{height:34px;border-radius:9px;background:#080c12;border:1px solid var(--line);color:var(--text);padding:0 10px}
+.tree-search input:focus{border-color:rgba(120,150,255,.38);box-shadow:0 0 0 3px rgba(100,125,255,.07)}
+.tree{padding:9px 7px}
+.viewport{background:
+ radial-gradient(circle at 50% 40%,rgba(80,100,150,.045),transparent 45%),
+ linear-gradient(180deg,#0a0e14,#070a0f)}
+.viewport:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(255,255,255,.012) 1px,transparent 1px);background-size:48px 48px;opacity:.15}
+.viewport-top{padding:12px 14px}
+.hud{gap:6px}.hud span,.view-actions button{border:1px solid var(--line);background:rgba(9,13,19,.78);backdrop-filter:blur(10px);border-radius:8px;padding:6px 9px;color:#8e9aab;font-size:9px}
+.view-actions{gap:5px}.view-actions button{height:30px}
+.inspector .tabs{height:49px;padding:7px;border-bottom:1px solid var(--line);gap:5px;background:#090d13}
+.inspector .tab{border:0;border-radius:8px;background:transparent;color:#768397;font-weight:700}
+.inspector .tab.active{background:#151c27;color:#edf2f7;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07)}
+#panel{padding:12px;overflow:auto}
+#panel input,#panel select,#panel textarea{background:#080c12!important;border-color:var(--line)!important;border-radius:8px!important;color:#e8edf4!important}
+.shortcuts{margin:8px;border:1px solid rgba(255,255,255,.05);border-radius:10px;padding:10px;background:rgba(255,255,255,.018);color:#748196}
+.shortcuts b{color:#5f6d80;font-size:8px;letter-spacing:1.2px}
+.shortcuts span{display:block;margin-top:7px;font-size:9px}
+kbd{border:1px solid rgba(255,255,255,.09);background:#111722;border-radius:5px;padding:2px 5px;color:#aab5c4}
+footer{height:30px;background:#080b10;border-top:1px solid var(--line);color:#667386;font-size:9px;letter-spacing:.2px}
+.toast{background:rgba(17,23,32,.96)!important;border:1px solid rgba(140,165,255,.18)!important;border-radius:10px!important;box-shadow:0 15px 40px rgba(0,0,0,.35)!important;backdrop-filter:blur(12px)}
+@media(max-width:1100px){
+ .explorer{width:245px}.inspector{width:290px}.brand{min-width:190px}.actions button{padding:0 9px}
+}
+@media(max-width:800px){
+ html,body{overflow:hidden}.topbar{height:58px;padding:0 9px;gap:8px}.mobile-menu{display:block}.back-top{display:none}
+ .brand{min-width:0}.brand>div:last-child{display:none}.logo{width:34px;height:34px}
+ .project{flex:1;min-width:0;padding:0 8px}.project input{width:100%;min-width:0;font-size:11px}.project #status{display:none}
+ .actions{gap:4px}.actions button{width:34px;padding:0;font-size:0}.actions button svg{font-size:14px}.actions #saveBtn:after{content:"↥";font-size:15px}.actions #playBtn:after{content:"▶";font-size:12px}.actions #publishBtn{display:none}
+ .toolbar{min-height:56px;padding:6px 8px}.toolbar .tool-group{padding:4px}.toolbar .tool-group>b{display:none}.toolbar i{display:none}
+ .workspace{position:relative}.explorer{position:absolute;z-index:30;left:0;top:0;bottom:0;width:min(310px,88vw);transform:translateX(-105%);transition:transform .2s ease;box-shadow:20px 0 45px rgba(0,0,0,.35)}
+ .explorer.open{transform:translateX(0)}.inspector{position:absolute;z-index:25;right:0;top:0;bottom:0;width:min(340px,92vw);transform:translateX(105%);transition:transform .2s ease;box-shadow:-20px 0 45px rgba(0,0,0,.35)}
+ .inspector.open{transform:translateX(0)}.viewport{width:100%;flex:1}.hint{display:none}.selection-info{bottom:10px}
+ footer{display:none}.mobile-fab{display:block}
+}
+@media(max-width:480px){
+ .toolbar{min-height:52px}.toolbar button{height:29px;padding:0 8px;font-size:10px}
+ .view-actions{display:none}.hud span:nth-child(3){display:none}
+ .topbar .actions #undoBtn,.topbar .actions #redoBtn,.topbar .actions #settingsBtn{display:none}
+}
