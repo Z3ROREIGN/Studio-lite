@@ -3,7 +3,7 @@ export const config = {
 };
 
 const UPSTREAM =
-  "https://raw.githubusercontent.com/MrSprinkleToes/rbxBinaryParser/master/dist/client/rbxBinaryParser.js";
+  "https://raw.githubusercontent.com/MrSprinkleToes/rbxBinaryParser/6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js";
 
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") {
