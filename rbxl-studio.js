@@ -110,7 +110,7 @@ function convertClientInstances(instances){
 function parseBinaryWorker(file){
  return new Promise(async(resolve,reject)=>{
    let worker;
-   try{worker=new Worker("/rbxl-worker.js?v=20261004-v43",{type:"module"})}
+   try{worker=new Worker("/rbxl-worker.js?v=20261004-v44",{type:"module"})}
    catch(e){reject(e);return}
    const timer=setTimeout(()=>{worker.terminate();reject(Error("O processamento demorou demais e foi cancelado."))},180000);
    worker.onmessage=event=>{
