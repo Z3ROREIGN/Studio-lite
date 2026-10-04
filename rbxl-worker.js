@@ -10,7 +10,7 @@ self.onmessage=async(e)=>{
     const parse=mod.parseRBX||mod.default?.parseRBX;
     if(typeof parse!=="function")throw Error("Parser RBXL do navegador indisponível.");
     self.postMessage({type:"progress",message:"Lendo instâncias…"});
-    const result=parse(new Uint8Array(buffer));
+    const result=parse(new Uint8Array(buffer),()=>{});
     const instances=result?.instances||result;
     if(!Array.isArray(instances)||!instances.length)throw Error("O parser não encontrou instâncias.");
     self.postMessage({type:"progress",message:"Reconstruindo hierarquia…"});
