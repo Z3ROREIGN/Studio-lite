@@ -15,41 +15,32 @@ function safe(v,seen=new WeakSet()){
   if(v===null||typeof v==="string"||typeof v==="boolean")return v;
   if(typeof v==="number")return Number.isFinite(v)?v:null;
   if(typeof v==="bigint")return String(v);
-  if(v instanceof Uint8Array||Buffer.isBuffer(v))return Array.from(v);
+  if(Buffer.isBuffer(v)||v instanceof Uint8Array)return Array.from(v);
+  if(Array.isArray(v))return v.map(x=>safe(x,seen));
   if(typeof v==="object"){
-    if(seen.has(v))return null;
-    seen.add(v);
-    if(Array.isArray(v))return v.map(x=>safe(x,seen));
-    const o={};
-    for(const [k,x] of Object.entries(v)){if(k!=="Parent"&&k!=="Children")o[k]=safe(x,seen)}
-    return o;
+    if(seen.has(v))return null;seen.add(v);
+    const o={};for(const [k,x] of Object.entries(v)){if(k!=="Parent"&&k!=="Children")o[k]=safe(x,seen)}return o;
   }
   return String(v);
 }
-function plain(inst,map){
-  const properties={};
-  for(const [key,d] of Object.entries(inst?.Properties||{}))properties[key]=safe(d?.value);
-  const p=inst?.Parent;
-  return {
-    id:String(map.get(inst)),
-    className:String(inst?.ClassName||properties.ClassName||"Part"),
-    name:String(inst?.Name||properties.Name||inst?.ClassName||"Instance"),
-    parent:p&&map.has(p)?String(map.get(p)):null,
-    properties,
-    attributes:safe(inst?.Attributes||{})
-  };
-}
 export default async function handler(req,res){
-  if(req.method!=="POST")return res.status(405).json({error:"Method not allowed"});
+  if(req.method!=="POST")return res.status(405).json({ok:false,error:"Método não permitido"});
   try{
     const body=await readBody(req);
-    if(!body.length)return res.status(400).json({error:"Arquivo vazio"});
-    if(body.length>80*1024*1024)return res.status(413).json({error:"Arquivo RBXL muito grande (limite 80 MB)."});
-    const parsed=parseBuffer(body);
+    if(!body.length)return res.status(400).json({ok:false,error:"Arquivo vazio"});
+    if(body.length>80*1024*1024)return res.status(413).json({ok:false,error:"Arquivo maior que 80 MB"});
+    const parsed=await Promise.resolve(parseBuffer(body));
     const list=Array.isArray(parsed?.instances)?parsed.instances:[];
-    const map=new Map(list.map((x,i)=>[x,i]));
-    const instances=list.map(x=>plain(x,map));
-    return res.status(200).json({ok:true,instances,count:instances.length});
+    if(!list.length)return res.status(422).json({ok:false,error:"O parser não encontrou instâncias no RBXL."});
+    const index=new Map(list.map((x,i)=>[x,i]));
+    const instances=list.map((inst,i)=>{
+      const props={};
+      const source=inst?.Properties||inst?.properties||{};
+      for(const [key,d] of Object.entries(source))props[key]=safe(d?.value!==undefined?d.value:d);
+      const parent=props.Parent;
+      return {id:String(i),className:String(inst?.ClassName||"Folder"),name:String(props.Name??inst?.Name??inst?.ClassName??"Instance"),parent:parent&&index.has(parent)?String(index.get(parent)):null,properties:props,attributes:safe(inst?.Attributes||{})};
+    });
+    return res.status(200).json({ok:true,count:instances.length,instances});
   }catch(error){
     console.error("RBXL server parser",error);
     return res.status(422).json({ok:false,error:error?.message||String(error)});
