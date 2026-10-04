@@ -298,3 +298,70 @@ footer{height:26px;flex:none;background:#080808;border-top:1px solid #1d1d1d;dis
   .mobile-controls{display:none!important}
   .viewport{min-height:0}
 }
+
+/* ===== V20 MOBILE DRAWERS + CLEAN PORTRAIT LAYOUT ===== */
+#mobilePanelShade{display:none}
+@media(max-width:850px){
+  .workspace{height:auto!important;flex:1!important;min-height:0}
+  .mobile-panel-shade{
+    display:block
+  }
+  #mobilePanelShade{
+    position:absolute;inset:0;z-index:19;
+    width:100%;height:100%;padding:0;border:0;border-radius:0;
+    background:rgba(0,0,0,.48);
+    backdrop-filter:blur(2px);
+    opacity:1;
+  }
+  .explorer,.inspector{z-index:20}
+  .explorer.open,.inspector.open{box-shadow:0 12px 55px rgba(0,0,0,.7)}
+  #explorerToggle[aria-expanded="true"],
+  #inspectorToggle[aria-expanded="true"]{
+    background:#ededed;color:#080808;border-color:#fff;
+  }
+  .toolbar{
+    height:136px!important;
+    min-height:136px!important;
+    padding:6px!important;
+    gap:6px;
+  }
+  .tool-group{
+    width:258px;
+    min-width:258px;
+    height:122px;
+    min-height:122px;
+    padding:7px!important;
+    border-radius:11px;
+  }
+  .tool-group>b{margin-bottom:1px}
+  .toolbar button{height:32px!important;min-height:32px!important;border-radius:7px}
+  .mobile-controls{
+    border-radius:14px;
+    padding:5px;
+    bottom:8px;
+    box-shadow:0 14px 45px rgba(0,0,0,.55);
+  }
+  .mobile-controls button{
+    height:46px;
+    min-height:46px;
+    border-radius:9px;
+  }
+  .mobile-controls button.active{
+    box-shadow:0 0 0 1px rgba(255,255,255,.35),0 5px 18px rgba(255,255,255,.08);
+  }
+}
+@media(max-width:600px) and (orientation:portrait){
+  .toolbar{height:136px!important;min-height:136px!important}
+  .tool-group{width:250px;min-width:250px;height:122px;min-height:122px}
+  .workspace{flex:1!important}
+  .viewport-top{top:6px}
+  .view-actions button{height:32px;min-width:33px}
+  .mobile-controls{bottom:6px}
+  .selection-info{bottom:66px}
+}
+@media(max-width:430px){
+  .toolbar{height:132px!important;min-height:132px!important}
+  .tool-group{width:238px;min-width:238px;height:118px;min-height:118px}
+  .toolbar button{font-size:10px!important;padding:0 7px!important}
+  .mobile-controls button{height:44px;min-height:44px}
+}
