@@ -547,3 +547,236 @@ function installLayout9(){
 function boot9(){installNav9();installParty9();installLanguage9();installLayout9()}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot9);else boot9();
 })();
+
+
+/* ===== STUDIO LITE V10 — TOGGLE / EXPLORER / FILE EDITOR HARDENING ===== */
+(()=>{
+"use strict";
+const q10=s=>document.querySelector(s), qa10=s=>[...document.querySelectorAll(s)];
+const scriptTypes10=new Set(["Script","LocalScript","ModuleScript"]);
+const containerTypes10=new Set(["Folder","Model","Workspace","Players","Lighting","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService"]);
+const visualTypes10=new Set(["Part","MeshPart","UnionOperation","SpawnLocation","Seat","VehicleSeat","TrussPart","WedgePart","CornerWedgePart","Sphere","Cylinder","Camera","Attachment","Decal","Texture","SurfaceGui","BillboardGui","PointLight","SpotLight","SurfaceLight","ParticleEmitter","Beam","Trail","ProximityPrompt","ClickDetector","Highlight","Sky","Atmosphere","ColorCorrectionEffect","BloomEffect","BlurEffect","SunRaysEffect","DepthOfFieldEffect","Terrain","Tool"]);
+const templates10={
+ Script:'-- Script criado no Studio Lite\n\nprint("Hello from Roblox!")',
+ LocalScript:'-- LocalScript criado no Studio Lite\n\nprint("Hello from LocalScript!")',
+ ModuleScript:'-- ModuleScript criado no Studio Lite\n\nlocal Module = {}\n\nreturn Module'
+};
+const typeInfo10=type=>{
+ const all=Array.isArray(window.ROBLOX_TYPES)?window.ROBLOX_TYPES.map(x=>x?.[0]).filter(Boolean):[];
+ return all.includes(type)||scriptTypes10.has(type)||containerTypes10.has(type)||visualTypes10.has(type);
+};
+
+function closeModalByHint10(hints){
+ const ms=qa10("#modalRoot .modal-bg");
+ for(let i=ms.length-1;i>=0;i--){
+   const m=ms[i],txt=(m.textContent||"").toLowerCase();
+   if(hints.some(h=>txt.includes(h))){m.remove();return true}
+ }
+ return false;
+}
+function explorerToggle10(){
+ const ex=q10("#explorerPanel"),ws=q10(".workspace"),ins=q10("#inspectorPanel");
+ if(!ex)return;
+ if(innerWidth<=850){
+   const open=ex.classList.contains("open");
+   ex.classList.toggle("open",!open);
+   if(!open)ins?.classList.remove("open");
+   return;
+ }
+ const collapsed=ex.classList.contains("collapsed");
+ ex.classList.toggle("collapsed",!collapsed);
+ ws?.classList.toggle("explorer-collapsed",!collapsed);
+}
+function inspectorToggle10(){
+ const ins=q10("#inspectorPanel"),ex=q10("#explorerPanel");
+ if(!ins)return;
+ const open=ins.classList.contains("open");
+ if(innerWidth<=850){
+   ins.classList.toggle("open",!open);
+   if(!open)ex?.classList.remove("open");
+ }else{
+   ins.classList.toggle("collapsed",!open);
+   q10(".workspace")?.classList.toggle("inspector-collapsed",!open);
+ }
+}
+function bindToggles10(){
+ const exBtn=q10("#explorerToggle"),colBtn=q10("#collapseBtn"),insBtn=q10("#inspectorToggle");
+ if(exBtn)exBtn.onclick=e=>{e.preventDefault();e.stopPropagation();explorerToggle10()};
+ if(colBtn)colBtn.onclick=e=>{e.preventDefault();e.stopPropagation();explorerToggle10()};
+ if(insBtn)insBtn.onclick=e=>{e.preventDefault();e.stopPropagation();inspectorToggle10()};
+ const modalButtons=[
+   ["#settingsBtn",["configurações"]],
+   ["#commandBtn",["command palette","paleta de comandos"]],
+   ["#publishBtn",["publicar no roblox"]],
+   ["#publishRbxlBtn",["publicar no roblox"]],
+   ["#codeStudioBtn",["novo código","editor multilíngue","code studio"]]
+ ];
+ modalButtons.forEach(([sel,hints])=>{
+   const b=q10(sel);if(!b)return;
+   const old=b.onclick;
+   if(b.dataset.v10)return;
+   b.dataset.v10="1";
+   b.onclick=e=>{
+     if(closeModalByHint10(hints))return;
+     try{old?.call(b,e)}catch(err){console.error(err);toast("Não foi possível abrir esta opção")}
+   };
+ });
+}
+function bindPartyToggle10(){
+ const bind=()=>{
+   const b=q10("#uParty");if(!b||b.dataset.v10)return;
+   b.dataset.v10="1";
+   b.onclick=e=>{
+     e.preventDefault();
+     if(closeModalByHint10(["studio party","colaboração em tempo real"]))return;
+     try{window.StudioLiteParty?.open?.()}catch(err){console.error(err);toast("Não foi possível abrir a Party")}
+   };
+ };
+ bind();
+ new MutationObserver(bind).observe(document.body,{childList:true,subtree:true});
+}
+
+const normalizeNode10=n=>{
+ const d=Object.assign({
+   id:uid(),name:"Object",type:"Part",position:[0,0,0],rotation:[0,0,0],size:[1,1,1],
+   color:"#777",material:"Plastic",shape:"box",anchored:true,canCollide:true,
+   transparency:0,locked:false,visible:true,parent:null,script:"",language:"luau"
+ },n||{});
+ d.id=d.id||uid();
+ d.name=String(d.name||"Object").slice(0,100);
+ d.type=String(d.type||"Part");
+ if(!typeInfo10(d.type)&&!/^[A-Za-z][A-Za-z0-9_]*$/.test(d.type))d.type="Part";
+ d.position=Array.isArray(d.position)?d.position.slice(0,3).map(v=>Number(v)||0):[0,0,0];
+ d.rotation=Array.isArray(d.rotation)?d.rotation.slice(0,3).map(v=>Number(v)||0):[0,0,0];
+ d.size=Array.isArray(d.size)?d.size.slice(0,3).map(v=>Math.max(.1,Math.abs(Number(v)||1))):[1,1,1];
+ d.transparency=Math.max(0,Math.min(1,Number(d.transparency)||0));
+ d.visible=d.visible!==false;d.anchored=d.anchored!==false;d.canCollide=d.canCollide!==false;d.locked=!!d.locked;d.parent=d.parent||null;
+ d.shape=d.shape||({Sphere:"sphere",Cylinder:"cylinder",Wedge:"wedge"}[d.type]||"box");
+ if(scriptTypes10.has(d.type)){d.script=String(d.script??templates10[d.type]);d.language=d.language&&CODE_LANGUAGES[d.language]?d.language:"luau"}
+ return d;
+};
+normalizeNode=normalizeNode10;
+
+try{
+ const raw=JSON.parse(localStorage.getItem("studio-lite-v4")||"{}");
+ if(Array.isArray(raw.nodes)&&raw.nodes.length){
+   S.nodes=raw.nodes.map(normalizeNode10);
+   const selected=S.nodes.find(n=>n.id===S.selected)||S.nodes.find(n=>n.type==="Part")||S.nodes[0];
+   S.selected=selected?.id||null;
+   S.selectedIds=(S.selectedIds||[]).filter(id=>S.nodes.some(n=>n.id===id));
+   if(!S.selectedIds.length&&S.selected)S.selectedIds=[S.selected];
+ }
+}catch(err){console.warn("V10 project migration",err)}
+
+function createObject10(type){
+ type=String(type||"Part");
+ const base={id:uid(),name:type,type,position:[0,2,0],rotation:[0,0,0],size:[4,1,4],color:"#3b82f6",material:"Plastic",shape:"box",anchored:true,canCollide:true,transparency:0,locked:false,visible:true,parent:null};
+ const preset={
+   Part:{size:[4,1,4]},MeshPart:{size:[4,1,4]},UnionOperation:{size:[4,1,4]},SpawnLocation:{size:[2,1,2],color:"#22c55e",material:"Neon"},
+   Seat:{size:[2,1,2],color:"#8b5cf6"},VehicleSeat:{size:[2,1,2],color:"#a855f7"},TrussPart:{size:[2,6,2]},
+   WedgePart:{size:[4,3,4],shape:"wedge"},CornerWedgePart:{size:[4,3,4],shape:"wedge"},Sphere:{size:[4,4,4],shape:"sphere",color:"#f59e0b"},
+   Cylinder:{size:[3,4,3],shape:"cylinder",color:"#06b6d4",material:"Metal"},Folder:{size:[1,1,1],canCollide:false},Model:{size:[1,1,1],canCollide:false},
+   Tool:{size:[1,1,1],canCollide:false},Camera:{size:[1,1,1],canCollide:false,visible:false},Attachment:{size:[.4,.4,.4],canCollide:false},
+   Terrain:{size:[1,1,1],canCollide:false,visible:false},Decal:{size:[1,1,1],canCollide:false,visible:false},Texture:{size:[1,1,1],canCollide:false,visible:false},
+   SurfaceGui:{size:[1,1,1],canCollide:false,visible:false},BillboardGui:{size:[1,1,1],canCollide:false,visible:false}
+ };
+ Object.assign(base,preset[type]||{});
+ if(scriptTypes10.has(type)){base.size=[1,1,1];base.canCollide=false;base.visible=false;base.script=templates10[type];base.language="luau"}
+ if(type.endsWith("Value")){base.size=[1,1,1];base.canCollide=false;base.visible=false;base.value=type==="BoolValue"?false:type==="StringValue"?"":0}
+ if(["RemoteEvent","RemoteFunction","BindableEvent","BindableFunction"].includes(type)){base.size=[1,1,1];base.canCollide=false;base.visible=false}
+ return normalizeNode10(base);
+}
+function selectedContainer10(){
+ const n=cur();
+ if(n&&containerTypes10.has(n.type))return n.id;
+ return n?.parent||null;
+}
+function addRobloxObject10(type){
+ const n=createObject10(type);n.parent=selectedContainer10();commit();S.nodes.push(n);S.selected=n.id;S.selectedIds=[n.id];render();save(false);toast(type+" criado");
+ if(scriptTypes10.has(type))setTimeout(()=>openScript(n.id),30);
+}
+addRobloxObject=addRobloxObject10;add=addRobloxObject10;
+
+const expanded10=new Set(["__workspace__"]);
+const serviceNames10=Array.isArray(window.ROBLOX_SERVICES)?window.ROBLOX_SERVICES.map(x=>x?.[0]).filter(Boolean):["Lighting","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","ReplicatedFirst"];
+const serviceIds10=new Map();
+const serviceId10=name=>{if(!serviceIds10.has(name))serviceIds10.set(name,"service:"+name);return serviceIds10.get(name)};
+const descendants10=id=>S.nodes.filter(n=>(n.parent||null)===(id||null));
+function openExplorerFile10(n){
+ if(!n)return;
+ if(scriptTypes10.has(n.type)){openScript(n.id);return}
+ if(n.type==="Folder"||n.type==="Model"){expanded10.has(n.id)?expanded10.delete(n.id):expanded10.add(n.id);renderTree10();return}
+ S.selected=n.id;S.selectedIds=[n.id];render();
+}
+function rename10(){const n=cur();if(!n)return;openPrompt("Renomear","Novo nome",n.name,v=>{if(v){commit();n.name=v;render();save(false)}})}
+rename=rename10;
+function renderTree10(){
+ const t=q10("#tree");if(!t)return;
+ const filter=(q10("#treeSearch")?.value||"").toLowerCase().trim();t.innerHTML="";
+ const root=document.createElement("div");root.className="root explorer-root";root.innerHTML='<button class="explorer-expander">⌄</button><b>Workspace</b><span class="type">DataModel</span>';
+ root.onclick=()=>{expanded10.has("__workspace__")?expanded10.delete("__workspace__"):expanded10.add("__workspace__");renderTree10()};t.appendChild(root);
+ if(expanded10.has("__workspace__")){
+   const walk=(parent,depth)=>{
+     descendants10(parent).forEach(n=>{
+       const children=descendants10(n.id),match=!filter||n.name.toLowerCase().includes(filter)||n.type.toLowerCase().includes(filter),branch=children.length>0;
+       if(match){
+         const b=document.createElement("div");b.className="tree-row"+(S.selectedIds?.includes(n.id)||S.selected===n.id?" selected":"");b.style.paddingLeft=(7+depth*18)+"px";
+         b.innerHTML='<span class="tree-arrow">'+(branch?(expanded10.has(n.id)?"▾":"▸"):"•")+'</span><span>'+esc(icon(n))+'</span><span class="tree-name">'+esc(n.name)+'</span><span class="type">'+esc(n.type)+(n.locked?" 🔒":"")+'</span>';
+         b.onclick=e=>{if(e.target.closest(".tree-arrow")&&branch){expanded10.has(n.id)?expanded10.delete(n.id):expanded10.add(n.id);renderTree10();return}proSelect(n.id,e.ctrlKey||e.metaKey||e.shiftKey);render()};
+         b.ondblclick=e=>{e.preventDefault();openExplorerFile10(n)};
+         b.oncontextmenu=e=>{e.preventDefault();proSelect(n.id);render();toast(scriptTypes10.has(n.type)?"Dê duplo toque para editar o arquivo":"Objeto selecionado")};
+         t.appendChild(b);
+       }
+       if(branch&&expanded10.has(n.id))walk(n.id,depth+1);
+     });
+   };
+   walk(null,0);
+ }
+ const title=document.createElement("div");title.className="section-title explorer-services-title";title.textContent="SERVIÇOS";t.appendChild(title);
+ serviceNames10.forEach(name=>{
+   const sid=serviceId10(name),kids=S.nodes.filter(n=>n.parent===sid);
+   const b=document.createElement("div");b.className="tree-row service-row";b.style.paddingLeft="7px";
+   b.innerHTML='<span class="tree-arrow">'+(expanded10.has(sid)?"▾":"▸")+'</span><span>◆</span><span class="tree-name">'+esc(name)+'</span><span class="type">Service</span>';
+   b.onclick=e=>{if(e.target.closest(".tree-arrow")){expanded10.has(sid)?expanded10.delete(sid):expanded10.add(sid);renderTree10();return}S.selected=null;S.selectedIds=[];render();status(name+" selecionado")};
+   b.ondblclick=()=>{expanded10.has(sid)?expanded10.delete(sid):expanded10.add(sid);renderTree10()};
+   t.appendChild(b);
+   if(expanded10.has(sid))kids.forEach(n=>{const row=document.createElement("div");row.className="tree-row"+(S.selected===n.id?" selected":"");row.style.paddingLeft="25px";row.innerHTML='<span class="tree-arrow">•</span><span>'+esc(icon(n))+'</span><span class="tree-name">'+esc(n.name)+'</span><span class="type">'+esc(n.type)+'</span>';row.onclick=()=>{S.selected=n.id;S.selectedIds=[n.id];render()};row.ondblclick=()=>openExplorerFile10(n);t.appendChild(row)});
+ });
+ q10("#objectCount").textContent=S.nodes.length+" objetos";
+}
+tree=renderTree10;
+
+const basePanel10=panel;
+panel=function(){
+ basePanel10();
+ const n=cur(),root=q10("#panel .panel");if(!n||!root)return;
+ if(scriptTypes10.has(n.type)){
+   root.querySelector("#openAnyScript")?.remove();
+   const box=document.createElement("div");box.className="file-editor-card";
+   box.innerHTML='<div class="section-title">ARQUIVO</div><div class="field"><span>Nome</span><input id="fileName10" value="'+esc(n.name)+'"></div><div class="field"><span>Linguagem</span><select id="fileLang10"><option value="luau">Luau</option><option value="lua">Lua</option></select></div><button id="editFile10" class="wide primary">Editar arquivo</button><button id="duplicateFile10" class="wide">Duplicar arquivo</button>';
+   root.appendChild(box);
+   q10("#fileName10").onchange=e=>{const v=e.target.value.trim();if(v){commit();n.name=v;render();save(false)}};
+   q10("#fileLang10").value=n.language&&CODE_LANGUAGES[n.language]?n.language:"luau";
+   q10("#fileLang10").onchange=e=>{commit();n.language=e.target.value;save(false)};
+   q10("#editFile10").onclick=()=>openScript(n.id);
+   q10("#duplicateFile10").onclick=()=>{const copy=createObject10(n.type);copy.name=n.name+" Copy";copy.script=n.script;copy.language=n.language;copy.parent=n.parent;commit();S.nodes.push(copy);S.selected=copy.id;S.selectedIds=[copy.id];render();save(false);toast("Arquivo duplicado")};
+ }
+};
+function openScript10(id){
+ const n=S.nodes.find(x=>x.id===id);if(!n)return;
+ if(!scriptTypes10.has(n.type))return toast("Este objeto não é um arquivo de script");
+ n.script=String(n.script??templates10[n.type]);n.language=CODE_LANGUAGES[n.language]?n.language:"luau";
+ openCodeStudio({node:n,title:n.name,initial:()=>n.script,language:n.language,save:(source,lang)=>{commit();n.script=source;n.language=lang;save();render();toast("Arquivo salvo")}});
+}
+openScript=openScript10;
+
+if(!q10("#v10Style")){
+ const st=document.createElement("style");st.id="v10Style";
+ st.textContent=".explorer-root{display:flex;align-items:center;gap:6px;cursor:pointer;padding:7px 8px;border-bottom:1px solid #1b1b1b}.explorer-root .explorer-expander{border:0;background:none;color:#aaa;padding:0;width:18px}.tree-row{display:flex!important;align-items:center;gap:6px;text-align:left!important;width:100%;min-height:29px;padding-top:4px!important;padding-bottom:4px!important}.tree-row .tree-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tree-row .type{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tree-arrow{width:13px;display:inline-block;text-align:center;color:#777;flex:0 0 13px}.service-row{opacity:.9}.explorer-services-title{margin:12px 8px 5px!important}.file-editor-card{margin-top:10px;padding:10px;border:1px solid #222;border-radius:9px;background:#0d0d0d}.file-editor-card .field{margin-bottom:7px}.workspace.inspector-collapsed{grid-template-columns:255px minmax(0,1fr) 0}@media(min-width:851px){.workspace.inspector-collapsed .inspector{width:0;min-width:0;border:0;opacity:0;overflow:hidden;pointer-events:none}}@media(max-width:850px){.tree-row{min-height:34px!important}.file-editor-card button{min-height:42px}}";
+ document.head.appendChild(st);
+}
+bindToggles10();
+bindPartyToggle10();
+const boot10=()=>{bindToggles10();bindPartyToggle10();renderTree10()};
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot10);else setTimeout(boot10,0);
+})();
