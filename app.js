@@ -796,3 +796,101 @@ bindPartyToggle10();
 const boot10=()=>{bindToggles10();bindPartyToggle10();renderTree10()};
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot10);else setTimeout(boot10,0);
 })();
+
+/* ===== STUDIO LITE V11 — PROFESSIONAL HELP / DIAGNOSTICS / SELF TEST ===== */
+(()=>{
+"use strict";
+const q11=s=>document.querySelector(s), qa11=s=>[...document.querySelectorAll(s)];
+const esc11=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+const checks11=[];
+function addCheck11(name,ok,detail){checks11.push({name:name,ok:!!ok,detail:detail||""});return !!ok}
+function runSelfTest11(){
+ checks11.length=0;
+ addCheck11("DOM principal",!!q11("#canvas")&&!!q11("#tree")&&!!q11("#panel"));
+ addCheck11("Three.js",typeof THREE!=="undefined");
+ addCheck11("Motor de renderização",!!renderer||!!fallbackCanvas,renderer?"WebGL":"2D compatível");
+ addCheck11("Estado do projeto",!!S&&Array.isArray(S.nodes));
+ addCheck11("Seleção",!S.selected||S.nodes.some(n=>n.id===S.selected),"Seleção válida ou vazia");
+ const ids=new Set(S.nodes.map(n=>n.id));
+ const broken=S.nodes.filter(n=>n.parent&&!ids.has(n.parent));
+ addCheck11("Hierarquia",broken.length===0,broken.length?broken.length+" parent(s) inválidos":"Parents válidos");
+ const dup=S.nodes.length-new Set(S.nodes.map(n=>n.id)).size;
+ addCheck11("IDs únicos",dup===0,dup?dup+" duplicado(s)":"OK");
+ addCheck11("LocalStorage",(()=>{try{const k="__studio_lite_test__";localStorage.setItem(k,"1");localStorage.removeItem(k);return true}catch{return false}})());
+ addCheck11("Code Studio",typeof openCodeStudio==="function"&&typeof openScript==="function");
+ addCheck11("Party",!!window.StudioLiteParty,"Supabase/Realtíme disponível");
+ addCheck11("Console",!!window.StudioLiteConsole);
+ addCheck11("Exportação",typeof exportJSON==="function"&&typeof exportXML==="function");
+ addCheck11("Publicação",!!q11("#publishBtn"));
+ return checks11;
+}
+function diagnostics11(){
+ const results=runSelfTest11(),bad=results.filter(x=>!x.ok);
+ return {ok:bad.length===0,total:results.length,passed:results.length-bad.length,failed:bad.length,results:results};
+}
+function openHelp11(tab){
+ const old=q11("#studioHelpModal11");if(old){old.remove();return}
+ const bg=document.createElement("div");bg.id="studioHelpModal11";bg.className="modal-bg";
+ bg.innerHTML='<div class="studio-help11"><div class="modal-head"><div><h2>◈ Studio Lite Central</h2><small class="code-meta">Guia • Diagnóstico • Publicação • Segurança</small></div><div class="help-tabs11"><button data-tab="guide">Guia</button><button data-tab="publish">Publicar</button><button data-tab="security">Chaves</button><button data-tab="diagnostics">Diagnóstico</button><button id="helpClose11">×</button></div></div><div id="helpBody11" class="help-body11"></div></div>';
+ document.body.appendChild(bg);
+ const body=q11("#helpBody11");
+ const render=mode=>{
+  qa11(".help-tabs11 [data-tab]").forEach(b=>b.classList.toggle("active",b.dataset.tab===mode));
+  if(mode==="diagnostics"){
+   const d=diagnostics11();
+   body.innerHTML='<div class="health-head11"><div><b>'+(d.ok?"Tudo pronto":"Atenção necessária")+'</b><small>'+d.passed+'/'+d.total+' verificações passaram</small></div><button id="rerun11" class="primary">Executar novamente</button></div><div class="health-list11">'+d.results.map(x=>'<div class="health-row11 '+(x.ok?"ok":"bad")+'"><b>'+(x.ok?"✓":"!")+'</b><span>'+esc11(x.name)+'</span><small>'+esc11(x.detail||"OK")+'</small></div>').join("")+'</div><div class="help-note11">Este diagnóstico é local. Ele valida a aplicação e a configuração disponível no navegador; não substitui um teste real de publicação no Roblox.</div>';
+   q11("#rerun11").onclick=()=>render("diagnostics");return;
+  }
+  if(mode==="publish"){
+   body.innerHTML='<div class="guide-grid11"><section><h3>1. Crie o jogo no Roblox</h3><p>Abra o Creator Dashboard, selecione sua experiência e identifique o <b>Universe ID</b> e o <b>Place ID</b>. Universe identifica a experiência; Place identifica o mapa.</p></section><section><h3>2. Crie a chave Open Cloud</h3><p>Nas configurações de segurança/Open Cloud, crie uma API Key com o recurso de publicação de Places necessário. Dê somente as permissões mínimas necessárias.</p></section><section><h3>3. Publique com segurança</h3><p>No Studio Lite, use <b>RBXL → Roblox</b>, informe Universe ID, Place ID e a chave somente no momento do envio. Não coloque a chave no HTML, app.js, GitHub ou LocalStorage.</p></section><section><h3>4. Se o navegador bloquear</h3><p>Alguns ambientes podem impedir uma chamada direta à Open Cloud por CORS. Nesse caso, use um backend/proxy seu e mantenha a chave em uma variável secreta do servidor.</p></section></div><div class="help-note11"><b>Importante:</b> o Studio Lite não inventa um RBXL binário válido. Para publicar um Place real, use um arquivo Roblox válido quando o fluxo exigir RBXL.</div>';
+   return;
+  }
+  if(mode==="security"){
+   body.innerHTML='<div class="guide-grid11"><section><h3>Roblox Open Cloud API Key</h3><p><b>Nunca</b> salve uma chave permanente no repositório. Para teste direto no navegador, a chave fica somente em memória durante a sessão. Para produção, prefira backend + variável secreta.</p></section><section><h3>Supabase</h3><p>A chave <b>publishable/anon</b> pode ser usada no frontend quando as tabelas estiverem protegidas por RLS. <b>service_role/secret</b> nunca deve aparecer no frontend, GitHub ou HTML.</p></section><section><h3>Cloudflare</h3><p>Em Pages/Workers, coloque segredos no painel de Variables/Secrets. Não cole segredos em arquivos públicos.</p></section><section><h3>GitHub</h3><p>Pesquise por padrões como <code>API_KEY</code>, <code>service_role</code>, <code>secret</code> e tokens. Se uma chave real vazar, revogue/rotacione imediatamente.</p></section></div><div class="help-note11">Regra simples: tudo que chega ao navegador pode ser visto pelo usuário. Segredo de produção precisa ficar no servidor.</div>';
+   return;
+  }
+  body.innerHTML='<div class="guide-grid11"><section><h3>Editor</h3><p>Use <b>W/E/R</b> para Mover/Rotacionar/Escalar. <b>Ctrl/⌘+Z</b> desfaz, <b>Ctrl/⌘+Shift+Z</b> refaz, <b>Ctrl/⌘+S</b> salva.</p></section><section><h3>Explorer</h3><p>Organize objetos em Models/Folders, use os serviços Roblox e dê duplo toque em Scripts para abrir o Code Studio.</p></section><section><h3>Console</h3><p>Abra <b>⌘ Console</b>. Use <code>help</code>, <code>selftest</code>, <code>objects</code>, <code>selected</code>, <code>validate</code>, <code>save</code>, <code>play</code> e <code>party</code>.</p></section><section><h3>Backup</h3><p>Salve localmente e exporte JSON regularmente antes de alterações grandes.</p></section></div><div class="help-note11">A Central do Studio Lite reúne as informações mais importantes para operar, diagnosticar e publicar o projeto.</div>';
+ };
+ qa11(".help-tabs11 [data-tab]").forEach(b=>b.onclick=()=>render(b.dataset.tab));
+ q11("#helpClose11").onclick=()=>bg.remove();
+ bg.addEventListener("click",e=>{if(e.target===bg)bg.remove()});
+ render(tab||"guide");
+}
+function installHelp11(){
+ if(q11("#studioHelpBtn11"))return;
+ const top=q11(".topbar");if(!top)return;
+ const b=document.createElement("button");b.id="studioHelpBtn11";b.className="back-top";b.type="button";b.textContent="? Ajuda";b.title="Central do Studio Lite";b.onclick=()=>openHelp11("guide");top.appendChild(b);
+}
+window.StudioLiteDiagnostics={run:diagnostics11,openHelp:openHelp11};
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",installHelp11);else setTimeout(installHelp11,0);
+})();
+
+/* ===== STUDIO LITE V11 — CONSOLE SELFTEST COMMAND ===== */
+(()=>{
+"use strict";
+function patchConsole11(){
+ const c=window.StudioLiteConsole;if(!c||c.__selfTestV11)return;
+ c.__selfTestV11=true;
+ const originalOpen=c.open;
+ c.open=function(){
+  originalOpen?.();
+  setTimeout(()=>{
+   const input=document.querySelector("#consoleCommand");
+   if(!input||input.dataset.selftestV11)return;
+   input.dataset.selftestV11="1";
+   input.addEventListener("keydown",e=>{
+    if(e.key!=="Enter")return;
+    const raw=input.value.trim().toLowerCase();
+    if(!["selftest","doctor","diagnose"].includes(raw))return;
+    e.stopImmediatePropagation();
+    const d=window.StudioLiteDiagnostics?.run?.();
+    const result=d?(d.ok?"✓ ":"✗ ")+d.passed+"/"+d.total+" verificações passaram"+(d.failed?" • "+d.failed+" falharam":""):"Diagnóstico indisponível";
+    const out=document.querySelector("#studioConsoleOutput");
+    if(out){const line=document.createElement("div");line.className="console-line console-info";line.innerHTML="<span>"+new Date().toLocaleTimeString()+"</span><b>INFO</b><em>"+result.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))+"</em>";out.appendChild(line);out.scrollTop=out.scrollHeight}
+    input.value="";
+   },true);
+  },50);
+ };
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",patchConsole11);else setTimeout(patchConsole11,100);
+})();
