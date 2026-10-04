@@ -244,7 +244,10 @@ async function parseBinary(file){
        const buf=await file.arrayBuffer();
        const response=await fetch("/api/roblox/rbxl-import",{method:"POST",headers:{"Content-Type":"application/octet-stream","X-RBXL-Filename":file.name},body:buf});
        let data=null;try{data=await response.json()}catch{}
-       if(!response.ok||!data?.ok)throw Error(data?.error||("Importador respondeu HTTP "+response.status));
+       if(!response.ok||!data?.ok){
+      if(response.status===413)throw Error("O servidor rejeitou o arquivo porque a função de importação atingiu o limite de payload. No Vercel, o limite da função é 4,5 MB; use um RBXL/RBXM menor ou publique o importador em um backend com upload maior.");
+      throw Error(data?.error||("Importador respondeu HTTP "+response.status));
+    }
        return parseBinaryServerInstances(data.instances);
      }catch(e){workerError=e}
    }
@@ -269,8 +272,11 @@ async function parseFile(file){
  if(!["rbxl","rbxm","rbxlx","rbxmx"].includes(ext))throw Error("Use .rbxl, .rbxm, .rbxlx ou .rbxmx.");
  if(file.size<16)throw Error("O arquivo está vazio ou incompleto.");
  if(file.size>250*1024*1024)throw Error("Limite de 250 MB excedido.");
- const buf=new Uint8Array(await file.arrayBuffer());
- if(detect(buf,ext))return parseXML(new TextDecoder("utf-8").decode(buf));
+ const head=new Uint8Array(await file.slice(0,512).arrayBuffer());
+ if(detect(head,ext)){
+   const xml=await file.text();
+   return parseXML(xml);
+ }
  return parseBinary(file);
 }
 function compact(nodes){return nodes.map(n=>({id:n.id,name:n.name,type:n.type,position:vec(n.position),rotation:vec(n.rotation),size:vec(n.size,[1,1,1]),color:n.color,material:n.material,shape:n.shape,anchored:n.anchored,canCollide:n.canCollide,transparency:n.transparency,locked:n.locked,visible:n.visible,parent:n.parent,script:n.script||"",language:n.language,sourceClass:n.sourceClass,rbxProperties:n.rbxProperties||null,customProperties:n.customProperties||null}))}
