@@ -53,8 +53,8 @@ function compactState(state){
 // incompatibilidades de runtime que podiam terminar em:
 // "Cannot read properties of undefined (reading 'buffer')".
 const PARSER_URLS=[
-  "/api/roblox/rbx-parser?v=20261004-v25",
   "https://cdn.jsdelivr.net/gh/MrSprinkleToes/rbxBinaryParser@6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js",
+  "/api/roblox/rbx-parser?v=20261004-v26",
   "https://raw.githubusercontent.com/MrSprinkleToes/rbxBinaryParser/6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js"
 ];
 let parserPromise=null;
@@ -218,15 +218,13 @@ async function loadBinaryParser(){
    const errors=[];
    for(const url of PARSER_URLS){
      try{
-       const response=await fetch(url,{method:"GET",cache:"no-store",mode:"cors",headers:{accept:"text/javascript, application/javascript, */*"}});
-       if(!response.ok)throw new Error("HTTP "+response.status);
-       const source=await response.text();
-       if(!source||source.length<1000)throw new Error("resposta vazia/inválida");
-       if(parserBlobUrl)URL.revokeObjectURL(parserBlobUrl);
-       parserBlobUrl=URL.createObjectURL(new Blob([source],{type:"text/javascript"}));
-       const m=await import(parserBlobUrl);
+       // IMPORTANTE: não transforme o módulo remoto em Blob URL.
+       // Alguns bundles usam imports relativos; em Blob URL esses imports
+       // deixam de apontar para o CDN e causam "Failed to fetch dynamically imported module".
+       // O módulo ESM deve ser importado diretamente da origem.
+       const m=await import(url);
        const decode=m?.decode||m?.default?.decode;
-       if(typeof decode!=="function")throw new Error("decode() não encontrado");
+       if(typeof decode!=="function")throw new Error("decode() não encontrado no módulo");
        return async buffer=>{
          if(buffer instanceof Uint8Array)buffer=buffer.buffer.slice(buffer.byteOffset,buffer.byteOffset+buffer.byteLength);
          if(!(buffer instanceof ArrayBuffer))throw new Error("Buffer RBXL inválido");
@@ -463,6 +461,7 @@ const style=document.createElement("style");style.textContent=
 '@media(max-width:700px){.rbxl-studio-modal{padding:12px;border-radius:12px}.rbxl-features{grid-template-columns:repeat(2,1fr)}.rbxl-drop{padding:30px 12px;min-height:150px}}';
 document.head.appendChild(style);
 })();
+/* V15 — direct ESM parser loading fixes Blob/import failures */
 /* V14 — keep imported Roblox services visible in Explorer */
 (()=>{"use strict";
 const STORE="studio-lite-v4";
