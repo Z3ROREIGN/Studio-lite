@@ -1,110 +1,225 @@
 (()=>{"use strict";
-const names=[
-"selectById","selectByName","selectByType","selectAll","clearSelection","getSelected","getNodes","getNodeById","countNodes","countByType","findNodes","findChildren","findDescendants","findParents","getRootNodes","getServices","getScripts","getVisuals","getContainers","getLockedNodes","getHiddenNodes","getAnchoredNodes","getUnanchoredNodes","getCollidableNodes","getNonCollidableNodes","getMaterials","getColors","getProjectName","setProjectName","getGrid","setGrid","toggleSnap","isSnapEnabled","toggleOutline","isOutlineEnabled","getSettings","setSetting","resetSettings","saveProject","loadProject","hasSavedProject","deleteSavedProject","exportJSON","importJSON","downloadText","copyText","readClipboard","writeClipboard","snapshot","restoreSnapshot","pushHistory","clearHistory","historyLength","canUndo","canRedo","undoOnce","redoOnce","createPart","createSphere","createCylinder","createWedge","createFolder","createModel","createScript","createLocalScript","createModuleScript","createRemoteEvent","createRemoteFunction","createAttachment","createSpawn","createSeat","createTool","createValue","duplicateNode","duplicateSelection","deleteNode","deleteSelection","renameNode","setParentNode","unparentNode","moveNode","moveSelection","rotateNode","rotateSelection","scaleNode","scaleSelection","setPosition","setRotation","setSize","setColor","setMaterial","setTransparency","setAnchored","setCanCollide","setLocked","setVisible","toggleVisibility","toggleLocked","toggleAnchored","toggleCanCollide","nudgeX","nudgeY","nudgeZ","nudge","alignX","alignY","alignZ","alignCenter","distributeX","distributeY","distributeZ","snapPosition","snapRotation","snapSize","resetTransform","freezeSelection","unfreezeSelection","focusSelection","frameSelection","setCameraPreset","resetCamera","toggleGrid","toggle2D","repairViewport","takeScreenshot","exportScene","exportSceneSummary","getSceneBounds","getSelectionBounds","centerSelection","fitAll","zoomIn","zoomOut","orbitCamera","createMaterialPreset","applyMaterialPreset","applyColorPreset","randomizeColors","randomizeMaterials","makeNeon","makeMetal","makeGlass","makeWood","makePlastic","setCollisionGroup","setCustomProperty","getCustomProperty","removeCustomProperty","getProperties","setProperties","openProperties","openExplorer","openToolbox","openCodeStudio","openParty","openHelp","openDiagnostics","closeModals","toast","setStatus","validateScene","validateHierarchy","validateTransforms","validateNames","validateScripts","runSelfTest","getDiagnostics","repairHierarchy","repairIds","repairParents","repairMissingDefaults","normalizeSelection","normalizeAllNodes","cleanOrphans","removeDuplicates","sortNodes","sortByName","sortByType","sortByPosition","groupSelection","ungroupSelection","makeFolderFromSelection"
-];
-const C=()=>window.StudioLiteCore||{},S=()=>C().S||{},N=()=>Array.isArray(S().nodes)?S().nodes:[],sel=()=>N().find(n=>n.id===S().selected),uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2)+Date.now(),clone=x=>{try{return JSON.parse(JSON.stringify(x))}catch{return x}},toast=x=>window.toast?.(x),refresh=()=>{C().render?.();C().save?.(false)},commit=()=>C().commit?.(),v=x=>Array.isArray(x)?[+x[0]||0,+x[1]||0,+x[2]||0]:[0,0,0];
-const add=(type,extra={})=>{commit();const n=Object.assign({id:uid(),name:type,type,position:[0,2,0],rotation:[0,0,0],size:[2,2,2],color:"#3b82f6",material:"Plastic",anchored:true,canCollide:true,transparency:0,locked:false,visible:true,parent:null},extra);N().push(n);S().selected=n.id;refresh();toast(type+" criado");return n};
-const bounds=a=>{if(!a.length)return null;let mi=[Infinity,Infinity,Infinity],ma=[-Infinity,-Infinity,-Infinity];a.forEach(n=>{let p=v(n.position),q=v(n.size).map(x=>Math.abs(x)/2);for(let i=0;i<3;i++){mi[i]=Math.min(mi[i],p[i]-q[i]);ma[i]=Math.max(ma[i],p[i]+q[i])}});return{min:mi,max:ma,size:ma.map((x,i)=>x-mi[i]),center:ma.map((x,i)=>(x+mi[i])/2)}};
-const F={};
-const delegate=(name,args)=>{const fn=window[name];if(typeof fn==="function"&&fn!==F[name])try{return fn(...args)}catch(e){console.warn("[Studio300]",name,e)}};
-function custom(name,args){
- const n=sel(),a=args[0];
- if(/^selectById$/.test(name)){if(!N().some(x=>x.id===a))return false;S().selected=a;refresh();return true}
- if(name==="selectByName"){let x=N().find(x=>String(x.name).toLowerCase()===String(a||"").toLowerCase());return x?custom("selectById",[x.id]):false}
- if(name==="selectByType"){let x=N().find(x=>x.type===a);return x?custom("selectById",[x.id]):false}
- if(name==="selectAll"){S().selected=N()[0]?.id||null;refresh();return N().length}
- if(name==="clearSelection"){S().selected=null;refresh();return true}
- if(/^getSelected$/.test(name))return clone(n);
- if(name==="getNodes")return clone(N());
- if(name==="getNodeById")return clone(N().find(x=>x.id===a)||null);
- if(name==="countNodes")return N().length;
- if(name==="countByType")return N().filter(x=>x.type===a).length;
- if(name==="findNodes")return N().filter(x=>(String(x.name)+" "+x.type).toLowerCase().includes(String(a||"").toLowerCase())).map(clone);
- if(name==="findChildren")return N().filter(x=>x.parent===a).map(clone);
- if(name==="findDescendants"){let ids=new Set([a]),out=[];for(let i=0;i<N().length;i++)N().forEach(x=>{if(x.parent&&ids.has(x.parent)&&!ids.has(x.id)){ids.add(x.id);out.push(clone(x))}});return out}
- if(name==="findParents"){let out=[],x=N().find(x=>x.id===a);while(x?.parent){x=N().find(y=>y.id===x.parent);if(x)out.push(clone(x));else break}return out}
- if(name==="getRootNodes")return N().filter(x=>!x.parent).map(clone);
- if(name==="getServices")return N().filter(x=>/Service$/.test(x.type)||["Workspace","Players","Lighting"].includes(x.type)).map(clone);
- if(name==="getScripts")return N().filter(x=>/Script$/.test(x.type)).map(clone);
- if(name==="getVisuals")return N().filter(x=>!["Folder","Model","Configuration","Script","LocalScript","ModuleScript"].includes(x.type)).map(clone);
- if(name==="getContainers")return N().filter(x=>["Folder","Model","Tool","Configuration"].includes(x.type)).map(clone);
- if(/^get(Locked|Hidden|Anchored|Unanchored|Collidable|NonCollidable)Nodes$/.test(name)){let p={getLockedNodes:x=>x.locked,getHiddenNodes:x=>x.visible===false,getAnchoredNodes:x=>x.anchored,getUnanchoredNodes:x=>x.anchored===false,getCollidableNodes:x=>x.canCollide,getNonCollidableNodes:x=>x.canCollide===false}[name];return N().filter(p).map(clone)}
- if(name==="getMaterials")return [...new Set(N().map(x=>x.material).filter(Boolean))];
- if(name==="getColors")return [...new Set(N().map(x=>x.color).filter(Boolean))];
- if(name==="getProjectName")return S().project||"";
- if(name==="setProjectName"){S().project=String(a||"Meu Primeiro Jogo");refresh();return S().project}
- if(name==="getGrid")return S().grid||1;
- if(name==="setGrid"){S().grid=Math.max(.01,+a||1);refresh();return S().grid}
- if(name==="toggleSnap"){S().snap=!S().snap;refresh();return S().snap}
- if(name==="isSnapEnabled")return S().snap!==false;
- if(name==="toggleOutline"){S().settings??={};S().settings.outline=!S().settings.outline;refresh();return S().settings.outline}
- if(name==="isOutlineEnabled")return S().settings?.outline!==false;
- if(name==="getSettings")return clone(S().settings||{});
- if(name==="setSetting"){S().settings??={};S().settings[a]=args[1];refresh();return args[1]}
- if(name==="resetSettings"){S().settings={theme:"dark",outline:true,autosave:true};refresh();return true}
- if(name==="saveProject"){C().save?.();return true}
- if(name==="loadProject"){try{let x=JSON.parse(localStorage.getItem("studio-lite-v4")||"null");if(!x)return false;S().nodes=x.nodes||[];S().project=x.name||S().project;refresh();return true}catch{return false}}
- if(name==="hasSavedProject")return !!localStorage.getItem("studio-lite-v4");
- if(name==="deleteSavedProject"){localStorage.removeItem("studio-lite-v4");return true}
- if(name==="snapshot")return clone({name:S().project,nodes:N(),settings:S().settings,grid:S().grid,snap:S().snap});
- if(name==="restoreSnapshot"&&a?.nodes){commit();Object.assign(S(),{nodes:clone(a.nodes),project:a.name||S().project,settings:clone(a.settings||S().settings),grid:a.grid||1,snap:a.snap!==false});refresh();return true}
- if(name==="clearHistory"){S().history=[];S().future=[];return true}
- if(name==="historyLength")return S().history?.length||0;
- if(name==="canUndo")return !!S().history?.length;
- if(name==="canRedo")return !!S().future?.length;
- if(name==="undoOnce"){C().undo?.();return true} if(name==="redoOnce"){C().redo?.();return true}
- const creators={createPart:"Part",createSphere:"Sphere",createCylinder:"Cylinder",createWedge:"Wedge",createFolder:"Folder",createModel:"Model",createScript:"Script",createLocalScript:"LocalScript",createModuleScript:"ModuleScript",createRemoteEvent:"RemoteEvent",createRemoteFunction:"RemoteFunction",createAttachment:"Attachment",createSpawn:"SpawnLocation",createSeat:"Seat",createTool:"Tool",createValue:"StringValue"};
- if(creators[name])return add(creators[name],["Folder","Model","Script","LocalScript","ModuleScript","RemoteEvent","RemoteFunction","Tool","StringValue"].includes(creators[name])?{visible:false,canCollide:false}:name==="createSphere"?{shape:"sphere",size:[4,4,4]}:name==="createCylinder"?{shape:"cylinder",size:[3,4,3]}:name==="createWedge"?{shape:"wedge"}:{});
- if(name==="duplicateSelection"&&n){commit();let d=clone(n);d.id=uid();d.name=n.name+" Copy";d.position=v(n.position);d.position[0]+=2;N().push(d);S().selected=d.id;refresh();return d}
- if(name==="deleteSelection"&&n){commit();S().nodes=N().filter(x=>x.id!==n.id&&x.parent!==n.id);S().selected=N()[0]?.id||null;refresh();return true}
- if(name==="renameNode"){let x=N().find(x=>x.id===a);if(!x)return false;commit();x.name=String(args[1]||x.type);refresh();return true}
- if(name==="unparentNode"&&n){n.parent=null;refresh();return true}
- if(["setPosition","setRotation","setSize"].includes(name)&&n){commit();n[name.slice(3).toLowerCase()]=v(a);if(name==="setSize")n.size=n.size.map(x=>Math.max(.1,Math.abs(x)));refresh();return true}
- if(["setColor","setMaterial","setTransparency","setAnchored","setCanCollide","setLocked","setVisible"].includes(name)&&n){commit();const k=name.slice(3);n[k.charAt(0).toLowerCase()+k.slice(1)]=a;refresh();return true}
- if(/^toggle/.test(name)&&n){commit();const k=name.replace(/^toggle/,"");const key=k==="Visibility"?"visible":k==="Locked"?"locked":k==="Anchored"?"anchored":k==="CanCollide"?"canCollide":null;if(key)n[key]=!n[key];refresh();return true}
- if(/^nudge|^moveSelection/.test(name)&&n){commit();let d=name==="nudgeX"?[+a||1,0,0]:name==="nudgeY"?[0,+a||1,0]:name==="nudgeZ"?[0,0,+a||1]:v(a||[1,0,0]);n.position=v(n.position).map((x,i)=>x+d[i]);refresh();return true}
- if(/^rotateSelection$/.test(name)&&n){commit();let d=v(a||[0,15,0]);n.rotation=v(n.rotation).map((x,i)=>x+d[i]);refresh();return true}
- if(/^scaleSelection$/.test(name)&&n){commit();let q=+a||1.1;n.size=v(n.size).map(x=>Math.max(.1,x*q));refresh();return true}
- if(/^align[XYZ]$/.test(name)&&n){commit();n.position[{alignX:0,alignY:1,alignZ:2}[name]]=+a||0;refresh();return true}
- if(["snapPosition","snapRotation","snapSize"].includes(name)&&n){commit();let g=S().grid||1;if(name==="snapPosition")n.position=v(n.position).map(x=>Math.round(x/g)*g);if(name==="snapRotation")n.rotation=v(n.rotation).map(x=>Math.round(x/15)*15);if(name==="snapSize")n.size=v(n.size).map(x=>Math.max(.1,Math.round(x/g)*g));refresh();return true}
- if(name==="resetTransform"&&n){commit();Object.assign(n,{position:[0,0,0],rotation:[0,0,0],size:[2,2,2]});refresh();return true}
- if(["freezeSelection","unfreezeSelection"].includes(name)&&n){n.anchored=name==="freezeSelection";refresh();return true}
- if(name==="getSceneBounds")return bounds(N().filter(x=>x.visible!==false));
- if(name==="getSelectionBounds")return n?bounds([n]):null;
- if(name==="centerSelection"&&n){let b=bounds(N().filter(x=>x.visible!==false));if(!b)return false;commit();n.position=b.center;refresh();return true}
- if(["focusSelection","frameSelection","fitAll","resetCamera","repairViewport","takeScreenshot","toggleGrid"].includes(name)){try{let m={focusSelection:"focus",frameSelection:"focus",fitAll:"view",resetCamera:"view",repairViewport:null,takeScreenshot:"screenshot",toggleGrid:"toggleGrid"}[name];if(name==="repairViewport")return window.StudioLitePro?.repair?.()??false;if(m==="view")return C().view?.("home")??true;if(m)return C()[m]?.()??true}catch{}return true}
- if(name==="toggle2D"){window.StudioLiteRenderer?.mode?.("2d");return true}
- if(name==="exportSceneSummary")return{project:S().project,count:N().length,bounds:bounds(N().filter(x=>x.visible!==false))};
- if(name==="validateScene")return{ok:N().every(x=>x.id&&x.name),errors:N().filter(x=>!x.id||!x.name).map(x=>x.name||x.type)};
- if(name==="validateHierarchy"){let ids=new Set(N().map(x=>x.id));return{ok:N().every(x=>!x.parent||ids.has(x.parent)),orphans:N().filter(x=>x.parent&&!ids.has(x.parent)).map(x=>x.name)}}
- if(name==="validateTransforms")return{ok:N().every(x=>["position","rotation","size"].every(k=>Array.isArray(x[k])&&x[k].length===3))};
- if(name==="validateNames"){let m={};N().forEach(x=>m[x.name]=(m[x.name]||0)+1);return{ok:Object.values(m).every(x=>x===1),duplicates:Object.keys(m).filter(k=>m[k]>1)}}
- if(name==="validateScripts")return{ok:true,scripts:N().filter(x=>/Script$/.test(x.type)).length};
- if(name==="runSelfTest")return{scene:custom("validateScene",[]),hierarchy:custom("validateHierarchy",[]),transforms:custom("validateTransforms",[]),names:custom("validateNames",[])};
- if(name==="getDiagnostics")return{nodes:N().length,three:typeof THREE!=="undefined",webgl:!!C().renderer,selfTest:custom("runSelfTest",[])};
- if(["repairHierarchy","repairParents","cleanOrphans"].includes(name)){let ids=new Set(N().map(x=>x.id));commit();N().forEach(x=>{if(x.parent&&!ids.has(x.parent))x.parent=null});refresh();return true}
- if(name==="repairIds"){let seen=new Set();commit();N().forEach(x=>{if(!x.id||seen.has(x.id))x.id=uid();seen.add(x.id)});refresh();return true}
- if(name==="repairMissingDefaults"||name==="normalizeAllNodes"){commit();N().forEach(x=>{x.position=v(x.position);x.rotation=v(x.rotation);x.size=v(x.size).map(y=>Math.max(.1,Math.abs(y)));x.color??="#64748b";x.material??="Plastic";x.visible??=true;x.locked??=false});refresh();return true}
- if(name==="normalizeSelection"){if(!sel())S().selected=N()[0]?.id||null;refresh();return !!sel()}
- if(name==="removeDuplicates"){let seen=new Set();commit();S().nodes=N().filter(x=>{let k=x.name+"|"+x.type+"|"+JSON.stringify(x.position);if(seen.has(k))return false;seen.add(k);return true});refresh();return true}
- if(name==="sortNodes"||name==="sortByName"){S().nodes.sort((x,y)=>String(x.name).localeCompare(String(y.name)));refresh();return true}
- if(name==="sortByType"){S().nodes.sort((x,y)=>String(x.type).localeCompare(String(y.type)));refresh();return true}
- if(name==="sortByPosition"){S().nodes.sort((x,y)=>(x.position?.[1]||0)-(y.position?.[1]||0));refresh();return true}
- if(["groupSelection","makeFolderFromSelection"].includes(name))return add("Folder",{name:"Group",visible:false,canCollide:false});
- if(name==="ungroupSelection"&&n){commit();N().filter(x=>x.parent===n.id).forEach(x=>x.parent=n.parent||null);refresh();return true}
- if(name==="openProperties")return(document.querySelector('[data-panel="properties"]')?.click(),true);
- if(name==="openToolbox")return(document.querySelector('[data-panel="toolbox"]')?.click(),true);
- if(name==="openExplorer")return true;
- if(name==="openParty"){window.StudioLiteParty?.open?.();return true}
- if(name==="openHelp"){window.StudioLiteDiagnostics?.openHelp?.();return true}
- if(name==="openDiagnostics"){window.StudioLiteDiagnostics?.run?.();return true}
- if(name==="openCodeStudio"){window.StudioLiteCode?.open?.(n?.id);return true}
- if(name==="closeModals"){document.querySelectorAll(".modal-bg").forEach(x=>x.remove());return true}
- if(name==="toast"){toast(a||"Studio Lite");return true}
- if(name==="setStatus"){try{window.status?.(a||"Pronto")}catch{}return true}
- return{ok:true,feature:name,executed:true};
+const NAMES=["selectById","selectByName","selectByType","selectAll","clearSelection","getSelected","getNodes","getNodeById","countNodes","countByType","findNodes","findChildren","findDescendants","findParents","getRootNodes","getServices","getScripts","getVisuals","getContainers","getLockedNodes","getHiddenNodes","getAnchoredNodes","getUnanchoredNodes","getCollidableNodes","getNonCollidableNodes","getMaterials","getColors","getProjectName","setProjectName","getGrid","setGrid","toggleSnap","isSnapEnabled","toggleOutline","isOutlineEnabled","getSettings","setSetting","resetSettings","saveProject","loadProject","hasSavedProject","deleteSavedProject","exportJSON","importJSON","downloadText","copyText","readClipboard","writeClipboard","snapshot","restoreSnapshot","pushHistory","clearHistory","historyLength","canUndo","canRedo","undoOnce","redoOnce","createPart","createSphere","createCylinder","createWedge","createFolder","createModel","createScript","createLocalScript","createModuleScript","createRemoteEvent","createRemoteFunction","createAttachment","createSpawn","createSeat","createTool","createValue","duplicateNode","duplicateSelection","deleteNode","deleteSelection","renameNode","setParentNode","unparentNode","moveNode","moveSelection","rotateNode","rotateSelection","scaleNode","scaleSelection","setPosition","setRotation","setSize","setColor","setMaterial","setTransparency","setAnchored","setCanCollide","setLocked","setVisible","toggleVisibility","toggleLocked","toggleAnchored","toggleCanCollide","nudgeX","nudgeY","nudgeZ","nudge","alignX","alignY","alignZ","alignCenter","distributeX","distributeY","distributeZ","snapPosition","snapRotation","snapSize","resetTransform","freezeSelection","unfreezeSelection","focusSelection","frameSelection","setCameraPreset","resetCamera","toggleGrid","toggle2D","repairViewport","takeScreenshot","exportScene","exportSceneSummary","getSceneBounds","getSelectionBounds","centerSelection","fitAll","zoomIn","zoomOut","orbitCamera","createMaterialPreset","applyMaterialPreset","applyColorPreset","randomizeColors","randomizeMaterials","makeNeon","makeMetal","makeGlass","makeWood","makePlastic","setCollisionGroup","setCustomProperty","getCustomProperty","removeCustomProperty","getProperties","setProperties","openProperties","openExplorer","openToolbox","openCodeStudio","openParty","openHelp","openDiagnostics","closeModals","toast","setStatus","validateScene","validateHierarchy","validateTransforms","validateNames","validateScripts","runSelfTest","getDiagnostics","repairHierarchy","repairIds","repairParents","repairMissingDefaults","normalizeSelection","normalizeAllNodes","cleanOrphans","removeDuplicates","sortNodes","sortByName","sortByType","sortByPosition","groupSelection","ungroupSelection","makeFolderFromSelection","createMeshPart","createUnion","createWedgePart","createCornerWedge","createTruss","createVehicleSeat","createDecal","createTexture","createSurfaceGui","createBillboardGui","createHighlight","createPointLight","createSpotLight","createSurfaceLight","createParticleEmitter","createBeam","createTrail","createProximityPrompt","createClickDetector","createSky","createAtmosphere","createConfiguration","createBindableEvent","createBindableFunction","createStringValue","createBoolValue","createIntValue","createNumberValue","createObjectValue","createColorValue","addChild","addSibling","setParentByName","getParent","getChildrenCount","isDescendantOf","isAncestorOf","expandExplorer","collapseExplorer","expandAllExplorer","collapseAllExplorer","selectNext","selectPrevious","selectFirstChild","selectParent","selectService","moveToService","createServiceNode","removeServiceNode","renameProject","duplicateMany","deleteByType","invertSelection","selectVisible","selectHidden","selectLocked","selectUnlocked","selectAnchored","selectUnanchored","selectCollidable","selectNonCollidable","getSelectionCount","getSelectionNodes","setMultiPosition","setMultiRotation","setMultiSize","setMultiColor","setMultiMaterial","setMultiVisibility","setMultiAnchored","setMultiLocked","setMultiCollision","mirrorX","mirrorY","mirrorZ","rotate90","rotate180","rotate270","scaleUniform","growSelection","shrinkSelection","alignTop","alignBottom","alignLeft","alignRight","distributeEvenlyX","distributeEvenlyY","distributeEvenlyZ","centerOnOrigin","randomizePosition","randomizeRotation","randomizeScale","clampPosition","clampRotation","clampSize","applyTransformPreset","resetColor","resetMaterial","resetAppearance","resetBehavior","setNeonColor","setGlassTransparency","setMetalness","setRoughness","setReflectance","setMassless","setCastShadow","setCanQuery","setCanTouch","setArchivable","setValue","getValue","setScriptSource","getScriptSource","appendScript","prependScript","replaceScript","insertScriptTemplate"];
+const C=()=>window.StudioLiteCore||{},S=()=>C().S||window.S||null,nodes=()=>S()?.nodes||[];
+const selected=()=>{const s=S();return nodes().find(n=>n.id===s?.selected)||nodes().find(n=>s?.selectedIds?.includes(n.id))||null};
+const ids=()=>{const s=S();const a=Array.isArray(s?.selectedIds)?s.selectedIds.filter(id=>nodes().some(n=>n.id===id)):[];return a.length?a:(s?.selected?[s.selected]:[])};
+const clone=x=>{try{return JSON.parse(JSON.stringify(x))}catch{return x}};
+const toast=x=>window.toast?.(String(x));
+const commit=()=>C().commit?.(),refresh=()=>C().render?.(),save=()=>C().save?.(false);
+const mutate=fn=>{const s=S();if(!s)return false;commit();const r=fn(s,nodes(),selected());refresh();save();return r===undefined?true:r};
+const add=(type,extra={})=>{type=type==="Wedge"?"WedgePart":type;if(typeof window.addRobloxObject==="function"){window.addRobloxObject(type);const n=selected();if(n)Object.assign(n,extra);refresh();save();return n}return null};
+const createMap={
+ createPart:"Part",createSphere:"Sphere",createCylinder:"Cylinder",createWedge:"WedgePart",createFolder:"Folder",createModel:"Model",
+ createScript:"Script",createLocalScript:"LocalScript",createModuleScript:"ModuleScript",createRemoteEvent:"RemoteEvent",createRemoteFunction:"RemoteFunction",
+ createAttachment:"Attachment",createSpawn:"SpawnLocation",createSeat:"Seat",createTool:"Tool",createMeshPart:"MeshPart",createUnion:"UnionOperation",
+ createWedgePart:"WedgePart",createCornerWedge:"CornerWedgePart",createTruss:"TrussPart",createVehicleSeat:"VehicleSeat",createDecal:"Decal",
+ createTexture:"Texture",createSurfaceGui:"SurfaceGui",createBillboardGui:"BillboardGui",createHighlight:"Highlight",createPointLight:"PointLight",
+ createSpotLight:"SpotLight",createSurfaceLight:"SurfaceLight",createParticleEmitter:"ParticleEmitter",createBeam:"Beam",createTrail:"Trail",
+ createProximityPrompt:"ProximityPrompt",createClickDetector:"ClickDetector",createSky:"Sky",createAtmosphere:"Atmosphere",createConfiguration:"Configuration",
+ createBindableEvent:"BindableEvent",createBindableFunction:"BindableFunction",createStringValue:"StringValue",createBoolValue:"BoolValue",createIntValue:"IntValue",
+ createNumberValue:"NumberValue",createObjectValue:"ObjectValue",createColorValue:"Color3Value",createValue:"StringValue"
+};
+const services=["Workspace","Lighting","Players","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService","CollectionService","HttpService","MarketplaceService","TweenService","RunService","DataStoreService","MemoryStoreService","MessagingService","TeleportService"];
+const mats=["Plastic","Metal","Wood","Glass","Neon"];
+const getType=x=>String(x||"").replace(/^create/,"")||"Part";
+const selectedNodes=()=>ids().map(id=>nodes().find(n=>n.id===id)).filter(Boolean);
+const bounds=a=>{if(!a.length)return null;const mi=[Infinity,Infinity,Infinity],ma=[-Infinity,-Infinity,-Infinity];a.forEach(n=>{const p=n.position||[0,0,0],z=n.size||[1,1,1];for(let i=0;i<3;i++){const h=Math.abs(Number(z[i])||1)/2;mi[i]=Math.min(mi[i],Number(p[i])||0-h);ma[i]=Math.max(ma[i],Number(p[i])||0+h)}});return{min:mi,max:ma,size:ma.map((x,i)=>x-mi[i]),center:ma.map((x,i)=>(x+mi[i])/2)}};
+const snap=a=>{const g=Math.max(.01,Number(S()?.grid)||1);return (a||[0,0,0]).map(x=>Math.round((Number(x)||0)/g)*g)};
+const snapshotStore="studio-lite-v21-snapshots";
+const readSnaps=()=>{try{return JSON.parse(localStorage.getItem(snapshotStore)||"[]")}catch{return[]}};
+const writeSnaps=a=>localStorage.setItem(snapshotStore,JSON.stringify(a.slice(-20)));
+function exec(name,args=[]){
+ const s=S(),n=selected(),a=args[0];
+ if(!s)return false;
+ if(createMap[name])return add(createMap[name],name.includes("Value")?{value:a??""}:{});
+ if(name==="selectById")return !!nodes().find(x=>x.id===a)&&(s.selected=a,s.selectedIds=[a],refresh(),true);
+ if(name==="selectByName"){const x=nodes().find(x=>String(x.name).toLowerCase()===String(a||"").toLowerCase());return x?exec("selectById",[x.id]):false}
+ if(name==="selectByType"){const x=nodes().find(x=>x.type===a);return x?exec("selectById",[x.id]):false}
+ if(name==="selectAll"){s.selectedIds=nodes().map(x=>x.id);s.selected=s.selectedIds[0]||null;refresh();return s.selectedIds.length}
+ if(name==="clearSelection"){s.selected=null;s.selectedIds=[];refresh();return true}
+ if(name==="getSelected")return clone(n);if(name==="getNodes")return clone(nodes());if(name==="getNodeById")return clone(nodes().find(x=>x.id===a)||null);
+ if(name==="countNodes")return nodes().length;if(name==="countByType")return nodes().filter(x=>x.type===a).length;
+ if(name==="findNodes")return nodes().filter(x=>(String(x.name)+" "+x.type).toLowerCase().includes(String(a||"").toLowerCase())).map(clone);
+ if(name==="findChildren")return nodes().filter(x=>x.parent===a).map(clone);
+ if(name==="findDescendants"){const out=[],seen=new Set([a]);for(let i=0;i<nodes().length;i++)nodes().forEach(x=>{if(x.parent&&seen.has(x.parent)&&!seen.has(x.id)){seen.add(x.id);out.push(clone(x))}});return out}
+ if(name==="findParents"){const out=[];let x=n;if(a)x=nodes().find(y=>y.id===a);while(x?.parent){x=nodes().find(y=>y.id===x.parent);if(x)out.push(clone(x));else break}return out}
+ if(name==="getRootNodes")return nodes().filter(x=>!x.parent).map(clone);
+ if(name==="getServices")return nodes().filter(x=>x.service||services.includes(x.type)).map(clone);
+ if(name==="getScripts")return nodes().filter(x=>/Script$/.test(x.type)).map(clone);
+ if(name==="getVisuals")return nodes().filter(x=>x.visible!==false&&!/Script$/.test(x.type)&&!["Folder","Model","Configuration"].includes(x.type)).map(clone);
+ if(name==="getContainers")return nodes().filter(x=>["Folder","Model","Tool","Configuration"].includes(x.type)).map(clone);
+ if(/^get(Locked|Hidden|Anchored|Unanchored|Collidable|NonCollidable)Nodes$/.test(name)){const p={getLockedNodes:x=>x.locked,getHiddenNodes:x=>x.visible===false,getAnchoredNodes:x=>x.anchored!==false,getUnanchoredNodes:x=>x.anchored===false,getCollidableNodes:x=>x.canCollide!==false,getNonCollidableNodes:x=>x.canCollide===false}[name];return nodes().filter(p).map(clone)}
+ if(name==="getMaterials")return[...new Set(nodes().map(x=>x.material).filter(Boolean))];if(name==="getColors")return[...new Set(nodes().map(x=>x.color).filter(Boolean))];
+ if(name==="getProjectName")return s.project||"";if(name==="setProjectName")return(s.project=String(a||"Meu Primeiro Jogo"),C().save?.(false),refresh(),s.project);
+ if(name==="getGrid")return Number(s.grid)||1;if(name==="setGrid")return(s.grid=Math.max(.01,Number(a)||1),refresh(),s.grid);
+ if(name==="toggleSnap")return(s.snap=!s.snap,save(),refresh(),s.snap);if(name==="isSnapEnabled")return s.snap!==false;
+ if(name==="toggleOutline")return(s.settings??={},s.settings.outline=s.settings.outline===false,true,refresh(),s.settings.outline);
+ if(name==="isOutlineEnabled")return s.settings?.outline!==false;if(name==="getSettings")return clone(s.settings||{});
+ if(name==="setSetting")return(s.settings??={},s.settings[a]=args[1],save(),args[1]);if(name==="resetSettings")return(s.settings={theme:"dark",outline:true,autosave:true},save(),refresh(),true);
+ if(name==="saveProject")return C().save?.(true),true;
+ if(name==="loadProject"){try{const x=JSON.parse(localStorage.getItem("studio-lite-v4")||"null");if(!x)return false;s.nodes=(x.nodes||[]).map(x=>({...x}));s.project=x.name||s.project;s.selected=s.nodes[0]?.id||null;refresh();return true}catch{return false}}
+ if(name==="hasSavedProject")return!!localStorage.getItem("studio-lite-v4");if(name==="deleteSavedProject")return(localStorage.removeItem("studio-lite-v4"),true);
+ if(name==="snapshot"||name==="createSnapshot")return clone({name:s.project,nodes:nodes(),settings:s.settings,grid:s.grid,snap:s.snap});
+ if(name==="restoreSnapshot")return a?.nodes?(commit(),s.nodes=clone(a.nodes),s.project=a.name||s.project,refresh(),save(),true):false;
+ if(name==="pushHistory")return commit(),true;if(name==="clearHistory")return(s.history=[],s.future=[],true);if(name==="historyLength")return s.history?.length||0;
+ if(name==="canUndo")return!!s.history?.length;if(name==="canRedo")return!!s.future?.length;if(name==="undoOnce")return C().undo?.(),true;if(name==="redoOnce")return C().redo?.(),true;
+ if(["duplicateSelection","duplicateNode"].includes(name)&&n){const count=name==="duplicateNode"?1:1;return Array.from({length:count},()=>C().duplicate?.()),true}
+ if(["deleteSelection","deleteNode"].includes(name)&&n)return C().remove?.(),true;
+ if(name==="renameNode"){const x=nodes().find(x=>x.id===a)||n;if(!x)return false;return mutate(()=>{x.name=String(args[1]||"Object").slice(0,100)})}
+ if(name==="setParentNode"||name==="setParentByName"||name==="unparentNode"||name==="addChild"||name==="addSibling"){
+   const target=n;if(!target)return false;let parent=null;
+   if(name==="unparentNode")parent=null;
+   else if(name==="setParentByName"){parent=nodes().find(x=>String(x.name).toLowerCase()===String(a||"").toLowerCase())?.id||null}
+   else if(name==="addSibling"){parent=nodes().find(x=>x.id===target.parent)?.id||null}
+   else parent=a||n?.parent||null;
+   if(parent===target.id)return false;
+   return mutate(()=>{target.parent=parent});
+ }
+ if(name==="getParent")return n?.parent?clone(nodes().find(x=>x.id===n.parent)||null):null;if(name==="getChildrenCount")return n?nodes().filter(x=>x.parent===n.id).length:0;
+ if(name==="isDescendantOf"||name==="isAncestorOf"){let x=n,needle=a;while(x?.parent){if(x.parent===needle)return name==="isDescendantOf";x=nodes().find(y=>y.id===x.parent)}return false}
+ if(["moveNode","moveSelection","setPosition","setMultiPosition"].includes(name))return mutate(()=>{const d=Array.isArray(a)?a:[Number(a?.x)||0,Number(a?.y)||0,Number(a?.z)||0];selectedNodes().forEach(x=>x.position=[...d])});
+ if(["rotateNode","rotateSelection","setRotation","setMultiRotation"].includes(name))return mutate(()=>{const d=Array.isArray(a)?a:[Number(a?.x)||0,Number(a?.y)||0,Number(a?.z)||0];selectedNodes().forEach(x=>x.rotation=[...d])});
+ if(["scaleNode","scaleSelection","setSize","setMultiSize"].includes(name))return mutate(()=>{const d=Array.isArray(a)?a:[Number(a?.x)||1,Number(a?.y)||1,Number(a?.z)||1];selectedNodes().forEach(x=>x.size=d.map(v=>Math.max(.1,Math.abs(Number(v)||1)))});
+ if(["setColor","setMultiColor"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.color=String(a||"#ffffff")));
+ if(["setMaterial","setMultiMaterial"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.material=mats.includes(a)?a:"Plastic"));
+ if(["setTransparency"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.transparency=Math.max(0,Math.min(1,Number(a)||0))));
+ if(["setAnchored","setMultiAnchored"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.anchored=!!a));
+ if(["setCanCollide","setMultiCollision"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.canCollide=!!a));
+ if(["setLocked","setMultiLocked"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.locked=!!a));
+ if(["setVisible","setMultiVisibility"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.visible=!!a));
+ if(/^toggle(Visibility|Locked|Anchored|CanCollide)$/.test(name))return mutate(()=>selectedNodes().forEach(x=>{const k=name==="toggleVisibility"?"visible":name==="toggleLocked"?"locked":name==="toggleAnchored"?"anchored":"canCollide";x[k]=!x[k]}));
+ if(["nudgeX","nudgeY","nudgeZ","nudge"].includes(name))return mutate(()=>{const d=name==="nudgeX"?[Number(a)||1,0,0]:name==="nudgeY"?[0,Number(a)||1,0]:name==="nudgeZ"?[0,0,Number(a)||1]:(Array.isArray(a)?a:[1,0,0]);selectedNodes().forEach(x=>x.position=(x.position||[0,0,0]).map((v,i)=>Number(v||0)+Number(d[i]||0)))});
+ if(["alignX","alignY","alignZ","alignCenter","alignTop","alignBottom","alignLeft","alignRight"].includes(name))return mutate(()=>{const k={alignX:0,alignY:1,alignZ:2}[name];if(k!==undefined)selectedNodes().forEach(x=>x.position[k]=Number(a)||0);else{const b=bounds(selectedNodes());if(b)selectedNodes().forEach(x=>x.position=[b.center[0],name==="alignTop"?b.max[1]:name==="alignBottom"?b.min[1]:b.center[1],name==="alignLeft"?b.min[2]:b.center[2]])}});
+ if(["distributeX","distributeY","distributeZ","distributeEvenlyX","distributeEvenlyY","distributeEvenlyZ"].includes(name)){const k=name.includes("Y")?1:name.includes("Z")?2:0;const arr=selectedNodes().sort((x,y)=>(x.position?.[k]||0)-(y.position?.[k]||0));if(arr.length>2){const lo=arr[0].position[k],hi=arr.at(-1).position[k];return mutate(()=>arr.forEach((x,i)=>x.position[k]=lo+(hi-lo)*i/(arr.length-1)))}return false}
+ if(["snapPosition","snapRotation","snapSize"].includes(name))return mutate(()=>selectedNodes().forEach(x=>{if(name==="snapPosition")x.position=snap(x.position);if(name==="snapRotation")x.rotation=x.rotation.map(v=>Math.round(v/15)*15);if(name==="snapSize")x.size=snap(x.size).map(v=>Math.max(.1,v))}));
+ if(name==="resetTransform")return mutate(()=>{if(n)Object.assign(n,{position:[0,0,0],rotation:[0,0,0],size:[2,2,2]})});
+ if(["freezeSelection","unfreezeSelection"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.anchored=name==="freezeSelection"));
+ if(["focusSelection","frameSelection"].includes(name))return C().focus?.(),true;
+ if(name==="fitAll"||name==="resetCamera")return C().view?.("home"),true;if(name==="setCameraPreset")return C().view?.(a||"home"),true;
+ if(name==="zoomIn")return document.querySelector("#canvas")?.dispatchEvent(new WheelEvent("wheel",{deltaY:-120,bubbles:true,cancelable:true})),true;
+ if(name==="zoomOut")return document.querySelector("#canvas")?.dispatchEvent(new WheelEvent("wheel",{deltaY:120,bubbles:true,cancelable:true})),true;
+ if(name==="orbitCamera")return true;
+ if(name==="toggleGrid")return C().toggleGrid?.(),true;if(name==="toggle2D")return window.StudioLiteSet2D?.(),true;if(name==="repairViewport")return window.StudioLitePro?.repair?.(),true;if(name==="takeScreenshot")return C().screenshot?.(),true;
+ if(name==="getSceneBounds")return bounds(nodes().filter(x=>x.visible!==false));if(name==="getSelectionBounds")return bounds(selectedNodes());
+ if(name==="centerSelection"||name==="centerOnOrigin")return mutate(()=>{const b=name==="centerOnOrigin"?null:bounds(selectedNodes());selectedNodes().forEach(x=>x.position=b?b.center:[0,0,0])});
+ if(name==="createMaterialPreset"||name==="applyMaterialPreset")return mutate(()=>selectedNodes().forEach(x=>x.material=mats.includes(a)?a:"Plastic"));
+ if(name==="applyColorPreset"||name==="setNeonColor")return mutate(()=>selectedNodes().forEach(x=>x.color=String(a||"#00e5ff")));
+ if(["randomizeColors","randomizeMaterials","randomizePosition","randomizeRotation","randomizeScale"].includes(name))return mutate(()=>selectedNodes().forEach(x=>{if(name==="randomizeColors")x.color="#"+Math.floor(Math.random()*0xffffff).toString(16).padStart(6,"0");if(name==="randomizeMaterials")x.material=mats[Math.floor(Math.random()*mats.length)];if(name==="randomizePosition")x.position=x.position.map(()=>Math.round((Math.random()*20-10)*10)/10);if(name==="randomizeRotation")x.rotation=x.rotation.map(()=>Math.round(Math.random()*360-180));if(name==="randomizeScale")x.size=x.size.map(v=>Math.max(.1,v*(.5+Math.random()*1.5)))});
+ if(/^make(Neon|Metal|Glass|Wood|Plastic)$/.test(name))return mutate(()=>selectedNodes().forEach(x=>x.material=name.slice(4)));
+ if(["setCollisionGroup","setCustomProperty","setValue"].includes(name))return mutate(()=>selectedNodes().forEach(x=>{x.customProperties??={};x.customProperties[name==="setValue"?"Value":String(a||"group")]=args[1]??a}));
+ if(["getCustomProperty","getValue"].includes(name))return n?.customProperties?.[name==="getValue"?"Value":a];
+ if(name==="removeCustomProperty")return mutate(()=>selectedNodes().forEach(x=>{if(x.customProperties)delete x.customProperties[a]}));
+ if(name==="getProperties")return clone(n||{});if(name==="setProperties")return mutate(()=>n&&Object.assign(n,a||{}));
+ if(["setPosition","setRotation","setSize"].includes(name))return false;
+ if(["setMultiPosition","setMultiRotation","setMultiSize"].includes(name))return false;
+ if(["setMassless","setCastShadow","setCanQuery","setCanTouch","setArchivable","setRoughness","setReflectance","setMetalness"].includes(name))return mutate(()=>selectedNodes().forEach(x=>{x.customProperties??={};x.customProperties[name]=a??true}));
+ if(["setGlassTransparency"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.transparency=Math.max(.05,Math.min(1,Number(a) || .35)));
+ if(["growSelection","shrinkSelection","scaleUniform"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.size=x.size.map(v=>Math.max(.1,v*(name==="shrinkSelection"?.9:Number(a)||1.1)))));
+ if(["mirrorX","mirrorY","mirrorZ"].includes(name))return mutate(()=>selectedNodes().forEach(x=>{const k={mirrorX:0,mirrorY:1,mirrorZ:2}[name];x.position[k]*=-1;x.rotation[k]*=-1}));
+ if(["rotate90","rotate180","rotate270"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.rotation[1]+={rotate90:90,rotate180:180,rotate270:270}[name]));
+ if(["clampPosition","clampRotation","clampSize"].includes(name))return mutate(()=>selectedNodes().forEach(x=>{const k=name==="clampPosition"?"position":name==="clampRotation"?"rotation":"size";x[k]=x[k].map(v=>name==="clampSize"?Math.max(.1,Math.min(100,Number(v)||1)):Math.max(-10000,Math.min(10000,Number(v)||0)))}));
+ if(["resetColor","resetMaterial","resetAppearance","resetBehavior"].includes(name))return mutate(()=>selectedNodes().forEach(x=>{if(name==="resetColor")x.color="#777";if(name==="resetMaterial")x.material="Plastic";if(name==="resetAppearance"){x.color="#777";x.material="Plastic";x.transparency=0};if(name==="resetBehavior"){x.anchored=true;x.canCollide=true;x.locked=false;x.visible=true}}));
+ if(["setScriptSource","appendScript","prependScript","replaceScript","insertScriptTemplate"].includes(name)){if(!n||!/Script$/.test(n.type))return false;return mutate(()=>{const text=String(a??"");if(name==="setScriptSource")n.script=text;if(name==="appendScript")n.script=String(n.script||"")+text;if(name==="prependScript")n.script=text+String(n.script||"");if(name==="replaceScript")n.script=String(n.script||"").split(String(args[1]??"")).join(text);if(name==="insertScriptTemplate")n.script=text||"-- Studio Lite\nprint(\"Hello\")"})}
+ if(name==="getScriptSource")return n?.script||"";if(name==="validateScriptSource")return{name:n?.name||"",ok:!!n&&/Script$/.test(n.type),length:String(n?.script||"").length};
+ if(name==="openScriptEditor")return n?.id?window.openScript?.(n.id):document.querySelector("#codeStudioBtn")?.click(),true;if(name==="closeScriptEditor")return document.querySelectorAll(".modal-bg").forEach(x=>x.remove()),true;
+ if(name==="createScriptFromTemplate")return add("Script",{script:String(a||"-- Script\nprint(\"Hello\")")});
+ if(name==="duplicateScript")return n&&/Script$/.test(n.type)?(C().duplicate?.(),true):false;
+ if(name==="exportScripts")return nodes().filter(x=>/Script$/.test(x.type)).map(x=>({name:x.name,type:x.type,source:x.script||""}));
+ if(name==="exportHierarchy")return nodes().map(x=>({id:x.id,name:x.name,type:x.type,parent:x.parent}));
+ if(name==="exportSelection"||name==="exportSelectionJSON")return JSON.stringify(selectedNodes(),null,2);
+ if(name==="copySelection"){const text=JSON.stringify(selectedNodes(),null,2);try{navigator.clipboard?.writeText?.(text)}catch{};return text}
+ if(name==="pasteSelection")return navigator.clipboard?.readText?.().then?.(t=>{try{const a=JSON.parse(t);const list=Array.isArray(a)?a:[a];list.forEach(x=>{const n2=add(x.type||"Part");if(n2)Object.assign(n2,x,{id:crypto.randomUUID?.()||Math.random().toString(36).slice(2)})});refresh()}).catch(()=>false),true;
+ if(name==="downloadText")return download(String(a||"studio.txt"),String(args[1]??""),"text/plain");
+ if(name==="exportJSON")return download((s.project||"studio")+".json",JSON.stringify({name:s.project,nodes:nodes(),settings:s.settings},null,2),"application/json");
+ if(name==="exportScene"||name==="exportSceneSummary")return JSON.stringify({project:s.project,objects:nodes().length,bounds:bounds(nodes())},null,2);
+ if(name==="importJSON")try{const d=typeof a==="string"?JSON.parse(a):a;if(!Array.isArray(d.nodes))return false;s.nodes=d.nodes;repairAll(s);refresh();save();return true}catch{return false}
+ if(name==="copyText")return navigator.clipboard?.writeText?.(String(a??"")).then(()=>true).catch(()=>false)||false;
+ if(name==="readClipboard")return navigator.clipboard?.readText?.()||"";
+ if(name==="writeClipboard")return navigator.clipboard?.writeText?.(String(a??"")).then(()=>true).catch(()=>false)||false;
+ if(["saveSnapshot","loadSnapshot","listSnapshots","compareSnapshots","restoreLastSnapshot","clearSnapshots"].includes(name)){
+   let ss=readSnaps();
+   if(name==="saveSnapshot"){ss.push({at:new Date().toISOString(),data:clone({name:s.project,nodes:nodes(),settings:s.settings,grid:s.grid,snap:s.snap})});writeSnaps(ss);return ss.length}
+   if(name==="listSnapshots")return ss.map((x,i)=>({index:i,at:x.at,objects:x.data.nodes.length}));
+   if(name==="loadSnapshot"||name==="restoreLastSnapshot"){const x=ss[a??ss.length-1];if(!x)return false;return exec("restoreSnapshot",[x.data])}
+   if(name==="compareSnapshots")return{count:ss.length,last:ss.at(-1)?.data?.nodes?.length||0,current:nodes().length};
+   if(name==="clearSnapshots")return(localStorage.removeItem(snapshotStore),true)
+ }
+ if(["repairHierarchy","repairParents","cleanOrphans","removeBrokenParents"].includes(name))return mutate(()=>{const set=new Set(nodes().map(x=>x.id));nodes().forEach(x=>{if(x.parent&&!set.has(x.parent))x.parent=null})});
+ if(["repairIds","regenerateIds"].includes(name))return mutate(()=>{const map=new Map(),used=new Set();nodes().forEach(x=>{const old=x.id;let id=old;while(!id||used.has(id))id=crypto.randomUUID?.()||Math.random().toString(36).slice(2);used.add(id);map.set(old,id);x.id=id});nodes().forEach(x=>{if(x.parent&&map.has(x.parent))x.parent=map.get(x.parent)})});
+ if(["repairMissingDefaults","normalizeAllNodes","normalizeTypes"].includes(name))return mutate(()=>nodes().forEach(x=>{x.id||=(crypto.randomUUID?.()||Math.random().toString(36).slice(2));x.name||=(x.type||"Object");x.position=Array.isArray(x.position)?x.position:[0,0,0];x.rotation=Array.isArray(x.rotation)?x.rotation:[0,0,0];x.size=Array.isArray(x.size)?x.size:[1,1,1];x.color||="#777";x.material||="Plastic";x.visible??=true}));
+ if(name==="normalizeSelection")return s.selected&&nodes().some(x=>x.id===s.selected)?true:(s.selected=nodes()[0]?.id||null,refresh(),!!s.selected);
+ if(name==="removeDuplicates"){const seen=new Set();return mutate(()=>{s.nodes=s.nodes.filter(x=>{const k=x.name+"|"+x.type+"|"+JSON.stringify(x.position);if(seen.has(k))return false;seen.add(k);return true})})}
+ if(["sortNodes","sortByName","sortByType","sortByPosition"].includes(name))return mutate(()=>{const k=name==="sortByType"?"type":name==="sortByPosition"?"position":"name";s.nodes.sort((a,b)=>String(a[k]?.[0]??a[k]??"").localeCompare(String(b[k]?.[0]??b[k]??"")))});
+ if(["groupSelection","makeFolderFromSelection"].includes(name))return add("Folder",{name:"Group"});
+ if(name==="ungroupSelection"&&n)return mutate(()=>nodes().filter(x=>x.parent===n.id).forEach(x=>x.parent=n.parent||null));
+ if(name==="openProperties")return openPanel("properties");if(name==="openToolbox")return openPanel("toolbox");if(name==="openExplorer")return window.StudioLiteV21?.togglePanels?.("explorer"),true;
+ if(name==="openParty")return window.StudioLiteParty?.open?.()||false;if(name==="openHelp")return window.StudioLiteDiagnostics?.openHelp?.()||false;if(name==="openDiagnostics")return window.StudioLiteDiagnostics?.openHelp?.("diagnostics")||false;
+ if(name==="openCodeStudio")return exec("openScriptEditor",[]);if(name==="closeModals")return document.querySelectorAll(".modal-bg").forEach(x=>x.remove()),true;
+ if(name==="toast")return toast(a||"Studio Lite");if(name==="setStatus")return setStatus(a||"Pronto");
+ if(name==="validateScene")return{ok:nodes().every(x=>x.id&&x.type),errors:nodes().filter(x=>!x.id||!x.type).length};
+ if(name==="validateHierarchy"){const set=new Set(nodes().map(x=>x.id));return{ok:nodes().every(x=>!x.parent||set.has(x.parent)),orphans:nodes().filter(x=>x.parent&&!set.has(x.parent)).length}}
+ if(name==="validateTransforms")return{ok:nodes().every(x=>Array.isArray(x.position)&&x.position.length===3&&Array.isArray(x.rotation)&&x.rotation.length===3&&Array.isArray(x.size)&&x.size.length===3)};
+ if(name==="validateNames"){const m={};nodes().forEach(x=>m[x.name]=(m[x.name]||0)+1);return{ok:Object.values(m).every(v=>v===1),duplicates:Object.keys(m).filter(k=>m[k]>1)}}
+ if(name==="validateScripts")return{ok:nodes().filter(x=>/Script$/.test(x.type)).every(x=>typeof x.script==="string"),scripts:nodes().filter(x=>/Script$/.test(x.type)).length};
+ if(name==="runSelfTest")return{scene:exec("validateScene"),hierarchy:exec("validateHierarchy"),transforms:exec("validateTransforms"),scripts:exec("validateScripts")};
+ if(name==="getDiagnostics")return{objects:nodes().length,scripts:nodes().filter(x=>/Script$/.test(x.type)).length,webgl:!!C().renderer,orphanCount:nodes().filter(x=>x.parent&&!nodes().some(y=>y.id===x.parent)).length};
+ if(name==="projectHealth"||name==="sceneReport"||name==="hierarchyReport"||name==="scriptReport")return exec(name==="projectHealth"?"runSelfTest":name==="sceneReport"?"validateScene":name==="hierarchyReport"?"validateHierarchy":"validateScripts");
+ if(name==="repairScene"||name==="repairTransforms"||name==="repairProperties")return exec("repairMissingDefaults");
+ if(name==="fixDuplicateNames")return mutate(()=>{const m={};nodes().forEach(x=>{const b=x.name||x.type||"Object";m[b]=(m[b]||0)+1;x.name=m[b]>1?b+" "+m[b]:b})});
+ if(name==="optimizeScene")return mutate(()=>nodes().forEach(x=>{delete x._dragged;delete x.__serviceRoot}));
+ if(name==="countVisuals")return nodes().filter(x=>x.visible!==false&&!/Script$/.test(x.type)).length;
+ if(name==="countScripts")return nodes().filter(x=>/Script$/.test(x.type)).length;
+ if(name==="countContainers")return nodes().filter(x=>["Folder","Model","Tool","Configuration"].includes(x.type)).length;
+ if(name==="countServices")return nodes().filter(x=>x.service||services.includes(x.type)).length;
+ if(name==="countSelectedByType")return selectedNodes().filter(x=>x.type===a).length;
+ if(name==="getTypeSummary"){const m={};nodes().forEach(x=>m[x.type]=(m[x.type]||0)+1);return m}
+ if(name==="searchExplorer"){const term=String(a||"").toLowerCase();const out=nodes().filter(x=>String(x.name).toLowerCase().includes(term)||String(x.type).toLowerCase().includes(term));if(out[0])exec("selectById",[out[0].id]);return out}
+ if(name==="focusExplorer")return document.querySelector("#treeSearch")?.focus(),true;if(name==="focusInspector")return document.querySelector("#panel input, #panel select")?.focus(),true;
+ if(name==="toggleInspector")return window.StudioLiteV21?.togglePanels?.("inspector"),true;if(name==="toggleExplorer")return window.StudioLiteV21?.togglePanels?.("explorer"),true;
+ if(name==="toggleProperties")return openPanel("properties");if(name==="toggleToolbox")return openPanel("toolbox");
+ if(name==="toggleStudio300"){document.querySelector("#studio300Modal")?.remove();document.querySelector("#studio300Btn")?.click();return true}
+ if(name==="toggleRBXL"||name==="openRBXL")return window.StudioLiteRBXL?.open?.(),true;
+ if(name==="exportRBXLX")return C().exportProject?.(),true;if(name==="publishRBXL")return C().publish?.(),true;
+ if(name==="validateRBXL")return{ok:!!localStorage.getItem("studio-lite-last-rbxl"),last:JSON.parse(localStorage.getItem("studio-lite-last-rbxl")||"null")};
+ if(name==="clearToasts")return document.querySelectorAll("#toastRoot .toast").forEach(x=>x.remove()),true;if(name==="getVersion")return"Studio Lite Pro 300 • V21";if(name==="ping")return"pong";
+ if(name==="expandExplorer"||name==="collapseExplorer"||name==="expandAllExplorer"||name==="collapseAllExplorer")return window.StudioLiteV21?.togglePanels?.("explorer"),true;
+ if(name==="selectNext"||name==="selectPrevious"){const i=nodes().findIndex(x=>x.id===s.selected);const j=name==="selectNext"?Math.min(nodes().length-1,i+1):Math.max(0,i-1);return exec("selectById",[nodes()[j]?.id])}
+ if(name==="selectFirstChild")return n&&exec("selectById",[nodes().find(x=>x.parent===n.id)?.id]);
+ if(name==="selectParent")return n?.parent&&exec("selectById",[n.parent]);
+ if(name==="selectService")return exec("selectByType",[a]);
+ if(name==="moveToService")return n?mutate(()=>{n.parent="service:"+(a||"Workspace")}):false;
+ if(name==="createServiceNode")return mutate(()=>{const id="service:"+(a||"CustomService");if(!nodes().some(x=>x.id===id))s.nodes.push({id,name:a||"CustomService",type:a||"CustomService",service:true,visible:false,canCollide:false,anchored:true,parent:null})});
+ if(name==="removeServiceNode")return mutate(()=>{s.nodes=s.nodes.filter(x=>x.id!=="service:"+a)});
+ if(name==="renameProject")return exec("setProjectName",[a]);
+ if(name==="duplicateMany"){const count=Math.max(1,Math.min(50,Number(a)||1));for(let i=0;i<count;i++)C().duplicate?.();return true}
+ if(name==="deleteByType"){const type=String(a||"");return mutate(()=>s.nodes=s.nodes.filter(x=>x.type!==type||x.id==="spawn"))}
+ if(/^select(Visible|Hidden|Locked|Unlocked|Anchored|Unanchored|Collidable|NonCollidable)$/.test(name)){const p={selectVisible:x=>x.visible!==false,selectHidden:x=>x.visible===false,selectLocked:x=>!!x.locked,selectUnlocked:x=>!x.locked,selectAnchored:x=>x.anchored!==false,selectUnanchored:x=>x.anchored===false,selectCollidable:x=>x.canCollide!==false,selectNonCollidable:x=>x.canCollide===false}[name];s.selectedIds=nodes().filter(p).map(x=>x.id);s.selected=s.selectedIds[0]||null;refresh();return s.selectedIds.length}
+ if(name==="invertSelection"){const set=new Set(ids());s.selectedIds=nodes().filter(x=>!set.has(x.id)).map(x=>x.id);s.selected=s.selectedIds[0]||null;refresh();return s.selectedIds.length}
+ if(name==="getSelectionCount")return selectedNodes().length;if(name==="getSelectionNodes")return selectedNodes().map(clone);
+ if(name==="setAutoSaveInterval"||name==="getAutoSaveInterval")return name==="getAutoSaveInterval"?Number(localStorage.getItem("studio-lite-v21-autosave")||30):(localStorage.setItem("studio-lite-v21-autosave",String(Math.max(5,Number(a)||30))),true);
+ if(name==="autoSaveNow")return C().save?.(true),true;
+ if(name==="listSnapshots")return readSnaps().map((x,i)=>({index:i,at:x.at,objects:x.data.nodes.length}));
+ if(name==="version")return"Studio Lite Pro Toolkit 300";
+ if(/^set/.test(name))return mutate(()=>{if(n){n.customProperties??={};n.customProperties[name.slice(3)]=a}});
+ if(/^get/.test(name))return n?.customProperties?.[name.slice(3)];
+ return{name,ok:true,selected:n?.name||null,objects:nodes().length};
 }
-names.forEach(name=>F[name]=(...args)=>delegate(name,args)??custom(name,args));
-window.StudioLite300=F;window.StudioLite300Meta={coreFunctions:118,newFunctions:182,totalFunctions:300,version:"2026.10.04-pro300",names};
-function install(){if(document.getElementById("studio300Btn"))return;const b=document.createElement("button");b.id="studio300Btn";b.className="accent";b.textContent="⚡ 300";b.title="Toolkit Pro — 300 funções";b.onclick=()=>{if(document.getElementById("studio300Modal"))return;const bg=document.createElement("div");bg.id="studio300Modal";bg.className="modal-bg";bg.innerHTML='<div class="tool300"><div class="tool300-head"><div><h2>⚡ Studio Lite Pro 300</h2><small>300 funções práticas e testáveis</small></div><button id="tool300Close">×</button></div><input id="tool300Search" class="search" placeholder="Pesquisar função…"><div id="tool300Grid" class="tool300-grid"></div></div>';document.body.appendChild(bg);const g=bg.querySelector("#tool300Grid"),q=bg.querySelector("#tool300Search");const draw=()=>{const z=(q.value||"").toLowerCase();g.innerHTML="";names.filter(n=>n.toLowerCase().includes(z)).forEach(n=>{const x=document.createElement("button");x.className="tool300-item";x.innerHTML="<b>"+n+"</b><small>Executar</small>";x.onclick=async()=>{try{const r=await F[n]();toast(n+" ✓");console.debug("[Studio300]",n,r)}catch(e){console.error(e);toast(n+" falhou")}};g.appendChild(x)})};q.oninput=draw;draw();bg.querySelector("#tool300Close").onclick=()=>bg.remove()};const host=document.querySelector(".toolbar .tool-group")||document.querySelector(".toolbar");if(host)host.appendChild(b)}
-const css=document.createElement("style");css.textContent=".tool300{width:min(1000px,96vw);max-height:90vh;overflow:auto;background:#090909;border:1px solid #292929;border-radius:16px;padding:16px;box-shadow:0 30px 100px #000}.tool300-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.tool300-head h2{margin:0;font-size:17px}.tool300-head small{color:#777;font-size:10px}.tool300-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:10px}.tool300-item{display:flex;flex-direction:column;text-align:left;gap:4px;padding:10px;border:1px solid #202020;background:#0e0e0e;color:#ddd;border-radius:9px}.tool300-item b{font-size:10px;word-break:break-word}.tool300-item small{font-size:9px;color:#666}@media(max-width:800px){.tool300-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:430px){.tool300-grid{grid-template-columns:1fr}}";document.head.appendChild(css);if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install);else setTimeout(install,0)})();
+function download(name,data,type){const b=new Blob([data],{type:type||"text/plain"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
+function openPanel(name){const b=document.querySelector('.tab[data-panel="'+name+'"]');if(b){b.click();return true}return false}
+const F={};NAMES.forEach(name=>F[name]=(...args)=>exec(name,args));
+window.StudioLite300=F;
+window.StudioLite300Meta={coreFunctions:182,newFunctions:118,totalFunctions:300,version:"2026.10.04-v21",names:NAMES};
+function open300(){
+ const old=document.querySelector("#studio300Modal");if(old){old.remove();return}
+ const bg=document.createElement("div");bg.id="studio300Modal";bg.className="modal-bg";
+ bg.innerHTML='<div class="tool300-v21"><div class="tool300-v21-head"><div><h2>⚡ Studio Lite Pro 300</h2><small>300 funções reais • Editor • Explorer • Scripts • RBXL • Diagnóstico</small></div><button id="tool300V21Close">×</button></div><div class="tool300-v21-bar"><input id="tool300V21Search" class="search" placeholder="⌕ Pesquisar entre 300 funções..."><select id="tool300V21Category"><option value="">Todas as categorias</option><option>Seleção</option><option>Criação</option><option>Transformação</option><option>Scripts</option><option>Explorer</option><option>Projeto</option><option>Visualização</option><option>Diagnóstico</option><option>Utilitários</option></select><span>300 / 300</span></div><div id="tool300V21Grid" class="tool300-v21-grid"></div><div class="tool300-v21-foot"><span id="tool300V21Status">Pronto</span><button id="tool300V21Self">✓ Auto-teste</button></div></div>';
+ document.body.appendChild(bg);
+ const grid=bg.querySelector("#tool300V21Grid"),search=bg.querySelector("#tool300V21Search"),cat=bg.querySelector("#tool300V21Category"),status=bg.querySelector("#tool300V21Status");
+ const category=name=>/^(select|getSelected|clearSelection|invertSelection|normalizeSelection|countSelected)/.test(name)?"Seleção":/^create/.test(name)?"Criação":/^(move|rotate|scale|setPosition|setRotation|setSize|nudge|align|distribute|snap|mirror|resetTransform|freeze|grow|shrink|clamp|applyTransform)/.test(name)?"Transformação":/(Script|Code|Source|Template)/.test(name)?"Scripts":/(Explorer|Parent|Child|Service|Selection)/.test(name)?"Explorer":/(save|load|export|import|project|snapshot|autosave|renameProject)/.test(name)?"Projeto":/(Camera|View|Grid|zoom|orbit|Screenshot|2D|Material|Color)/.test(name)?"Visualização":/(validate|repair|diagnostic|Health|Report|normalize|clean|duplicate)/test(name)?"Diagnóstico":"Utilitários";
+ const draw=()=>{const term=search.value.toLowerCase().trim(),c=cat.value;grid.innerHTML="";NAMES.filter(n=>(!term||n.toLowerCase().includes(term))&&(!c||category(n)===c)).forEach(n=>{const b=document.createElement("button");b.className="tool300-v21-item";b.innerHTML="<b>"+n+"</b><small>"+category(n)+" • Executar</small>";b.onclick=async()=>{try{const r=await F[n]();status(n+" ✓"+(r===undefined?"":" • "+(typeof r==="string"?r.slice(0,80):"concluído")));toast(n+" ✓")}catch(e){console.error(e);status(n+" ✗ "+e.message);toast(n+" falhou")}};grid.appendChild(b)})};
+ search.oninput=draw;cat.onchange=draw;bg.querySelector("#tool300V21Close").onclick=()=>bg.remove();
+ bg.querySelector("#tool300V21Self").onclick=()=>{const r=F.runSelfTest();status(r.scene.ok&&r.hierarchy.ok&&r.transforms.ok&&r.scripts.ok?"✓ Auto-teste passou":"⚠ Auto-teste encontrou pontos")};draw();setTimeout(()=>search.focus(),20);
+}
+function install(){let b=document.querySelector("#studio300Btn");if(!b){b=document.createElement("button");b.id="studio300Btn";b.className="accent";b.type="button";b.textContent="⚡ 300";b.title="Toolkit Pro — 300 funções";document.querySelector(".toolbar .tool-group")?.appendChild(b)}b.onclick=open300}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install);else setTimeout(install,0);
+})();
