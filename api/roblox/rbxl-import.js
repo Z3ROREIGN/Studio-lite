@@ -1,6 +1,6 @@
-import { parseBuffer } from "rbx-reader";
+import reader from "rbx-reader";
 
-export const config = { api: { bodyParser: false } };
+export const config = { api: { bodyParser: false }, maxDuration: 60 };
 
 function readBody(req){
   return new Promise((resolve,reject)=>{
@@ -32,7 +32,9 @@ export default async function handler(req,res){
     // rbx-reader 1.5.x recebe ArrayBuffer, não Node Buffer.
     // Passar Buffer diretamente pode quebrar o ByteReader e resultar em HTTP 500.
     const arrayBuffer=body.buffer.slice(body.byteOffset,body.byteOffset+body.byteLength);
-    const parsed=await Promise.resolve(parseBuffer(arrayBuffer));
+    const parse=reader?.parseBuffer;
+    if(typeof parse!=="function")throw Error("O pacote rbx-reader não expôs parseBuffer no runtime.");
+    const parsed=await Promise.resolve(parse.call(reader,arrayBuffer));
     const list=Array.isArray(parsed?.instances)?parsed.instances:[];
     if(!list.length)return res.status(422).json({ok:false,error:"O parser não encontrou instâncias no RBXL."});
     const index=new Map(list.map((x,i)=>[x,i]));
