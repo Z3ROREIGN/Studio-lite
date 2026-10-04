@@ -929,60 +929,46 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
 /* ===== V15 — FINAL RENDERER / 2D / MOBILE HARDENING ===== */
 (()=>{
 "use strict";
-const q15=s=>document.querySelector(s);
+const q15=s=>document.querySelector(s), core15=()=>window.StudioLiteCore;
 function ensure2D15(){
- const host=q15("#canvas");
- if(!host||typeof initFallbackCanvas!=="function")return false;
- if(!fallbackCanvas||!fallbackCtx)initFallbackCanvas();
- if(fallbackCanvas){
-   fallbackCanvas.style.visibility="visible";
-   fallbackCanvas.style.display="block";
-   fallbackCanvas.style.zIndex="2";
-   host.querySelectorAll("canvas").forEach(c=>{if(c!==canvas){c.style.visibility="hidden";c.style.pointerEvents="none"}});
-   core.drawFallback?.();
- }
+ const host=q15("#canvas"),core=core15();if(!host||!core)return false;
+ core.initFallbackCanvas?.();
+ const canvas=core.fallbackCanvas;if(!canvas)return false;
+ canvas.style.visibility="visible";canvas.style.display="block";canvas.style.zIndex="2";
+ host.querySelectorAll("canvas").forEach(x=>{if(x!==canvas){x.style.visibility="hidden";x.style.pointerEvents="none"}});
+ core.drawFallback?.();
  q15("#engineHud")?.replaceChildren(document.createTextNode("2D COMPAT"));
  q15("#status")?.replaceChildren(document.createTextNode("Modo 2D compatível"));
  q15("#footerStatus")?.replaceChildren(document.createTextNode("Modo 2D compatível"));
+ const badge=q15("#v15-2d-badge");if(badge)badge.style.display="block";
  return true;
 }
 function ensureWebGL15(){
- const host=q15("#canvas"); if(!host)return;
- if(renderer){
-   host.querySelectorAll("canvas").forEach(c=>{if(c!==renderer.domElement){c.style.visibility="hidden";c.style.pointerEvents="none"}else{c.style.visibility="visible";c.style.pointerEvents="auto"}});
-   renderer.domElement.style.zIndex="1";
-   resize?.(); render?.();
- }
+ const host=q15("#canvas"),core=core15(),renderer=core?.renderer;if(!host||!renderer)return false;
+ host.querySelectorAll("canvas").forEach(x=>{const yes=x===renderer.domElement;x.style.visibility=yes?"visible":"hidden";x.style.pointerEvents=yes?"auto":"none"});
+ renderer.domElement.style.zIndex="1";core.resize?.();core.render?.(false);
  q15("#engineHud")?.replaceChildren(document.createTextNode("WebGL"));
+ const badge=q15("#v15-2d-badge");if(badge)badge.style.display="none";
+ return true;
 }
 function set2D15(){
- localStorage.setItem("studio-lite-universal-v7.mode","2d");
- localStorage.setItem("studio-lite-universal-v6.mode","2d");
- ensure2D15();
- document.querySelectorAll("[data-u7]").forEach(b=>b.classList.toggle("active",b.dataset.u7==="2d"));
- document.querySelectorAll(".u-mode").forEach(b=>b.classList.toggle("active",b.dataset.mode==="2d"));
+ try{localStorage.setItem("studio-lite-universal-v7.mode","2d");localStorage.setItem("studio-lite-universal-v6.mode","2d")}catch{}
+ return ensure2D15();
 }
 function bind2D15(){
- document.querySelectorAll('[data-u7="2d"],.u-mode[data-mode="2d"]').forEach(b=>{
-   if(b.dataset.v15==="1")return;
-   b.dataset.v15="1";
-   b.addEventListener("click",e=>{e.preventDefault();e.stopImmediatePropagation();set2D15()},true);
+ document.querySelectorAll('[data-u7="2d"],.u-mode[data-mode="2d"]').forEach(btn=>{
+   if(btn.dataset.v15==="1")return;btn.dataset.v15="1";
+   btn.addEventListener("click",e=>{e.preventDefault();e.stopImmediatePropagation();set2D15()},true);
  });
  const viewport=q15(".viewport");
- if(viewport&&!q15("#v15-2d-badge")){
-   const b=document.createElement("div");b.id="v15-2d-badge";b.className="compat2d-badge";b.textContent="2D • COMPATÍVEL";
-   b.style.cssText="position:absolute;left:10px;bottom:42px;z-index:9;padding:6px 9px;border:1px solid #303030;border-radius:7px;background:#080808dd;color:#aaa;font:600 10px ui-monospace,monospace;pointer-events:none;display:none";
-   viewport.appendChild(b);
- }
+ if(viewport&&!q15("#v15-2d-badge")){const badge=document.createElement("div");badge.id="v15-2d-badge";badge.className="compat2d-badge";badge.textContent="2D • COMPATÍVEL";badge.style.cssText="position:absolute;left:10px;bottom:42px;z-index:9;padding:6px 9px;border:1px solid #303030;border-radius:7px;background:#080808dd;color:#aaa;font:600 10px ui-monospace,monospace;pointer-events:none;display:none";viewport.appendChild(badge)}
  const mode=localStorage.getItem("studio-lite-universal-v7.mode")||localStorage.getItem("studio-lite-universal-v6.mode");
- if(mode==="2d"){setTimeout(()=>{set2D15();const b=q15("#v15-2d-badge");if(b)b.style.display="block"},500)}
+ if(mode==="2d")setTimeout(set2D15,150);
 }
-const oldSetMode7=window.StudioLiteSetMode;
-window.StudioLiteSetMode=set2D15;
+window.StudioLiteSet2D=set2D15;
+window.StudioLiteRenderer={set2D:set2D15,setWebGL:ensureWebGL15};
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>setTimeout(bind2D15,50));else setTimeout(bind2D15,50);
-new MutationObserver(()=>bind2D15()).observe(document.body,{childList:true,subtree:true});
 })();
-
 /* ===== V16 — PROFESSIONAL RECOVERY / MODE CONTROL ===== */
 (()=>{
 "use strict";
