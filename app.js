@@ -938,8 +938,8 @@ function ensure2D15(){
    fallbackCanvas.style.visibility="visible";
    fallbackCanvas.style.display="block";
    fallbackCanvas.style.zIndex="2";
-   host.querySelectorAll("canvas").forEach(c=>{if(c!==fallbackCanvas){c.style.visibility="hidden";c.style.pointerEvents="none"}});
-   drawFallback?.();
+   host.querySelectorAll("canvas").forEach(c=>{if(c!==canvas){c.style.visibility="hidden";c.style.pointerEvents="none"}});
+   core.drawFallback?.();
  }
  q15("#engineHud")?.replaceChildren(document.createTextNode("2D COMPAT"));
  q15("#status")?.replaceChildren(document.createTextNode("Modo 2D compatível"));
@@ -990,23 +990,26 @@ const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)],cor
 function mode16(mode){
  mode=String(mode||"auto").toLowerCase();
  try{localStorage.setItem("studio-lite-universal-v7.mode",mode);localStorage.setItem("studio-lite-universal-v6.mode",mode)}catch{}
- const existing=q(`.u-mode[data-mode="${mode}"]`);if(existing){try{existing.click();return}catch(e){console.warn("mode button",e)}}if(typeof window.setMode7==="function"){try{window.setMode7(mode);return}catch(e){console.warn("setMode7",e)}}
- const c=core(),host=q("#canvas");if(!c||!host)return;
- if(mode==="2d"){try{c.initFallbackCanvas();host.querySelectorAll("canvas").forEach(x=>x.style.visibility=x===c.fallbackCanvas?"visible":"hidden");c.drawFallback?.()}catch(e){console.error(e)}}
- else if(mode==="webgl"){host.querySelectorAll("canvas").forEach(x=>x.style.visibility="visible");c.resize?.();c.render?.(false)}
- q("#engineHud")?.replaceChildren(document.createTextNode(mode==="2d"?"2D COMPAT":mode==="css3d"?"3D SAFE":mode==="auto"?"AUTO":"WebGL"));
+ const c=core();
+ if(mode==="2d"){window.StudioLiteSet2D?.();return true}
+ const button=q(`.u-mode[data-mode="${mode}"]`);
+ if(button){try{button.click();return true}catch(e){console.warn("mode button",e)}}
+ if(mode==="webgl"&&c?.renderer){q("#canvas")?.querySelectorAll("canvas").forEach(x=>{x.style.visibility=x===c.renderer.domElement?"visible":"hidden";x.style.pointerEvents=x===c.renderer.domElement?"auto":"none"});c.resize?.();c.render?.(false)}
+ q("#engineHud")?.replaceChildren(document.createTextNode(mode==="css3d"?"3D SAFE":mode==="auto"?"AUTO":"WebGL"));
  qa("[data-u7],.u-mode").forEach(b=>b.classList.toggle("active",(b.dataset.u7||b.dataset.mode)===mode));
+ return true;
 }
 function repair16(){
  const c=core();try{localStorage.removeItem("studio-lite-universal-v7.mode");localStorage.removeItem("studio-lite-universal-v6.mode")}catch{}
  q("#uScene")?.remove();q(".u7-css3d")?.remove();
- if(c?.renderer){q("#canvas")?.querySelectorAll("canvas").forEach(x=>{x.style.visibility=x===c.renderer.domElement?"visible":"hidden";x.style.display="block"});c.resize?.();c.render?.(false);q("#engineHud")?.replaceChildren(document.createTextNode("WebGL"))}
- else if(c){try{c.initFallbackCanvas();c.drawFallback?.();q("#engineHud")?.replaceChildren(document.createTextNode("2D COMPAT"))}catch(e){console.error(e)}}
- try{window.StudioLiteConsole?.log?.("Viewport reparada")}catch{}
+ if(c?.renderer){q("#canvas")?.querySelectorAll("canvas").forEach(x=>{x.style.visibility=x===c.renderer.domElement?"visible":"hidden";x.style.display="block";x.style.pointerEvents=x===c.renderer.domElement?"auto":"none"});c.resize?.();c.render?.(false);q("#engineHud")?.replaceChildren(document.createTextNode("WebGL"))}
+ else if(c){window.StudioLiteSet2D?.()}
+ window.StudioLiteConsole?.log?.("Viewport reparada");
+ return true;
 }
-function esc16(v){return String(v??"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
 function install16(){
  if(q("#studioProBtn16"))return;
+ if(!q("#studioProStyle16")){const st=document.createElement("style");st.id="studioProStyle16";st.textContent=".studio-pro16{width:min(760px,96vw);background:#090909;border:1px solid #303030;border-radius:16px;box-shadow:0 30px 120px #000;padding:18px}.studio-pro16 h2{margin:0}.studio-pro16 small{display:block;color:#666;margin-top:4px}.pro-grid16{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:16px}.pro-grid16 button{min-height:78px;background:#0e0e0e;border:1px solid #252525;border-radius:10px;color:#ddd;padding:10px;text-align:left}.pro-grid16 button:hover{border-color:#555;background:#151515}.pro-grid16 b{display:block}.pro-status16{margin-top:12px;padding:10px;border:1px solid #222;border-radius:8px;color:#888;background:#0d0d0d;font-size:11px}@media(max-width:650px){.pro-grid16{grid-template-columns:repeat(2,1fr)}.studio-pro16{width:100%;height:100%;overflow:auto;border-radius:10px}}";document.head.appendChild(st)}
  const actions=q(".actions");if(!actions)return;
  const b=document.createElement("button");b.id="studioProBtn16";b.type="button";b.textContent="⚡ Pro";b.title="Controles profissionais";actions.insertBefore(b,q("#publishBtn")||null);
  b.onclick=()=>{
@@ -1023,11 +1026,117 @@ function install16(){
  };
 }
 function boot16(){
- install16();
- window.StudioLitePro={mode:mode16,repair:repair16};
+ install16();window.StudioLitePro={mode:mode16,repair:repair16};
  try{const mode=localStorage.getItem("studio-lite-universal-v7.mode");if(mode==="2d")setTimeout(()=>mode16("2d"),120)}catch{}
- window.addEventListener("error",e=>{if(e.message)window.StudioLiteConsole?.log?.("Runtime: "+e.message)});
- window.addEventListener("unhandledrejection",e=>window.StudioLiteConsole?.log?.("Promise: "+(e.reason?.message||e.reason||"erro")));
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot16);else setTimeout(boot16,100);
+})();
+
+/* ===== STUDIO LITE PRO TOOLKIT — 90 SAFE FUNCTIONS ===== */
+(()=>{
+"use strict";
+const C=()=>window.StudioLiteCore||{}, S=()=>C().S, toast=t=>window.StudioLiteConsole?.log?.("[Pro] "+t);
+const safe=(fn,fallback=null)=>{try{return fn()}catch(e){toast("Erro controlado: "+(e?.message||e));return fallback}};
+const $=s=>document.querySelector(s), all=s=>[...document.querySelectorAll(s)];
+const F={
+  getState:()=>safe(()=>S()),
+  getSelected:()=>safe(()=>{const s=S();return s?.nodes?.find?.(n=>n.id===s.selected)||null}),
+  select:id=>safe(()=>{const s=S();if(!s)return false;s.selected=id;C().render?.();return true}),
+  clearSelection:()=>safe(()=>{const s=S();if(!s)return false;s.selected=null;C().render?.();return true}),
+  getObjectCount:()=>safe(()=>S()?.nodes?.length||0,0),
+  getObjectById:id=>safe(()=>S()?.nodes?.find?.(n=>n.id===id)||null),
+  getChildren:id=>safe(()=>S()?.nodes?.filter?.(n=>n.parent===id)||[],[]),
+  getRoots:()=>safe(()=>S()?.nodes?.filter?.(n=>!n.parent)||[],[]),
+  setProjectName:n=>safe(()=>{const s=S();if(!s)return false;s.project=String(n||"Untitled");C().save?.(false);return true}),
+  getProjectName:()=>safe(()=>S()?.project||"Untitled"),
+  setGridSize:n=>safe(()=>{const s=S();s.grid=Math.max(.05,Number(n)||1);C().render?.();return s.grid}),
+  getGridSize:()=>safe(()=>Number(S()?.grid)||1,1),
+  setSnapSize:n=>safe(()=>{const s=S();s.snap=Math.max(.01,Number(n)||.25);C().save?.(false);return s.snap}),
+  toggleGrid:()=>safe(()=>{C().toggleGrid?.();return true}),
+  saveProject:()=>safe(()=>{C().save?.(true);return true}),
+  undo:()=>safe(()=>{C().undo?.();return true}),
+  redo:()=>safe(()=>{C().redo?.();return true}),
+  duplicateSelected:()=>safe(()=>{C().duplicate?.();return true}),
+  deleteSelected:()=>safe(()=>{C().remove?.();return true}),
+  renameSelected:n=>safe(()=>{C().rename?.(String(n||"Object"));return true}),
+  focusSelected:()=>safe(()=>{C().focus?.();return true}),
+  topView:()=>safe(()=>{C().view?.("top");return true}),
+  frontView:()=>safe(()=>{C().view?.("front");return true}),
+  rightView:()=>safe(()=>{C().view?.("right");return true}),
+  resetView:()=>safe(()=>{C().view?.("home");return true}),
+  setTool:t=>safe(()=>{C().setTool?.(t);return true}),
+  play:()=>safe(()=>{document.querySelector("#playBtn")?.click();return true}),
+  stop:()=>safe(()=>{if(document.querySelector("#playBadge.on"))document.querySelector("#playBtn")?.click();return true}),
+  screenshot:()=>safe(()=>{C().screenshot?.();return true}),
+  newProject:()=>safe(()=>{C().newProject?.();return true}),
+  openCommandPalette:()=>safe(()=>{C().commandPalette?.();return true}),
+  openParty:()=>safe(()=>window.StudioLiteParty?.open?.()||false),
+  openConsole:()=>safe(()=>window.StudioLiteConsole?.open?.()||false),
+  clearConsole:()=>safe(()=>window.StudioLiteConsole?.clear?.()||false),
+  runDiagnostics:()=>safe(()=>window.StudioLiteDiagnostics?.run?.()||null),
+  openHelp:tab=>safe(()=>window.StudioLiteDiagnostics?.openHelp?.(tab)||false),
+  set2D:()=>safe(()=>window.StudioLiteSet2D?.()||false),
+  repairViewport:()=>safe(()=>window.StudioLitePro?.repair?.()||false),
+  setRenderMode:m=>safe(()=>window.StudioLitePro?.mode?.(m)||false),
+  getRenderMode:()=>safe(()=>localStorage.getItem("studio-lite-universal-v7.mode")||"auto"),
+  exportJSON:()=>safe(()=>C().exportProject?.()||false),
+  importJSONText:t=>safe(()=>{const f=new File([String(t)],"project.json",{type:"application/json"});return f}),
+  validateProject:()=>safe(()=>{const s=S();return !!s?.nodes?.every?.(n=>n&&n.id&&n.type)}),
+  countType:t=>safe(()=>S()?.nodes?.filter?.(n=>n.type===t).length||0,0),
+  listTypes:()=>safe(()=>[...new Set((S()?.nodes||[]).map(n=>n.type))],[]),
+  listNames:()=>safe(()=>[...(S()?.nodes||[])].map(n=>n.name||n.type),[]),
+  setSelectedVisible:v=>safe(()=>{const n=F.getSelected();if(!n)return false;n.visible=!!v;C().render?.();C().save?.(false);return true}),
+  setSelectedLocked:v=>safe(()=>{const n=F.getSelected();if(!n)return false;n.locked=!!v;C().save?.(false);return true}),
+  setSelectedAnchored:v=>safe(()=>{const n=F.getSelected();if(!n)return false;n.anchored=!!v;C().save?.(false);return true}),
+  setSelectedCanCollide:v=>safe(()=>{const n=F.getSelected();if(!n)return false;n.canCollide=!!v;C().save?.(false);return true}),
+  setSelectedTransparency:v=>safe(()=>{const n=F.getSelected();if(!n)return false;n.transparency=Math.max(0,Math.min(1,Number(v)||0));C().render?.();C().save?.(false);return true}),
+  setSelectedMaterial:v=>safe(()=>{const n=F.getSelected();if(!n)return false;n.material=String(v||"Plastic");C().render?.();C().save?.(false);return true}),
+  setSelectedColor:v=>safe(()=>{const n=F.getSelected();if(!n)return false;n.color=String(v||"#ffffff");C().render?.();C().save?.(false);return true}),
+  setSelectedPosition:v=>safe(()=>{const n=F.getSelected();if(!n)return false;n.position={x:Number(v?.x)||0,y:Number(v?.y)||0,z:Number(v?.z)||0};C().render?.();C().save?.(false);return true}),
+  setSelectedRotation:v=>safe(()=>{const n=F.getSelected();if(!n)return false;n.rotation={x:Number(v?.x)||0,y:Number(v?.y)||0,z:Number(v?.z)||0};C().render?.();C().save?.(false);return true}),
+  setSelectedSize:v=>safe(()=>{const n=F.getSelected();if(!n)return false;n.size={x:Math.max(.05,Number(v?.x)||1),y:Math.max(.05,Number(v?.y)||1),z:Math.max(.05,Number(v?.z)||1)};C().render?.();C().save?.(false);return true}),
+  moveSelected:d=>safe(()=>{const n=F.getSelected();if(!n)return false;n.position??={x:0,y:0,z:0};n.position.x+=(Number(d?.x)||0);n.position.y+=(Number(d?.y)||0);n.position.z+=(Number(d?.z)||0);C().render?.();C().save?.(false);return true}),
+  rotateSelected:d=>safe(()=>{const n=F.getSelected();if(!n)return false;n.rotation??={x:0,y:0,z:0};n.rotation.x+=(Number(d?.x)||0);n.rotation.y+=(Number(d?.y)||0);n.rotation.z+=(Number(d?.z)||0);C().render?.();C().save?.(false);return true}),
+  scaleSelected:d=>safe(()=>{const n=F.getSelected();if(!n)return false;n.size??={x:1,y:1,z:1};n.size.x=Math.max(.05,n.size.x*(Number(d?.x)||1));n.size.y=Math.max(.05,n.size.y*(Number(d?.y)||1));n.size.z=Math.max(.05,n.size.z*(Number(d?.z)||1));C().render?.();C().save?.(false);return true}),
+  getTree:()=>safe(()=>{const nodes=S()?.nodes||[];const walk=(parent=null)=>nodes.filter(n=>(n.parent||null)===parent).map(n=>({...n,children:walk(n.id)}));return walk(null)},[]),
+  flattenTree:()=>safe(()=>F.getTree().flatMap(function walk(n){return n.flatMap(x=>[x,...walk(x.children||[])] )}),[]),
+  orphanCount:()=>safe(()=>{const nodes=S()?.nodes||[],ids=new Set(nodes.map(n=>n.id));return nodes.filter(n=>n.parent&&!ids.has(n.parent)).length},0),
+  duplicateIdCount:()=>safe(()=>{const a=S()?.nodes||[],m=new Map();a.forEach(n=>m.set(n.id,(m.get(n.id)||0)+1));return [...m.values()].filter(x=>x>1).length},0),
+  repairHierarchy:()=>safe(()=>{const s=S();if(!s)return false;const ids=new Set(s.nodes.map(n=>n.id));s.nodes.forEach(n=>{if(n.parent&&!ids.has(n.parent))n.parent=null});C().save?.(false);C().render?.();return true}),
+  centerSelected:()=>safe(()=>{const n=F.getSelected();if(!n)return false;n.position={x:0,y:0,z:0};C().render?.();return true}),
+  resetSelectedTransform:()=>safe(()=>{const n=F.getSelected();if(!n)return false;n.position={x:0,y:0,z:0};n.rotation={x:0,y:0,z:0};n.size={x:1,y:1,z:1};C().render?.();return true}),
+  selectFirst:()=>safe(()=>{const n=S()?.nodes?.[0];return n?F.select(n.id):false}),
+  selectLast:()=>safe(()=>{const a=S()?.nodes||[],n=a[a.length-1];return n?F.select(n.id):false}),
+  selectByType:t=>safe(()=>{const n=S()?.nodes?.find?.(x=>x.type===t);return n?F.select(n.id):false}),
+  selectByName:t=>safe(()=>{const n=S()?.nodes?.find?.(x=>String(x.name).toLowerCase()===String(t).toLowerCase());return n?F.select(n.id):false}),
+  searchObjects:t=>safe(()=>{const x=String(t||"").toLowerCase();return(S()?.nodes||[]).filter(n=>String(n.name||"").toLowerCase().includes(x)||String(n.type||"").toLowerCase().includes(x))},[]),
+  projectStats:()=>safe(()=>{const a=S()?.nodes||[];return{objects:a.length,types:F.listTypes().length,scripts:a.filter(n=>/script/i.test(n.type||"")).length,models:a.filter(n=>n.type==="Model").length,folders:a.filter(n=>n.type==="Folder").length,orphans:F.orphanCount()}},{}),
+  setAutoSave:v=>safe(()=>{const s=S();if(!s)return false;s.settings??={};s.settings.autosave=!!v;C().save?.(false);return true}),
+  getSettings:()=>safe(()=>({...S()?.settings}),{}),
+  setSetting:(k,v)=>safe(()=>{const s=S();s.settings??={};s.settings[k]=v;C().save?.(false);return true}),
+  getSetting:k=>safe(()=>S()?.settings?.[k]),
+  copySelected:()=>safe(()=>{document.execCommand?.("copy");return true}),
+  focusExplorer:()=>safe(()=>{$("#explorerSearch")?.focus();return true}),
+  focusCode:()=>safe(()=>{$(".file-editor-card textarea,textarea")?.focus();return true}),
+  closeTopModal:()=>safe(()=>{const m=all("#modalRoot .modal-bg").at(-1);if(m){m.remove();return true}return false}),
+  closeAllModals:()=>safe(()=>{all("#modalRoot .modal-bg").forEach(x=>x.remove());all(".modal-bg").forEach(x=>{if(x.id!=="studioPro16")x.remove()});return true}),
+  isWebGL:()=>safe(()=>!!C().renderer,false),
+  is2D:()=>safe(()=>getComputedStyle(C().fallbackCanvas||document.body).visibility!=="hidden"&&!!C().fallbackCanvas,false),
+  memorySnapshot:()=>safe(()=>({localStorageBytes:Object.values(localStorage).join("").length,objects:F.getObjectCount(),history:S()?.history?.length||0}),{}),
+  healthScore:()=>safe(()=>{const d=F.runDiagnostics();return d?Math.round((d.passed/d.total)*100):0},0),
+  ping:()=>true,
+  version:()=> "Studio Lite Pro Toolkit 1.0",
+  resetMode:()=>safe(()=>F.setRenderMode("auto")),
+  mobilePanels:()=>safe(()=>{document.querySelector("#explorerBtn")?.click();document.querySelector("#inspectorBtn")?.click();return true}),
+  toggleFullscreen:()=>safe(()=>{document.fullscreenElement?document.exitFullscreen?.():document.documentElement.requestFullscreen?.();return true}),
+  exportStats:()=>safe(()=>JSON.stringify(F.projectStats(),null,2)),
+  audit:()=>safe(()=>({valid:F.validateProject(),orphans:F.orphanCount(),duplicateIds:F.duplicateIdCount(),stats:F.projectStats()}),{}),
+  safeRender:()=>safe(()=>{C().resize?.();C().render?.(false);return true}),
+  safeSave:()=>safe(()=>{C().save?.(false);return true}),
+  emergencyRepair:()=>safe(()=>{F.repairHierarchy();F.resetMode();return F.safeRender()}),
+  help:()=>Object.keys(F),
+  noop:()=>true
+};
+window.StudioLiteProTools=F;
+window.StudioLiteAPI={...F};
 })();
