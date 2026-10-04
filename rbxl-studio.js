@@ -38,10 +38,8 @@ function compactNode(n){
   const x={id:n.id,name:n.name,type:n.type,position:vec3(n.position),rotation:vec3(n.rotation),size:vec3(n.size),
     color:n.color,material:n.material,shape:n.shape,anchored:n.anchored,canCollide:n.canCollide,
     transparency:n.transparency,locked:n.locked,visible:n.visible,parent:n.parent,script:n.script||"",
-    language:n.language,sourceClass:n.sourceClass};
+    language:n.language,sourceClass:n.sourceClass,rbxProperties:n.rbxProperties||null};
   if(n.customProperties&&typeof n.customProperties==="object")x.customProperties=n.customProperties;
-  // Nunca copie rbxProperties para o LocalStorage: arquivos RBXL grandes podem
-  // exceder a cota do navegador. As propriedades completas permanecem na memória/IndexedDB.
   return x;
 }
 function compactState(state){
@@ -53,12 +51,9 @@ function compactState(state){
 // incompatibilidades de runtime que podiam terminar em:
 // "Cannot read properties of undefined (reading 'buffer')".
 const PARSER_URLS=[
-  // Parser moderno: funciona no navegador e aceita ArrayBuffer/Uint8Array.
   "https://cdn.jsdelivr.net/npm/rbx-reader-rts@1.0.8/+esm",
-  // Fallback legado.
-  "https://cdn.jsdelivr.net/gh/MrSprinkleToes/rbxBinaryParser@6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js",
-  "/api/roblox/rbx-parser?v=20261004-v29",
-  "https://raw.githubusercontent.com/MrSprinkleToes/rbxBinaryParser/6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js"
+  "/api/roblox/rbx-parser?v=20261004-v30",
+  "https://cdn.jsdelivr.net/gh/MrSprinkleToes/rbxBinaryParser@6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js"
 ];
 let parserPromise=null;
 
@@ -74,37 +69,38 @@ async function loadBinaryParser(){
   if(parserPromise)return parserPromise;
   parserPromise=(async()=>{
     const candidates=[];
-    const errors=[];
     for(const url of PARSER_URLS){
       try{
         const m=await import(url);
+        const parseBuffer=m?.parseBuffer||m?.default?.parseBuffer;
         const parseRBX=m?.parseRBX||m?.default?.parseRBX;
         const decode=m?.decode||m?.default?.decode;
-        if(typeof parseRBX==="function"||typeof decode==="function") candidates.push({url,parseRBX,decode});
-        else errors.push(url+" → nenhum decodificador exportado");
-      }catch(e){errors.push(url+" → import: "+(e?.message||String(e)))}
+        if(typeof parseBuffer==="function"||typeof parseRBX==="function"||typeof decode==="function"){
+          candidates.push({url,parseBuffer,parseRBX,decode});
+        }
+      }catch{}
     }
+    if(!candidates.length)throw new Error("Nenhum decodificador RBXL está disponível.");
     return async buffer=>{
       const ab=buffer instanceof ArrayBuffer?buffer:(buffer instanceof Uint8Array?buffer.buffer.slice(buffer.byteOffset,buffer.byteOffset+buffer.byteLength):null);
-      if(!ab||ab.byteLength<16)throw new Error("Buffer RBXL inválido ou incompleto.");
+      if(!ab||ab.byteLength<16)throw new Error("Arquivo RBXL vazio ou incompleto.");
+      const failures=[];
       for(const candidate of candidates){
         try{
           let result;
-          if(typeof candidate.parseRBX==="function"){
-            result=await candidate.parseRBX(new Uint8Array(ab));
-            if(result&&(result.root||Array.isArray(result.instances)||Array.isArray(result)))return {__modern:true,result,parser:candidate.url};
-            throw new Error("parseRBX() retornou um resultado vazio.");
-          }
-          result=await candidate.decode(ab);
-          if(result&&(result.root||Array.isArray(result.instances)||Array.isArray(result)))return {__modern:false,result,parser:candidate.url};
-          throw new Error("decode() retornou um resultado vazio.");
-        }catch(e){errors.push(candidate.url+" → execução: "+(e?.message||String(e)))}
+          if(typeof candidate.parseBuffer==="function")result=await candidate.parseBuffer(ab);
+          else if(typeof candidate.parseRBX==="function")result=await candidate.parseRBX(new Uint8Array(ab));
+          else result=await candidate.decode(ab);
+          if(result&&(result.root||result.instances||result.Instances||Array.isArray(result)))return {result,parser:candidate.url};
+          failures.push(candidate.url+" → resultado vazio");
+        }catch(e){failures.push(candidate.url+" → "+(e?.message||String(e)))}
       }
-      throw new Error("Nenhum parser binário conseguiu ler este RBXL. "+errors.join(" | "));
+      throw new Error("Não foi possível decodificar o arquivo. "+failures.join(" | "));
     };
   })().catch(e=>{parserPromise=null;throw e});
   return parserPromise;
 }
+function prepareBinaryImport(){return loadBinaryParser().then(()=>true).catch(()=>false)}
 
 function normalizeBinaryResult(parsed){
  const result=parsed?.result??parsed;
@@ -186,30 +182,38 @@ function repairServerParents(nodes){
  });
 }
 async function parseFile(file){
+ const ext=String(file?.name||"").toLowerCase().split(".").pop();
+ const allowed=["rbxl","rbxlx","rbxm","rbxmx"];
+ if(!allowed.includes(ext))throw new Error("Formato não suportado. Use RBXL, RBXLX, RBXM ou RBXMX.");
+ if(!file||file.size<=0)throw new Error("O arquivo está vazio.");
+ if(file.size>80*1024*1024)throw new Error("O arquivo é maior que o limite de 80 MB.");
  const buf=await file.arrayBuffer();
- if(!(buf instanceof ArrayBuffer)||buf.byteLength===0)throw new Error("Etapa 1/7 — não foi possível ler o conteúdo do arquivo.");
+ if(!(buf instanceof ArrayBuffer)||buf.byteLength===0)throw new Error("Não foi possível ler o arquivo.");
  const bytes=new Uint8Array(buf);
- const sig=String.fromCharCode(...bytes.slice(0,8));
- if(sig==="<roblox"){
-   try{return parseXML(new TextDecoder("utf-8").decode(bytes))}
-   catch(e){throw new Error("Etapa 3/7 — falha no XML: "+(e?.message||String(e)))}
+ const head=new TextDecoder("utf-8").decode(bytes.slice(0,256)).replace(/^\uFEFF/,"").trimStart();
+ const binary=bytes.length>=8&&String.fromCharCode(...bytes.slice(0,8))==="<roblox!";
+ const xml=head.startsWith("<roblox")||ext==="rbxlx"||ext==="rbxmx";
+ if(xml){
+   try{
+     const nodes=parseXML(new TextDecoder("utf-8").decode(bytes));
+     if(!Array.isArray(nodes)||!nodes.length)throw new Error("O XML não contém instâncias.");
+     return nodes;
+   }catch(e){throw new Error("Não foi possível ler o XML Roblox: "+(e?.message||String(e)))}
  }
- if(sig==="<roblox!"){
+ if(binary){
    try{
      const serverNodes=await parseServerBinary(file);
      if(serverNodes.length)return repairServerParents(serverNodes);
-   }catch(serverError){console.warn("RBXL server parser unavailable:",serverError)}
+   }catch(e){console.warn("Servidor RBXL indisponível; usando parser do navegador.",e)}
    try{
      const decode=await loadBinaryParser();
      const parsed=await decode(buf);
      const nodes=fromBinaryObjectTree(normalizeBinaryResult(parsed));
-     if(!nodes.length)throw new Error("parser não retornou instâncias");
-     return nodes;
-   }catch(e){
-     throw new Error("Etapa 5/7 — falha ao decodificar RBXL binário. "+(e?.message||String(e)));
-   }
+     if(nodes.length)return nodes;
+   }catch(e){console.warn("Parser RBXL do navegador falhou.",e)}
+   throw new Error("Não foi possível importar este arquivo binário Roblox. O formato pode usar dados que este Studio ainda não consegue converter.");
  }
- throw new Error("Etapa 2/7 — assinatura inválida. O arquivo não parece ser RBXL/RBXLX.");
+ throw new Error("Arquivo Roblox inválido ou formato não reconhecido.");
 }
 function summarize(nodes){
  const scripts=nodes.filter(n=>scriptClasses.has(n.type)).length;
@@ -226,7 +230,6 @@ function backup(){
 }
 async function importFull(file){
  if(!file)return;
- if(!/\.(rbxl|rbxlx|rbxm|rbxmx)$/i.test(file.name))throw new Error("Escolha um arquivo .rbxl, .rbxlx, .rbxm ou .rbxmx.");
  status("Lendo Place Roblox…");
  const nodes=cleanNodes(await parseFile(file));
  if(!nodes.length)throw new Error("O Place não possui instâncias compatíveis.");
@@ -249,6 +252,11 @@ function openStudioImport(){
  '<div class="rbxl-actions"><button id="rbxlCancel">Cancelar</button></div><div id="rbxlProgress" class="rbxl-progress"></div></div>';
  document.body.appendChild(bg);
  const picker=$("#rbxlPicker"),drop=$("#rbxlDrop"),progress=$("#rbxlProgress");
+prepareBinaryImport().then(ok=>{
+  progress.innerHTML=ok
+    ? "<span>✓ Importador binário pronto</span>"
+    : "<span>Importador binário será ativado automaticamente quando necessário.</span>";
+});
  const close=()=>bg.remove();
  $("#rbxlClose").onclick=close;$("#rbxlCancel").onclick=close;
  drop.onclick=()=>picker.click();
@@ -257,14 +265,14 @@ function openStudioImport(){
  drop.addEventListener("drop",e=>{const f=e.dataTransfer?.files?.[0];if(f)process(f)});
  picker.onchange=()=>{const f=picker.files?.[0];if(f)process(f)};
  async function process(file){
-   progress.innerHTML='<span class="spin"></span> Analisando '+esc(file.name)+'…';
+   progress.innerHTML='<span class="spin"></span> Importando '+esc(file.name)+'…';
    try{
      const summary=await importFull(file);
      progress.innerHTML='<b>✓ Importação concluída</b><span>'+summary.total+' instâncias • '+summary.scripts+' scripts • '+summary.visual+' objetos 3D • '+summary.services+' serviços</span>';
      setTimeout(()=>location.reload(),700);
    }catch(err){
      console.error("RBXL Full Import",err);
-     progress.innerHTML='<b class="error">Falha ao importar</b><span>'+esc(err?.message||String(err))+'</span>';
+     progress.innerHTML='<b class="error">Não foi possível importar</b><span>'+esc(err?.message||String(err))+'</span>';
      status("Falha na importação");
    }
  }
@@ -321,9 +329,9 @@ function install(){
  window.StudioLiteRBXL={open:openStudioImport,importFile:importFull};
 }
 if(document.readyState==="loading"){
-  document.addEventListener("DOMContentLoaded",()=>{install();setTimeout(()=>{bridgeLargeSave();hydrateLargeProject()},80)});
+  document.addEventListener("DOMContentLoaded",()=>{install();setTimeout(()=>{bridgeLargeSave();hydrateLargeProject();prepareBinaryImport()},80)});
 }else{
-  setTimeout(()=>{install();bridgeLargeSave();hydrateLargeProject()},0);
+  setTimeout(()=>{install();bridgeLargeSave();hydrateLargeProject();prepareBinaryImport()},0);
 }
 
 const style=document.createElement("style");style.textContent=
