@@ -689,6 +689,7 @@ function createObject10(type){
 function selectedContainer10(){
  const n=cur();
  if(n&&containerTypes10.has(n.type))return n.id;
+ if(S.__serviceTarget)return S.__serviceTarget;
  return n?.parent||null;
 }
 function addRobloxObject10(type){
@@ -714,7 +715,7 @@ function renderTree10(){
  const t=q10("#tree");if(!t)return;
  const filter=(q10("#treeSearch")?.value||"").toLowerCase().trim();t.innerHTML="";
  const root=document.createElement("div");root.className="root explorer-root";root.innerHTML='<button class="explorer-expander">⌄</button><b>Workspace</b><span class="type">DataModel</span>';
- root.onclick=()=>{expanded10.has("__workspace__")?expanded10.delete("__workspace__"):expanded10.add("__workspace__");renderTree10()};t.appendChild(root);
+ root.onclick=()=>{S.__serviceTarget=null;expanded10.has("__workspace__")?expanded10.delete("__workspace__"):expanded10.add("__workspace__");renderTree10()};t.appendChild(root);
  if(expanded10.has("__workspace__")){
    const walk=(parent,depth)=>{
      descendants10(parent).forEach(n=>{
@@ -737,7 +738,7 @@ function renderTree10(){
    const sid=serviceId10(name),kids=S.nodes.filter(n=>n.parent===sid);
    const b=document.createElement("div");b.className="tree-row service-row";b.style.paddingLeft="7px";
    b.innerHTML='<span class="tree-arrow">'+(expanded10.has(sid)?"▾":"▸")+'</span><span>◆</span><span class="tree-name">'+esc(name)+'</span><span class="type">Service</span>';
-   b.onclick=e=>{if(e.target.closest(".tree-arrow")){expanded10.has(sid)?expanded10.delete(sid):expanded10.add(sid);renderTree10();return}S.selected=null;S.selectedIds=[];render();status(name+" selecionado")};
+   b.onclick=e=>{if(e.target.closest(".tree-arrow")){expanded10.has(sid)?expanded10.delete(sid):expanded10.add(sid);renderTree10();return}S.selected=null;S.selectedIds=[];S.__serviceTarget=sid;render();status(name+" selecionado")};
    b.ondblclick=()=>{expanded10.has(sid)?expanded10.delete(sid):expanded10.add(sid);renderTree10()};
    t.appendChild(b);
    if(expanded10.has(sid))kids.forEach(n=>{const row=document.createElement("div");row.className="tree-row"+(S.selected===n.id?" selected":"");row.style.paddingLeft="25px";row.innerHTML='<span class="tree-arrow">•</span><span>'+esc(icon(n))+'</span><span class="tree-name">'+esc(n.name)+'</span><span class="type">'+esc(n.type)+'</span>';row.onclick=()=>{S.selected=n.id;S.selectedIds=[n.id];render()};row.ondblclick=()=>openExplorerFile10(n);t.appendChild(row)});
