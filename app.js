@@ -990,7 +990,7 @@ const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)],cor
 function mode16(mode){
  mode=String(mode||"auto").toLowerCase();
  try{localStorage.setItem("studio-lite-universal-v7.mode",mode);localStorage.setItem("studio-lite-universal-v6.mode",mode)}catch{}
- if(typeof window.setMode7==="function"){try{window.setMode7(mode);return}catch(e){console.warn("setMode7",e)}}
+ const existing=q(`.u-mode[data-mode="${mode}"]`);if(existing){try{existing.click();return}catch(e){console.warn("mode button",e)}}if(typeof window.setMode7==="function"){try{window.setMode7(mode);return}catch(e){console.warn("setMode7",e)}}
  const c=core(),host=q("#canvas");if(!c||!host)return;
  if(mode==="2d"){try{c.initFallbackCanvas();host.querySelectorAll("canvas").forEach(x=>x.style.visibility=x===c.fallbackCanvas?"visible":"hidden");c.drawFallback?.()}catch(e){console.error(e)}}
  else if(mode==="webgl"){host.querySelectorAll("canvas").forEach(x=>x.style.visibility="visible");c.resize?.();c.render?.(false)}
