@@ -6,7 +6,7 @@
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
 const STORE="studio-lite-v4";
-const PARSER_URL="https://raw.githubusercontent.com/MrSprinkleToes/rbxBinaryParser/8d4c7f3ba6f437912a0573a4e747fabccf9faf21/dist/client/rbxBinaryParser.js";
+const PARSER_URLS=["https://cdn.jsdelivr.net/gh/MrSprinkleToes/rbxBinaryParser@6e9f3a835054bb39ff442d5d830b0c4ac369dea2/dist/client/rbxBinaryParser.js","https://cdn.jsdelivr.net/gh/MrSprinkleToes/rbxBinaryParser@8d4c7f3ba6f437912a0573a4e747fabccf9faf21/dist/client/rbxBinaryParser.js"];
 let parserPromise=null;
 
 const services=new Set([
@@ -156,10 +156,18 @@ function parseXML(text){
 }
 async function loadBinaryParser(){
  if(parserPromise)return parserPromise;
- parserPromise=import(PARSER_URL).then(m=>{
-   if(typeof m.decode!=="function")throw new Error("Parser binário não exportou decode");
-   return m.decode;
- }).catch(e=>{parserPromise=null;throw e});
+ parserPromise=(async()=>{
+   let lastError=null;
+   for(const url of PARSER_URLS){
+     try{
+       const m=await import(url);
+       const decode=m?.decode||m?.default?.decode;
+       if(typeof decode!=="function")throw new Error("Parser binário não exportou decode");
+       return decode;
+     }catch(e){lastError=e}
+   }
+   throw new Error("Não foi possível carregar o parser RBXL binário. Verifique a conexão e tente novamente. Detalhe: "+(lastError?.message||lastError||"erro desconhecido"));
+ })().catch(e=>{parserPromise=null;throw e});
  return parserPromise;
 }
 function fromBinaryObjectTree(objects){
@@ -185,9 +193,14 @@ function fromBinaryObjectTree(objects){
 }
 function cleanNodes(nodes){
  const valid=new Set(nodes.map(n=>n.id));
+ const serviceNames=new Set([...services]);
  return nodes.map(n=>{
    const x=clone(n);
    if(x.parent&&!valid.has(x.parent)&&!String(x.parent).startsWith("service:"))x.parent=null;
+   if(String(x.parent||"").startsWith("service:")){
+     const serviceName=String(x.parent).slice(8);
+     if(!serviceNames.has(serviceName))x.parent=null;
+   }
    delete x.__serviceRoot;
    return x;
  });
