@@ -445,3 +445,105 @@ function optimize8(){
 function install8(){setupNavigation8();optimize8()}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install8);else install8();
 })();
+
+
+/* ===== STUDIO LITE V9 — UI / NAVIGATION / PARTY RELIABILITY ===== */
+(()=>{
+"use strict";
+const q9=s=>document.querySelector(s), qa9=s=>[...document.querySelectorAll(s)];
+const closeLayer9=()=>{
+  const modal=qa9("#modalRoot .modal-bg").at(-1);
+  if(modal){modal.remove();return true}
+  const pop=qa9("#modalRoot .u-pop, body>.u-pop").at(-1);
+  if(pop){pop.remove();return true}
+  const open=qa9(".sidebar.open").at(-1);
+  if(open){open.classList.remove("open");return true}
+  const collapsed=q9(".explorer.collapsed");
+  if(collapsed){collapsed.classList.remove("collapsed");q9(".workspace")?.classList.remove("explorer-collapsed");return true}
+  const play=q9("#playBadge");
+  if(play?.classList.contains("on")){q9("#playBtn")?.click();return true}
+  return false;
+};
+window.studioBack=closeLayer9;
+
+function toggleExplorer9(force){
+  const ex=q9("#explorerPanel"), ws=q9(".workspace");
+  if(!ex)return;
+  if(force===true){ex.classList.remove("collapsed");ws?.classList.remove("explorer-collapsed");ex.classList.add("open");return}
+  if(innerWidth<=850){ex.classList.toggle("open");q9("#inspectorPanel")?.classList.remove("open");return}
+  ex.classList.toggle("collapsed");ws?.classList.toggle("explorer-collapsed",ex.classList.contains("collapsed"));
+}
+function toggleInspector9(force){
+  const ins=q9("#inspectorPanel");
+  if(!ins)return;
+  if(innerWidth<=850)ins.classList.toggle("open",force===undefined?!ins.classList.contains("open"):force);
+  else if(force===false)ins.classList.remove("collapsed");
+}
+
+function installNav9(){
+  q9("#explorerToggle")?.addEventListener("click",e=>{e.preventDefault();toggleExplorer9()});
+  q9("#collapseBtn")?.addEventListener("click",e=>{e.preventDefault();toggleExplorer9()});
+  q9("#inspectorToggle")?.addEventListener("click",e=>{e.preventDefault();toggleInspector9()});
+  q9("#backBtn")?.addEventListener("click",e=>{e.preventDefault();if(!closeLayer9()){try{history.back()}catch{}}});
+  addEventListener("popstate",()=>{if(!closeLayer9()){history.pushState({studioLite:true},"",location.href)}});
+  if(!history.state?.studioLite)history.pushState({studioLite:true},"",location.href);
+  document.addEventListener("keydown",e=>{
+    if(e.key!=="Escape"||/input|textarea|select/i.test(e.target?.tagName||""))return;
+    if(closeLayer9())e.preventDefault();
+  },true);
+  new MutationObserver(()=>qa9("#modalRoot .modal-bg").forEach(m=>{
+    if(m.dataset.v9)return;
+    m.dataset.v9="1";
+    const head=m.querySelector(".modal-head");
+    if(!head)return;
+    const b=document.createElement("button");
+    b.className="studio-back-layer";
+    b.type="button";
+    b.textContent="← Voltar";
+    b.title="Voltar";
+    b.onclick=()=>m.remove();
+    head.insertBefore(b,head.firstChild);
+  })).observe(q9("#modalRoot")||document.body,{childList:true,subtree:true});
+}
+
+function installParty9(){
+  const btn=q9("#uParty");
+  if(btn){
+    btn.textContent="PARTY";
+    btn.title="Colaboração em tempo real";
+    btn.onclick=e=>{e.preventDefault();try{window.StudioLiteParty?.open?.()}catch(err){console.error(err);window.alert("Não foi possível abrir a Party.")}};
+  }
+  const oldOpen=window.StudioLiteParty?.open;
+  if(oldOpen&&!window.__partyOpenV9){
+    window.__partyOpenV9=true;
+    window.StudioLiteParty.open=()=>{try{return oldOpen()}catch(err){console.error(err);toast("Não foi possível abrir a Party");return false}};
+  }
+}
+function installLanguage9(){
+  const map={
+    "CREATE":"CRIAR","EDIT":"EDITAR","TRANSFORM":"TRANSFORMAR","VIEW":"VISUALIZAÇÃO","FILE":"ARQUIVO",
+    "Select":"Selecionar","Move":"Mover","Rotate":"Rotacionar","Scale":"Escalar",
+    "Properties":"Propriedades","Toolbox":"Ferramentas","Rename":"Renomear",
+    "Front":"Frente","Right":"Direita","Top":"Topo","Perspective":"Perspectiva",
+    "Ready":"Pronto","Play":"Executar","Stop":"Parar","Save":"Salvar",
+    "Duplicate":"Duplicar","Delete":"Excluir","Conclude":"Concluir","Cancel":"Cancelar",
+    "STUDIO OBJECTS":"OBJETOS DO STUDIO","WORKSPACE TOOLS":"FERRAMENTAS DO PROJETO",
+    "GENERAL":"GERAL","TRANSFORM":"TRANSFORMAÇÃO","APPEARANCE":"APARÊNCIA","BEHAVIOR":"COMPORTAMENTO","ACTIONS":"AÇÕES",
+    "SCRIPT":"SCRIPT","HIERARCHY":"HIERARQUIA","ADVANCED":"AVANÇADO","MESH":"MESH","TERRAIN BRUSH":"TERRENO"
+  };
+  const walk=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+  const nodes=[];while(walk.nextNode())nodes.push(walk.currentNode);
+  nodes.forEach(n=>{
+    if(n.parentElement?.closest("#tree,.explorer"))return;
+    const v=n.nodeValue.trim();if(map[v])n.nodeValue=n.nodeValue.replace(v,map[v]);
+  });
+  q9("#projectName")?.setAttribute("aria-label","Nome do projeto");
+  q9("#treeSearch")?.setAttribute("placeholder","⌕ Filtrar objetos");
+}
+function installLayout9(){
+  const sync=()=>{if(innerWidth>850){q9("#explorerPanel")?.classList.remove("open");q9("#inspectorPanel")?.classList.remove("open")}};
+  addEventListener("resize",sync,{passive:true});sync();
+}
+function boot9(){installNav9();installParty9();installLanguage9();installLayout9()}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot9);else boot9();
+})();
