@@ -79,7 +79,7 @@ function exec(name,args=[]){
  if(name==="isDescendantOf"||name==="isAncestorOf"){let x=n,needle=a;while(x?.parent){if(x.parent===needle)return name==="isDescendantOf";x=nodes().find(y=>y.id===x.parent)}return false}
  if(["moveNode","moveSelection","setPosition","setMultiPosition"].includes(name))return mutate(()=>{const d=Array.isArray(a)?a:[Number(a?.x)||0,Number(a?.y)||0,Number(a?.z)||0];selectedNodes().forEach(x=>x.position=[...d])});
  if(["rotateNode","rotateSelection","setRotation","setMultiRotation"].includes(name))return mutate(()=>{const d=Array.isArray(a)?a:[Number(a?.x)||0,Number(a?.y)||0,Number(a?.z)||0];selectedNodes().forEach(x=>x.rotation=[...d])});
- if(["scaleNode","scaleSelection","setSize","setMultiSize"].includes(name))return mutate(()=>{const d=Array.isArray(a)?a:[Number(a?.x)||1,Number(a?.y)||1,Number(a?.z)||1];selectedNodes().forEach(x=>x.size=d.map(v=>Math.max(.1,Math.abs(Number(v)||1)))});
+ if(["scaleNode","scaleSelection","setSize","setMultiSize"].includes(name))return mutate(()=>{const d=Array.isArray(a)?a:[Number(a?.x)||1,Number(a?.y)||1,Number(a?.z)||1];selectedNodes().forEach(x=>{x.size=d.map(v=>Math.max(.1,Math.abs(Number(v)||1)))});});
  if(["setColor","setMultiColor"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.color=String(a||"#ffffff")));
  if(["setMaterial","setMultiMaterial"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.material=mats.includes(a)?a:"Plastic"));
  if(["setTransparency"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.transparency=Math.max(0,Math.min(1,Number(a)||0))));
