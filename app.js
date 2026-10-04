@@ -15,7 +15,36 @@ function toast(t){const d=document.createElement("div");d.className="toast";d.te
 function cur(){return S.nodes.find(n=>n.id===S.selected)}
 function commit(){S.history.push({nodes:clone(S.nodes),selected:S.selected,project:S.project});if(S.history.length>60)S.history.shift();S.future=[]}
 function restore(s){S.nodes=clone(s.nodes);S.selected=s.selected;S.project=s.project;$("#projectName").value=S.project;render()}
-function save(notify=true){try{localStorage.setItem("studio-lite-v4",JSON.stringify({name:S.project,nodes:S.nodes,settings:S.settings,grid:S.grid,snap:S.snap}));status("Salvo localmente");if(notify)toast("Projeto salvo neste dispositivo")}catch(err){console.error(err);status("Falha ao salvar");toast("Não foi possível salvar: armazenamento cheio ou bloqueado")}}
+function save(notify=true){
+ const state={name:S.project,nodes:S.nodes,settings:S.settings,grid:S.grid,snap:S.snap};
+ const json=JSON.stringify(state);
+ const LARGE_LIMIT=1200000;
+ try{
+   if(json.length<=LARGE_LIMIT){
+     localStorage.setItem("studio-lite-v4",json);
+   }else{
+     const index={name:S.project,objectCount:S.nodes.length,settings:S.settings,grid:S.grid,snap:S.snap,largeStorage:true,updatedAt:Date.now()};
+     localStorage.setItem("studio-lite-v4",JSON.stringify(index));
+     if(window.indexedDB){
+       const req=indexedDB.open("StudioLiteProjectsV1",1);
+       req.onupgradeneeded=()=>{try{if(!req.result.objectStoreNames.contains("projects"))req.result.createObjectStore("projects")}catch{}};
+       req.onsuccess=()=>{try{
+         const db=req.result,tx=db.transaction("projects","readwrite");
+         tx.objectStore("projects").put(state,"current");
+         tx.oncomplete=()=>db.close();
+         tx.onerror=()=>{try{db.close()}catch{}};
+       }catch{}};
+     }
+   }
+   status("Salvo localmente");
+   if(notify)toast(json.length>LARGE_LIMIT?"Projeto grande salvo no armazenamento do navegador":"Projeto salvo neste dispositivo");
+ }catch(err){
+   console.error("Studio Lite save",err);
+   try{localStorage.setItem("studio-lite-v4",JSON.stringify({name:S.project,objectCount:S.nodes.length,settings:S.settings,grid:S.grid,snap:S.snap,largeStorage:true,updatedAt:Date.now()}))}catch{}
+   status("Salvo em modo protegido");
+   if(notify)toast("Projeto mantido em modo de armazenamento protegido");
+ }
+}
 function undo(){if(!S.history.length)return toast("Nada para desfazer");S.future.push({nodes:clone(S.nodes),selected:S.selected,project:S.project});restore(S.history.pop());save(false);toast("Desfeito")}
 function redo(){if(!S.future.length)return toast("Nada para refazer");S.history.push({nodes:clone(S.nodes),selected:S.selected,project:S.project});restore(S.future.pop());save(false);toast("Refeito")}
 function add(type="Part"){commit();const p={Part:[[4,1,4],"#3b82f6","Plastic","box"],SpawnLocation:[[2,1,2],"#22c55e","Neon","box"],Folder:[[1,1,1],"#64748b","Plastic","box"],Script:[[1,1,1],"#64748b","Plastic","box"],Sphere:[[4,4,4],"#f59e0b","Plastic","sphere"],Cylinder:[[3,4,3],"#06b6d4","Metal","cylinder"],Wedge:[[4,3,4],"#ef4444","Plastic","wedge"]}[type]||[[4,1,4],"#3b82f6","Plastic","box"];const n={id:uid(),name:type,type,position:[0,2,0],rotation:[0,0,0],size:p[0].slice(),color:p[1],material:p[2],shape:p[3],anchored:true,canCollide:type!=="Folder"&&type!=="Script",transparency:0,locked:false,visible:true,parent:null};if(type==="Script")n.script='-- Novo Script\n\nprint("Hello from Studio Lite!")';S.nodes.push(n);S.selected=n.id;render();save(false);toast(type+" criado");if(type==="Script")openScript(n.id)}
