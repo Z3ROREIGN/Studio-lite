@@ -114,7 +114,7 @@ function exec(name,args=[]){
  if(["setMultiPosition","setMultiRotation","setMultiSize"].includes(name))return false;
  if(["setMassless","setCastShadow","setCanQuery","setCanTouch","setArchivable","setRoughness","setReflectance","setMetalness"].includes(name))return mutate(()=>selectedNodes().forEach(x=>{x.customProperties??={};x.customProperties[name]=a??true}));
  if(["setGlassTransparency"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.transparency=Math.max(.05,Math.min(1,Number(a) || .35)));
- if(["growSelection","shrinkSelection","scaleUniform"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.size=x.size.map(v=>Math.max(.1,v*(name==="shrinkSelection"?0.9:(Number(a)||1.1))))));
+ if(["growSelection","shrinkSelection","scaleUniform"].includes(name))return mutate(()=>{const factor=name==="shrinkSelection"?0.9:(Number(a)||1.1);selectedNodes().forEach(x=>{x.size=(x.size||[1,1,1]).map(v=>Math.max(.1,v*factor))})});
  if(["mirrorX","mirrorY","mirrorZ"].includes(name))return mutate(()=>selectedNodes().forEach(x=>{const k={mirrorX:0,mirrorY:1,mirrorZ:2}[name];x.position[k]*=-1;x.rotation[k]*=-1}));
  if(["rotate90","rotate180","rotate270"].includes(name))return mutate(()=>selectedNodes().forEach(x=>x.rotation[1]+={rotate90:90,rotate180:180,rotate270:270}[name]));
  if(["clampPosition","clampRotation","clampSize"].includes(name))return mutate(()=>selectedNodes().forEach(x=>{const k=name==="clampPosition"?"position":name==="clampRotation"?"rotation":"size";x[k]=x[k].map(v=>name==="clampSize"?Math.max(.1,Math.min(100,Number(v)||1)):Math.max(-10000,Math.min(10000,Number(v)||0)))}));
