@@ -6,22 +6,42 @@ const clean = v => String(v ?? "").trim();
 const validId = v => /^\d+$/.test(clean(v));
 
 async function roblox(path, apiKey, init = {}) {
-  const r = await fetch(BASE + path, {
-    ...init,
-    headers: { "x-api-key": apiKey, ...(init.headers || {}) },
-  });
-  const text = await r.text();
-  let data = {};
-  try { data = text ? JSON.parse(text) : {}; } catch { data = { message: text }; }
-  return { status: r.status, ok: r.ok, data };
+  const maxRetries = 5;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const r = await fetch(BASE + path, {
+      ...init,
+      headers: { "x-api-key": apiKey, ...(init.headers || {}) },
+    });
+    const text = await r.text();
+    let data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { message: text }; }
+    const headers = Object.fromEntries(r.headers.entries());
+    if (r.status !== 429 || attempt === maxRetries) return { status: r.status, ok: r.ok, data, headers };
+
+    const retryAfter = Number(headers["retry-after"]);
+    const reset = Number(headers["x-ratelimit-reset"]);
+    const waitSeconds = Number.isFinite(retryAfter) && retryAfter > 0
+      ? retryAfter
+      : Number.isFinite(reset) && reset > 0
+        ? reset
+        : Math.min(2 ** attempt * 2, 20);
+    await new Promise(resolve => setTimeout(resolve, Math.ceil(waitSeconds * 1000)));
+  }
 }
 
 async function operation(path, apiKey) {
-  for (let i = 0; i < 20; i++) {
+  // Roblox recommends polling asynchronous operations roughly every 5 seconds.
+  for (let i = 0; i < 10; i++) {
     const r = await roblox("/" + String(path).replace(/^\//, ""), apiKey);
-    if (!r.ok) throw new Error(r.data?.message || r.data?.error || ("Roblox operation HTTP " + r.status));
+    if (!r.ok) {
+      const message = r.data?.message || r.data?.error || ("Roblox operation HTTP " + r.status);
+      const error = new Error(message);
+      error.status = r.status;
+      error.headers = r.headers;
+      throw error;
+    }
     if (r.data?.done) return r.data?.response || r.data;
-    await new Promise(resolve => setTimeout(resolve, Math.min(1200 + i * 250, 3500)));
+    await new Promise(resolve => setTimeout(resolve, 5000));
   }
   throw new Error("O Roblox Open Cloud demorou demais para concluir a operação.");
 }
@@ -126,6 +146,23 @@ export default async function handler(req, res) {
     return json(res, 400, { ok: false, error: "Ação inválida." });
   } catch (error) {
     console.error("Studio RBXL Open Cloud:", error);
+    const status = Number(error?.status);
+    if (status === 429) {
+      const reset = Number(error?.headers?.["x-ratelimit-reset"]);
+      return json(res, 429, {
+        ok: false,
+        code: "ROBLOX_RATE_LIMITED",
+        error: "O Roblox limitou temporariamente as solicitações. Aguarde alguns segundos e tente novamente.",
+        retryAfter: Number.isFinite(reset) && reset > 0 ? reset : 5
+      });
+    }
+    if (status === 403) {
+      return json(res, 403, {
+        ok: false,
+        code: "ROBLOX_FORBIDDEN",
+        error: error?.message || "A chave do Roblox não tem a permissão necessária."
+      });
+    }
     return json(res, 500, { ok: false, error: error?.message || String(error) });
   }
 }
