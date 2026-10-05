@@ -25,6 +25,10 @@ async function roblox(path, apiKey, init = {}) {
 async function operation(path, apiKey) {
   for (let i = 0; i < 8; i++) {
     const r = await roblox("/" + String(path).replace(/^\//, ""), apiKey);
+    if (r.status === 409 && i < 7) {
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      continue;
+    }
     if (!r.ok) { const e = new Error(r.data?.message || r.data?.error || ("Roblox operation HTTP " + r.status)); e.status = r.status; e.headers = r.headers; throw e; }
     if (r.data?.done) return r.data?.response || r.data;
     await new Promise(resolve => setTimeout(resolve, 2500));
