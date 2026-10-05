@@ -1,0 +1,22 @@
+/* Studio Lite Main UI — professional shell */
+body{background:#06090e!important;color:#edf2f8!important}
+#app{background:radial-gradient(900px 450px at 50% -18%,rgba(67,125,255,.09),transparent 65%)}
+.topbar{height:62px!important;padding:0 14px!important;background:rgba(7,11,17,.96)!important;border-bottom:1px solid #1d2a3a!important;box-shadow:0 8px 35px rgba(0,0,0,.18)}
+.brand{min-width:205px!important}.brand .logo{border-radius:10px!important;background:linear-gradient(145deg,#f4f7fb,#bfc9d8)!important;box-shadow:0 7px 24px rgba(90,145,255,.16)}
+.project{height:38px!important;max-width:390px;border:1px solid #1d2a3a!important;background:#0b1119!important;box-shadow:inset 0 1px rgba(255,255,255,.025)}
+.actions{gap:6px!important}.actions button{min-width:34px;height:34px!important;border-radius:8px!important}
+.toolbar{height:58px!important;padding:7px 12px!important;background:#080d14!important;border-bottom:1px solid #1d2a3a!important}
+.tool-group{padding:7px!important;background:#0b1119!important;border:1px solid #1b2939!important;border-radius:10px!important}
+.tool-group b{color:#68778b!important;font-size:8px!important}
+.toolbar button{height:32px!important;border-radius:7px!important;background:#101722!important;border-color:#25364a!important}
+.toolbar button:hover{background:#162130!important;border-color:#3b5572!important}
+.workspace{height:calc(100vh - 146px)!important;gap:1px;background:#1b2635}
+.sidebar{background:#080d14!important}.explorer{border-right:1px solid #1d2a3a!important}.inspector{border-left:1px solid #1d2a3a!important}
+.side-head{height:50px!important;background:#0a1018;border-bottom-color:#1b2939!important}
+.tree-search{padding:9px!important}.tree-search input{height:34px!important;background:#0a1018!important;border-color:#243448!important;border-radius:8px!important}
+.tree-row{height:33px!important;border-radius:7px!important;margin:1px 0!important}.tree-row.selected{background:#172334!important;box-shadow:inset 2px 0 #65a5ff!important}
+.viewport{background:#04070b!important}.viewport-top{top:12px!important}.hud span,.selection-info,.hint{border-color:#26364a!important;background:rgba(7,11,17,.88)!important;color:#8291a4!important}
+.tabs{height:50px!important;background:#0a1018}.tab.active{border-bottom-color:#68a9ff!important}
+footer{height:27px!important;background:#080d14!important;border-top-color:#1d2a3a!important}
+@media(max-width:850px){.topbar{height:56px!important}.toolbar{height:54px!important}.workspace{height:calc(100vh - 137px)!important}.brand{min-width:auto!important}}
+@media(max-width:600px){.topbar{padding:0 7px!important}.actions .primary{font-size:11px}.toolbar{padding:6px!important}.tool-group{padding:5px!important}.workspace{height:calc(100vh - 137px)!important}}
