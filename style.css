@@ -561,3 +561,14 @@ footer{height:30px;background:#080b10;border-top:1px solid var(--line);color:#66
  .view-actions{display:none}.hud span:nth-child(3){display:none}
  .topbar .actions #undoBtn,.topbar .actions #redoBtn,.topbar .actions #settingsBtn{display:none}
 }
+
+
+/* FINAL BLACK THEME — neutralize remaining blue accents */
+:root{--accent:#fff!important;--accent2:#fff!important}
+html,body{background:#050505!important}
+.actions button.primary,.toolbar button.accent{background:#ededed!important;color:#080808!important;border-color:#fff!important;box-shadow:none!important}
+.actions button.primary:hover,.toolbar button.accent:hover{background:#fff!important;color:#000!important}
+.toolbar,.topbar{background:#080808!important}
+.toolbar button.active,.tree-row.selected{background:#202020!important;color:#fff!important;border-color:#444!important;box-shadow:inset 0 -2px #fff!important}
+.viewport{background:#050505!important}
+.tree-search input:focus,.rbxl-search:focus,.rbxl-form input:focus{border-color:#fff!important;box-shadow:0 0 0 3px rgba(255,255,255,.06)!important}
