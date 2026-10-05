@@ -6,6 +6,6 @@
     "rbx-reader": "^1.5.10"
   },
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   }
 }
