@@ -20,3 +20,50 @@ body{background:#06090e!important;color:#edf2f8!important}
 footer{height:27px!important;background:#080d14!important;border-top-color:#1d2a3a!important}
 @media(max-width:850px){.topbar{height:56px!important}.toolbar{height:54px!important}.workspace{height:calc(100vh - 137px)!important}.brand{min-width:auto!important}}
 @media(max-width:600px){.topbar{padding:0 7px!important}.actions .primary{font-size:11px}.toolbar{padding:6px!important}.tool-group{padding:5px!important}.workspace{height:calc(100vh - 137px)!important}}
+
+/* ===== Main workspace v2: organized desktop/mobile layout ===== */
+.topbar{height:64px!important;gap:10px!important;padding:0 14px!important}
+.topbar .brand{flex:0 0 205px}
+.topbar .project{min-width:180px}
+.topbar .actions{flex:0 0 auto;display:flex;align-items:center;flex-wrap:nowrap}
+.toolbar{height:104px!important;min-height:104px!important;display:flex!important;align-content:flex-start!important;align-items:stretch!important;flex-wrap:wrap!important;gap:7px!important;padding:8px 10px!important;overflow-x:hidden!important;overflow-y:auto!important;scrollbar-width:thin}
+.toolbar .tool-group{flex:0 1 auto!important;min-height:40px!important;max-width:100%!important;display:flex!important;align-items:center!important;flex-wrap:wrap!important;gap:4px!important;padding:6px!important}
+.toolbar .tool-group b{flex:0 0 auto!important;padding:0 4px!important}
+.toolbar>i{height:30px!important;align-self:center!important;flex:0 0 1px!important}
+.toolbar button{height:30px!important;padding:0 8px!important}
+.workspace{height:calc(100vh - 195px)!important;grid-template-columns:minmax(250px,280px) minmax(0,1fr) minmax(290px,330px)!important;gap:0!important;background:#121a24!important}
+.workspace .sidebar{min-height:0!important}
+.workspace .explorer,.workspace .inspector{box-shadow:none!important}
+.workspace .explorer{border-right:1px solid #263447!important}
+.workspace .inspector{border-left:1px solid #263447!important}
+.workspace .viewport{min-width:0!important;min-height:0!important}
+.explorer .side-head,.inspector .tabs{background:#0a1119!important}
+.tree{padding:8px!important}
+.tree-row{height:34px!important;margin:2px 0!important}
+.tree-row.selected{background:#172437!important}
+.inspector #panel{padding:14px!important}
+.viewport-top{z-index:4!important}
+.viewport .hint{bottom:14px!important}
+footer{height:27px!important}
+@media(max-width:1100px){
+  .topbar{height:60px!important}
+  .topbar .brand{flex-basis:170px}
+  .toolbar{height:112px!important;min-height:112px!important}
+  .workspace{height:calc(100vh - 199px)!important;grid-template-columns:235px minmax(0,1fr) 285px!important}
+}
+@media(max-width:850px){
+  .topbar{height:56px!important}
+  .toolbar{height:92px!important;min-height:92px!important;overflow-x:auto!important;overflow-y:auto!important;align-content:flex-start!important}
+  .toolbar .tool-group{max-width:none!important}
+  .workspace{height:calc(100vh - 175px)!important;grid-template-columns:1fr!important}
+  .explorer,.inspector{position:absolute!important;top:0!important;bottom:0!important}
+}
+@media(max-width:600px){
+  .topbar{height:54px!important;padding:0 7px!important}
+  .toolbar{height:82px!important;min-height:82px!important;padding:6px!important}
+  .toolbar .tool-group{padding:4px!important}
+  .toolbar button{height:29px!important;padding:0 7px!important}
+  .workspace{height:calc(100vh - 163px)!important}
+  .topbar .brand{flex:1 1 auto!important;min-width:0!important}
+  .topbar .actions{flex:0 0 auto!important}
+}
