@@ -75,7 +75,7 @@ async function loadChildren(universeId, placeId, parentId, apiKey) {
   const children = await listChildren(universeId, placeId, parentId, apiKey);
   return children.map(item => nodeFrom(item, parentId)).filter(Boolean);
 }
-async async function loadScriptSource(universeId, placeId, instanceId, apiKey) {
+async function loadScriptSource(universeId, placeId, instanceId, apiKey) {
   const full = await getInstance(universeId, placeId, instanceId, apiKey);
   const details = full?.Details || full?.details || {};
   const type = inferScriptType(details);
