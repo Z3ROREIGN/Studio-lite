@@ -79,7 +79,23 @@ async function connect(){
  if(!key||!/^\d+$/.test(u)||!/^\d+$/.test(p)){err.textContent="Informe uma chave válida e IDs numéricos.";return}
  state.apiKey=key;state.universeId=u;state.placeId=p;state.tree=[];state.files.clear();state.expanded=new Set(["__workspace__"]);
  const btn=$("#rbxlAuth").querySelector("button");btn.disabled=true;btn.textContent="Conectando…";$("#rbxlStatus").textContent="Carregando Workspace…";
- try{const d=await api("load");state.tree=Array.isArray(d.tree)?d.tree:[];indexNodes(state.tree);$("#rbxlUniverse").textContent=u;$("#rbxlPlace").textContent=p;$("#rbxlAuth").remove();renderTree();$("#rbxlCount").textContent=countScripts()+" scripts";$("#rbxlStatus").textContent=state.tree.length+" itens carregados • abra as pastas para continuar";status("Studio RBXL conectado")}
+ try{
+  const d=await api("load");
+  state.tree=Array.isArray(d.tree)?d.tree:[];
+  indexNodes(state.tree);
+  $("#rbxlUniverse").textContent=u;
+  $("#rbxlPlace").textContent=p;
+  $("#rbxlAuth").remove();
+  renderTree();
+  const workspace=state.tree.find(n=>n.name==="Workspace");
+  if(workspace){
+    state.expanded.add(workspace.id);
+    await loadChildrenFor(workspace.id);
+  }
+  $("#rbxlCount").textContent=countScripts()+" scripts";
+  $("#rbxlStatus").textContent=state.tree.length+" itens carregados • pastas disponíveis no Explorer";
+  status("Studio RBXL conectado")
+}
  catch(e){err.textContent=e.message||String(e);$("#rbxlStatus").textContent="Falha na conexão"}
  finally{const b=$("#rbxlAuth")?.querySelector("button");if(b){b.disabled=false;b.textContent="Conectar e carregar Workspace"}}
 }
@@ -111,7 +127,11 @@ function addRow(n,depth,filtered){
 async function selectFile(id){
  const n=state.files.get(id);if(!n)return;state.current=id;$("#rbxlWelcome").style.display="none";$("#rbxlCode").style.display="block";$("#rbxlFileName").textContent=n.name;$("#rbxlFileType").textContent=n.type;$("#rbxlDirty").textContent=state.dirty.has(id)?"•":"";
  $("#rbxlCode").value=n.source||"";$("#rbxlHint").textContent=n.sourceLoaded?(n.enabled===false?"Desabilitado":"Luau"):"Carregando Source…";$("#rbxlStatus").textContent=n.name+" • carregando…";renderTree($("#rbxlSearch").value);
- try{if(!n.sourceLoaded){const d=await api("source",{instanceId:n.id});n.source=String(d.source||"");n.enabled=d.enabled!==false;n.sourceLoaded=true}$("#rbxlCode").value=n.source||"";$("#rbxlHint").textContent=n.enabled===false?"Desabilitado":"Luau";$("#rbxlStatus").textContent=n.name+" aberto";renderTree($("#rbxlSearch").value);setTimeout(()=>$("#rbxlCode").focus(),0)}
+ try{if(!n.sourceLoaded){const d=await api("source",{instanceId:n.id});
+      if(d.scriptType&&SCRIPT_TYPES.has(d.scriptType)) n.type=d.scriptType;
+      n.source=String(d.source||"");
+      n.enabled=d.enabled!==false;
+      n.sourceLoaded=true}$("#rbxlCode").value=n.source||"";$("#rbxlHint").textContent=n.enabled===false?"Desabilitado":"Luau";$("#rbxlStatus").textContent=n.name+" aberto";renderTree($("#rbxlSearch").value);setTimeout(()=>$("#rbxlCode").focus(),0)}
  catch(e){$("#rbxlHint").textContent="Source indisponível";$("#rbxlStatus").textContent="Falha ao carregar Source: "+e.message}
 }
 async function saveCurrent(){
