@@ -121,8 +121,18 @@ async function updateScript(universeId, placeId, nodeId, scriptType, source, api
   if (!validId(universeId) || !validId(placeId) || !nodeId) throw new Error("Identificação inválida.");
   if (!SCRIPT_TYPES.includes(scriptType)) throw new Error("Somente Script, LocalScript e ModuleScript podem ser editados.");
   const body = { engineInstance: { Details: { [scriptType]: { Source: String(source ?? "") } } } };
-  const r = await roblox("/universes/" + universeId + "/places/" + placeId + "/instances/" + encodeURIComponent(nodeId), apiKey, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  if (!r.ok) { const e = new Error(r.data?.message || r.data?.error || ("Falha ao salvar (HTTP " + r.status + ").")); e.status = r.status; e.headers = r.headers; throw e; }
+  const url = "/universes/" + universeId + "/places/" + placeId + "/instances/" + encodeURIComponent(nodeId);
+  let r;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    r = await roblox(url, apiKey, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (r.status !== 409 || attempt === 4) break;
+    const waitMs = [4000, 8000, 15000, 25000][attempt];
+    await new Promise(resolve => setTimeout(resolve, waitMs));
+  }
+  if (!r.ok) {
+    const e = new Error(r.data?.message || r.data?.error || ("Falha ao salvar (HTTP " + r.status + ")."));
+    e.status = r.status; e.headers = r.headers; throw e;
+  }
   if (r.data?.path) await operation(r.data.path, apiKey);
 }
 
