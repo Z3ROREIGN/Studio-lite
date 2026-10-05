@@ -90,7 +90,7 @@ Nunca coloque a API Key em:
 <section class="section"><h2>Atalhos e dicas</h2><div class="grid"><div class="card"><strong>Ctrl/⌘ + Z</strong>Desfazer.</div><div class="card"><strong>Ctrl/⌘ + S</strong>Salvar.</div><div class="card"><strong>Ctrl/⌘ + D</strong>Duplicar.</div><div class="card"><strong>DEL</strong>Apagar seleção.</div><div class="card"><strong>W / E / R</strong>Mover / Rotacionar / Escalar.</div><div class="card"><strong>F</strong>Focar seleção.</div></div></section>
 
 <div class="footer">Studio Lite • Documentação oficial • Atualizada para a arquitetura atual do editor web.</div>
-</main>
+<section id="collaboration"><h2>Colaboração em tempo real</h2><p>Abra <b>🧩 Studio Platform → Colaboração</b>, escolha um nome e conecte-se ao código da sala. O Studio usa Supabase Realtime para Broadcast das alterações e Presence para mostrar quem está online.</p><div class="note"><b>Segurança:</b> o navegador usa somente uma chave publishable do Supabase. Nunca coloque uma chave secret/service_role no HTML ou JavaScript.</div><ol><li>Crie ou copie o código da sala.</li><li>Envie o mesmo código para os colaboradores.</li><li>Clique em <b>Conectar sala</b> em cada navegador.</li><li>Use <b>Sincronizar agora</b> quando quiser enviar o estado atual imediatamente.</li></ol><p>O modo colaborativo sincroniza o estado do editor web. Ele não transforma o Studio RBXL em um editor binário universal de arquivos <code>.rbxl</code>.</p></section></main>
 </div>
 <button class="toc-mobile" id="toc" aria-label="Abrir menu">☰</button>
 <script>const side=document.getElementById('side');document.getElementById('toc').onclick=()=>side.classList.toggle('open');document.querySelectorAll('.nav a').forEach(a=>a.onclick=()=>side.classList.remove('open'));</script>
