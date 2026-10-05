@@ -114,7 +114,7 @@ function renderTree(filter=""){
  if(!state.tree.length){root.innerHTML='<div class="rbxl-loading">Nenhuma instância foi retornada pelo Roblox.</div>';return}
  const all=[{id:"__workspace__",parent:null,name:"Workspace",type:"Workspace",virtual:true,hasChildren:true},...state.tree.map(n=>({...n,parent:n.parent==="root"?"__workspace__":n.parent}))],by=new Map();
  all.forEach(n=>by.set(n.id,[]));all.forEach(n=>{if(n.parent&&by.has(n.parent))by.get(n.parent).push(n)});
- if(filter){state.tree.filter(n=>SCRIPT_TYPES.has(n.type)&&((n.name+" "+n.type).toLowerCase().includes(filter.toLowerCase()))).forEach(n=>addRow(n,0,true));return}
+ if(filter){state.tree.filter(n=>((n.name+" "+n.type).toLowerCase().includes(filter.toLowerCase()))).forEach(n=>addRow(n,0,true));return}
  const draw=(parent,depth)=>{for(const n of(by.get(parent)||[]).sort((a,b)=>{const as=SCRIPT_TYPES.has(a.type),bs=SCRIPT_TYPES.has(b.type);return as===bs?a.name.localeCompare(b.name):as?1:-1})){addRow(n,depth,false);if(n.hasChildren&&state.expanded.has(n.id))draw(n.id,depth+1)}};
  draw("__workspace__",0);
 }
