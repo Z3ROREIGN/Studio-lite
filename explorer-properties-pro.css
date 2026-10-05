@@ -18,3 +18,14 @@
 @media(max-width:850px){.expro-root-head .expro-add-root,.expro-row .expro-more,.expro-service .expro-more{min-width:30px;min-height:30px;font-size:16px}}
 
 .expro-workspace-row{display:flex;align-items:center;gap:6px;min-height:34px;padding:4px 5px 4px 8px;margin:3px 0;background:linear-gradient(90deg,#172235,#101925);border:1px solid #29405d;border-radius:7px;color:#eef5ff;cursor:pointer}.expro-workspace-row.selected{box-shadow:inset 2px 0 #7fb8ff;background:linear-gradient(90deg,#1d4168,#12243a)}.expro-workspace-row .expro-name{font-weight:800}.expro-workspace-row .expro-more{margin-left:auto;display:grid;place-items:center;min-width:26px;min-height:26px;border:1px solid #29415d;background:#101b29;color:#9bc8ff;border-radius:6px}
+
+/* Service hierarchy */
+.expro-services{margin-top:12px;padding-top:8px;border-top:1px solid #222}
+.expro-services-head{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;color:#666;font-size:9px;letter-spacing:1.5px}
+.expro-service{display:flex;align-items:center;gap:6px;min-height:32px;padding:0 6px;border-radius:5px;color:#aaa}
+.expro-service:hover{background:#151515;color:#fff}
+.expro-service.collapsed{opacity:.85}
+.expro-service-children{margin:0 0 3px;border-left:1px solid #242424;margin-left:18px}
+.expro-row.service-child{min-height:31px;height:31px}
+.expro-row.service-child .expro-more{margin-left:auto;background:transparent;border:0;color:#666}
+.expro-row.service-child .expro-more:hover{color:#fff;background:#222}
