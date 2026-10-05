@@ -2,7 +2,7 @@
 (()=>{const boot=()=>{const b=document.getElementById("studioRbxlBtn");if(!b)return;
  const open=async(e)=>{e?.preventDefault?.();e?.stopPropagation?.();e?.stopImmediatePropagation?.();
    try{if(window.StudioLiteRBXL?.open){window.StudioLiteRBXL.open();return}
-     await new Promise((resolve,reject)=>{const s=document.createElement("script");s.src="rbxl-studio.js?v=20261005-v52";s.onload=resolve;s.onerror=()=>reject(Error("rbxl-studio.js não carregou"));document.head.appendChild(s)});
+     await new Promise((resolve,reject)=>{const s=document.createElement("script");s.src="rbxl-studio.js?v=20261005-v60";s.onload=resolve;s.onerror=()=>reject(Error("rbxl-studio.js não carregou"));document.head.appendChild(s)});
      if(window.StudioLiteRBXL?.open)window.StudioLiteRBXL.open();else throw Error("Studio RBXL não foi inicializado");
    }catch(err){console.error("[Studio RBXL]",err);alert("Studio RBXL não carregou: "+(err?.message||err))}
  };
