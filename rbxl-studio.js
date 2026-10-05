@@ -1,4 +1,5 @@
 /* Studio RBXL — Open Cloud script workspace
+ * search-ui-fix
  * Conecta a um Place existente e edita somente Script / LocalScript / ModuleScript.
  * Não cria nem remove instâncias.
  */
