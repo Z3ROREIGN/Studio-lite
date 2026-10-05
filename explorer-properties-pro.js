@@ -6,7 +6,7 @@ const state=()=>API().getState?.()||null;
 const nodes=()=>state()?.nodes||[];
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2)+Date.now().toString(36);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const SERVICES=["Workspace","Lighting","Players","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService","CollectionService","HttpService","MarketplaceService","TweenService","RunService","DataStoreService","MemoryStoreService","MessagingService","TeleportService"];
+const SERVICES=["Workspace","Players","Lighting","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService","CollectionService","HttpService","MarketplaceService","TweenService","RunService","Debris","ContentProvider","ContextActionService","UserInputService","GuiService","InsertService","TeleportService","DataStoreService","MemoryStoreService","MessagingService","PolicyService","LocalizationService","PhysicsService","PathfindingService","ProximityPromptService","TextService","UserService","GroupService","BadgeService","MarketplaceService","AssetService","SocialService","Stats","CoreGui"];
 const TYPES=(window.ROBLOX_TYPES||[]).map(x=>x[0]||x).concat(["Part","Folder","Model","Script","LocalScript","ModuleScript","MeshPart","UnionOperation","SpawnLocation","Seat","VehicleSeat","WedgePart","Sphere","Cylinder","Tool","RemoteEvent","RemoteFunction","BindableEvent","BindableFunction","Attachment","Decal","Texture","SurfaceGui","BillboardGui","Highlight","Camera","PointLight","SpotLight","SurfaceLight","ParticleEmitter","Beam","Trail","ProximityPrompt","ClickDetector","Sky","Atmosphere","Configuration","StringValue","BoolValue","IntValue","NumberValue","ObjectValue","Color3Value","Vector3Value","Terrain"]);
 const uniq=a=>[...new Set(a)];
 const OBJECT_TYPES=uniq(TYPES);
@@ -16,13 +16,13 @@ function refresh(){C().render?.();setTimeout(()=>{drawTree();drawProperties()},0
 function save(){C().save?.(false)}
 function toast(t){window.toast?.(t)}
 function validParent(n,p){if(!p||p===n.id)return false;let x=p;while(x){if(x===n.id)return false;x=nodes().find(v=>v.id===x)?.parent||null}return true}
-function add(type,parentId=null){
+function add(type,parentId=null,serviceName=null){
  const s=state();if(!s)return;
  const parent=nodes().find(n=>n.id===parentId);
  commit();
  const scripts=/^(Script|LocalScript|ModuleScript)$/.test(type), values=/Value$/.test(type);
  const container=["Folder","Model","Tool","Configuration","RemoteEvent","RemoteFunction","BindableEvent","BindableFunction"].includes(type);
- const n={id:uid(),name:type,type,position:[0,2,0],rotation:[0,0,0],size:[2,2,2],color:"#3b82f6",material:"Plastic",anchored:true,canCollide:!container&&!scripts&&!values,transparency:0,locked:false,visible:!container&&!scripts&&!values,parent:parent?parent.id:null,attributes:{}};
+ const n={id:uid(),name:type,type,position:[0,2,0],rotation:[0,0,0],size:[2,2,2],color:"#3b82f6",material:"Plastic",anchored:true,canCollide:!container&&!scripts&&!values,transparency:0,locked:false,visible:!container&&!scripts&&!values,parent:parent?parent.id:null,service:serviceName||null,attributes:{}};
  if(type==="SpawnLocation"){n.size=[2,1,2];n.color="#22c55e"}
  if(type==="Sphere"){n.size=[4,4,4];n.shape="sphere"}
  if(type==="Cylinder"){n.size=[3,4,3];n.shape="cylinder"}
@@ -36,8 +36,9 @@ function remove(n=selected()){if(!n)return;if(n.id==="spawn"){toast("SpawnLocati
 function rename(n=selected()){if(!n)return;const v=prompt("Novo nome",n.name);if(v?.trim()){commit();n.name=v.trim().slice(0,100);save();refresh()}}
 function icon(n){const t=n?.type||"Folder";return {Part:"▣",MeshPart:"◆",Folder:"▱",Model:"◇",Script:"◇",LocalScript:"◇",ModuleScript:"◇",SpawnLocation:"⌂",Camera:"◉",Terrain:"▰",PointLight:"☼",Attachment:"⊙",Tool:"⚒"}[t]||"•"}
 function kind(n){if(/Script$/.test(n.type))return"script";if(["Folder","Model","Tool","Configuration"].includes(n.type))return"folder";if(/Value$/.test(n.type))return"value";return"object"}
-function treeChildren(parent){return nodes().filter(n=>(n.parent||null)===parent)}
-function renderInto(list,depth,host){
+function treeChildren(parent,serviceName=null){return nodes().filter(n=>(n.parent||null)===parent&&(!serviceName?n.service==null:n.service===serviceName))}
+function serviceChildren(name){return nodes().filter(n=>n.service===name&&!n.parent)}
+function renderInto(list,depth,host,serviceName=null){
  const filter=(q("#treeSearch")?.value||"").trim().toLowerCase();
  list.forEach(n=>{
   const children=treeChildren(n.id);
@@ -58,7 +59,7 @@ function renderInto(list,depth,host){
   row.oncontextmenu=e=>{e.preventDefault();const st=state();if(st){st.selected=n.id;st.selectedIds=[n.id]}drawProperties();openContext(n,e.clientX,e.clientY)};
   arrow.onclick=e=>{e.stopPropagation();if(!children.length)return;n._explorerExpanded=!(n._explorerExpanded!==false);drawTree()};
   plus.onclick=e=>{e.stopPropagation();const st=state();if(st){st.selected=n.id;st.selectedIds=[n.id]}drawProperties();openAddMenu(n.id,e.clientX,e.clientY)};
-  if(children.length&&(n._explorerExpanded!==false||filter)){const child=document.createElement("div");child.className="expro-children";host.appendChild(child);renderInto(children,depth+1,child)}
+  if(children.length&&(n._explorerExpanded!==false||filter)){const child=document.createElement("div");child.className="expro-children";host.appendChild(child);renderInto(children,depth+1,child,serviceName)}
  });
 }
 function drawTree(){
@@ -84,10 +85,16 @@ function drawTree(){
  const svc=document.createElement("div");svc.className="expro-services";
  svc.innerHTML='<div class="expro-services-head"><span>ROBLOX SERVICES</span><small>'+SERVICES.length+'</small></div>';
  SERVICES.filter(x=>x!=="Workspace").forEach(name=>{
-   const r=document.createElement("div");r.className="expro-service";r.innerHTML='<button class="expro-arrow empty">·</button><span class="expro-icon service">▱</span><span class="expro-name">'+name+'</span><span class="expro-type">Service</span><button class="expro-more">＋</button>';
+   const kids=serviceChildren(name);
+   const r=document.createElement("div");r.className="expro-service";
+   r.innerHTML='<button class="expro-arrow '+(kids.length?"":"empty")+'">'+(kids.length?"⌄":"·")+'</button><span class="expro-icon service">▱</span><span class="expro-name">'+name+'</span><span class="expro-type">Service'+(kids.length?" • "+kids.length:"")+'</span><button class="expro-more">＋</button>';
+   const body=document.createElement("div");body.className="expro-service-children";
+   r.querySelector(".expro-arrow").onclick=e=>{e.stopPropagation();r.classList.toggle("collapsed");body.hidden=!body.hidden};
    r.querySelector(".expro-more").onclick=e=>{e.stopPropagation();openAddMenu(null,e.clientX,e.clientY,name)};
-   r.onclick=()=>toast(name+" é um serviço do Roblox. Objetos do editor ficam no Workspace.");
-   svc.appendChild(r)
+   r.onclick=e=>{if(e.target.closest("button"))return;toast(name+" • Serviço do Roblox");body.hidden=!body.hidden;r.classList.toggle("collapsed")};
+   svc.appendChild(r);
+   if(kids.length){kids.forEach(n=>{const row=document.createElement("div");row.className="expro-row service-child"+(state()?.selected===n.id?" selected":"");row.style.paddingLeft="42px";row.innerHTML='<span class="expro-icon '+kind(n)+'">'+icon(n)+'</span><span class="expro-name">'+esc(n.name||n.type)+'</span><span class="expro-type">'+esc(n.type)+'</span><button class="expro-more">⋮</button>';row.onclick=e=>{if(e.target.closest("button"))return;state().selected=n.id;state().selectedIds=[n.id];drawTree();drawProperties()};row.ondblclick=()=>/Script$/.test(n.type)?window.openScript?.(n.id):rename(n);row.oncontextmenu=e=>{e.preventDefault();openContext(n,e.clientX,e.clientY)};row.querySelector(".expro-more").onclick=e=>{e.stopPropagation();openContext(n,e.clientX,e.clientY)};body.appendChild(row)}}
+   svc.appendChild(body);
  });
  host.appendChild(svc);
  q("#objectCount").textContent=nodes().length+" objetos";
@@ -97,13 +104,13 @@ function openAddMenu(parentId,x,y,service){
  box.innerHTML='<div class="expro-menu-title">ADICIONAR'+(service?" • "+esc(service):parentId?" COMO FILHO":"")+" </div><input placeholder="Pesquisar classe..." id="exproAddSearch"><div class="expro-menu-grid"></div>";
  document.body.appendChild(box);positionMenu(box,x,y);
  const grid=box.querySelector(".expro-menu-grid"),search=box.querySelector("input");
- const draw=term=>{grid.innerHTML="";uniq(OBJECT_TYPES).filter(t=>!term||t.toLowerCase().includes(term.toLowerCase())).slice(0,80).forEach(t=>{const b=document.createElement("button");b.textContent="+ "+t;b.onclick=()=>{closeMenus();add(t,parentId||null)};grid.appendChild(b)})};draw("");search.oninput=()=>draw(search.value);search.focus()
+ const draw=term=>{grid.innerHTML="";uniq(OBJECT_TYPES).filter(t=>!term||t.toLowerCase().includes(term.toLowerCase())).slice(0,80).forEach(t=>{const b=document.createElement("button");b.textContent="+ "+t;b.onclick=()=>{closeMenus();add(t,parentId||null,service||null)};grid.appendChild(b)})};draw("");search.oninput=()=>draw(search.value);search.focus()
 }
 function openContext(n,x,y){closeMenus();const m=document.createElement("div");m.id="exproMenu";m.className="expro-menu expro-context";m.innerHTML='<div class="expro-menu-title">'+esc(n.name)+' <small>'+esc(n.type)+'</small></div><button data-a="add">＋ Adicionar filho</button><button data-a="script">◇ Adicionar Script</button><button data-a="folder">▱ Adicionar Folder</button><button data-a="rename">✎ Renomear</button><button data-a="duplicate">⧉ Duplicar</button><button data-a="delete" class="danger">⌫ Excluir</button>';
  document.body.appendChild(m);positionMenu(m,x,y);
  m.querySelector('[data-a="add"]').onclick=()=>openAddMenu(n.id,x,y);
- m.querySelector('[data-a="script"]').onclick=()=>{closeMenus();add("Script",n.id)};
- m.querySelector('[data-a="folder"]').onclick=()=>{closeMenus();add("Folder",n.id)};
+ m.querySelector('[data-a="script"]').onclick=()=>{closeMenus();add("Script",n.id,n.service||null)};
+ m.querySelector('[data-a="folder"]').onclick=()=>{closeMenus();add("Folder",n.id,n.service||null)};
  m.querySelector('[data-a="rename"]').onclick=()=>{closeMenus();rename(n)};
  m.querySelector('[data-a="duplicate"]').onclick=()=>{closeMenus();state().selected=n.id;API().duplicateSelected?.()};
  m.querySelector('[data-a="delete"]').onclick=()=>{closeMenus();remove(n)};
@@ -124,7 +131,7 @@ function drawProperties(){
  if(!n){p.innerHTML='<div class="expro-empty"><b>Nenhum objeto selecionado</b><span>Selecione um item no Explorer ou na cena.</span></div>';return}
  const head=document.createElement("div");head.className="expro-object-head";head.innerHTML='<div class="expro-big-icon">'+icon(n)+'</div><div><b>'+esc(n.name)+'</b><small>'+esc(n.type)+' • '+esc(n.id).slice(0,8)+'</small></div><button id="exproPropMenu">⋮</button>';p.appendChild(head);
  section(p,"IDENTIDADE");propInput(p,"Name",n.name,v=>n.name=String(v).slice(0,100));propInput(p,"Class",n.type,()=>{}).querySelector("input").disabled=true;
- const parents=[["","Workspace"],...nodes().filter(x=>x.id!==n.id).map(x=>[x.id,x.name+" • "+x.type])];select(p,"Parent",n.parent||"",parents.map(x=>x[0]),v=>{if(v&&validParent(n,v))n.parent=v||null});
+ const parents=[["","Workspace"],...SERVICES.filter(x=>x!=="Workspace").map(x=>["service:"+x,x+" • Service"]),...nodes().filter(x=>x.id!==n.id&&x.service==null).map(x=>[x.id,x.name+" • "+x.type])];select(p,"Parent",n.service?"service:"+n.service:(n.parent||""),parents.map(x=>x[0]),v=>{if(v.startsWith("service:")){n.service=v.slice(8);n.parent=null}else if(v&&validParent(n,v)){n.parent=v;n.service=null}else if(!v){n.parent=null;n.service=null}});
  const parentRow=p.lastElementChild;const ps=parentRow.querySelector("select");parents.forEach((x,i)=>ps.options[i].textContent=x[1]);
  const nonTransform=/^(Folder|Model|Tool|Configuration|Workspace|Players|Lighting|ReplicatedFirst|ReplicatedStorage|ServerScriptService|ServerStorage|StarterGui|StarterPack|StarterPlayer|Teams|SoundService|Chat|TextChatService|MaterialService|TestService|VoiceChatService|Attachment|Decal|Texture|SurfaceGui|BillboardGui|Highlight|Camera|PointLight|SpotLight|SurfaceLight|ParticleEmitter|Beam|Trail|ProximityPrompt|ClickDetector|Sky|Atmosphere|Terrain)$/;
  if(!nonTransform.test(n.type)){
