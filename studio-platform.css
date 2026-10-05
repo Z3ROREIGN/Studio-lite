@@ -1,0 +1,36 @@
+/* Studio Lite Platform — marketplace, plugins, tools, history and collaboration */
+#platformRoot{position:fixed;inset:0;z-index:9999;display:none;background:rgba(0,0,0,.72);backdrop-filter:blur(12px);font-family:Inter,system-ui,sans-serif;color:#eee}
+#platformRoot.open{display:block}
+#platformShell{position:absolute;inset:4vh 4vw;background:#090909;border:1px solid #272727;border-radius:18px;box-shadow:0 30px 100px #000;display:flex;overflow:hidden;min-height:0}
+#platformNav{width:230px;background:#0d0d0d;border-right:1px solid #242424;padding:18px 12px;overflow:auto}
+#platformNav h2{font-size:16px;margin:4px 8px 18px}
+.pnav{display:flex;width:100%;gap:10px;align-items:center;border:0;background:transparent;color:#aaa;padding:11px 12px;border-radius:9px;text-align:left;cursor:pointer;font-size:13px}
+.pnav:hover,.pnav.active{background:#191919;color:#fff}
+#platformMain{flex:1;min-width:0;display:flex;flex-direction:column}
+#platformTop{height:62px;border-bottom:1px solid #242424;display:flex;align-items:center;gap:10px;padding:0 18px}
+#platformTitle{font-weight:700;flex:1}
+#platformSearch{width:min(360px,45%);background:#111;border:1px solid #292929;color:#fff;padding:10px 12px;border-radius:9px;outline:none}
+.pclose,.pbtn{border:1px solid #303030;background:#151515;color:#eee;padding:9px 12px;border-radius:8px;cursor:pointer}
+.pbtn.primary{background:#fff;color:#000;border-color:#fff}
+#platformContent{padding:20px;overflow:auto}
+.phero{padding:22px;border:1px solid #252525;border-radius:14px;background:linear-gradient(135deg,#141414,#0b0b0b);margin-bottom:16px}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.pcard{border:1px solid #272727;background:#101010;border-radius:13px;padding:15px;min-width:0}
+.pcard h3{margin:0 0 7px;font-size:15px}.pcard p{color:#999;font-size:12px;line-height:1.5;margin:0 0 12px}
+.pmeta{font-size:11px;color:#777;margin:8px 0}
+.badge{display:inline-flex;padding:4px 7px;border-radius:99px;background:#1d1d1d;color:#bbb;font-size:10px;margin:2px}
+.psection{margin:0 0 20px}.psection h3{font-size:14px;margin:0 0 10px}
+.prows{display:grid;gap:8px}.prow{display:flex;align-items:center;gap:10px;padding:11px;border:1px solid #252525;background:#0f0f0f;border-radius:9px}.prow>div:first-child{flex:1}.prow small{display:block;color:#777}
+.pinput,.pselect,.ptextarea{width:100%;box-sizing:border-box;background:#0c0c0c;color:#eee;border:1px solid #303030;border-radius:8px;padding:10px}
+.ptextarea{min-height:140px;resize:vertical}
+.ptoolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.pempty{text-align:center;color:#777;padding:35px}
+.kbd{border:1px solid #3a3a3a;border-bottom-width:2px;border-radius:5px;padding:2px 6px;background:#151515;font-size:10px}
+#pluginFrame{border:1px solid #282828;border-radius:12px;background:#0c0c0c;padding:15px}
+.pdanger{color:#ff7474}.pok{color:#7dff9d}.pwarn{color:#ffd66b}
+@media(max-width:760px){
+ #platformShell{inset:0;border-radius:0}.platform-nav-hidden{display:none!important}
+ #platformNav{position:absolute;z-index:3;height:100%;box-shadow:20px 0 50px #000}
+ #platformSearch{width:38%}#platformTop{padding:0 10px}#platformContent{padding:12px}
+ .pgrid{grid-template-columns:1fr}.prow{align-items:flex-start}
+}
