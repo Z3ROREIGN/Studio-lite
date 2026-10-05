@@ -57,12 +57,12 @@ function bind(section){
  root().querySelectorAll("[data-section]").forEach(b=>b.onclick=()=>render(b.dataset.section));
  document.getElementById("suiteClose")?.addEventListener("click",close);document.getElementById("suiteCloseNav")?.addEventListener("click",close);
  document.getElementById("suiteMobileNav")?.addEventListener("click",()=>document.querySelector(".suite-nav")?.classList.toggle("mobile-open"));
- root().addEventListener("click",e=>{if(e.target===root())close()},{once:true});
+ root().onclick=e=>{if(e.target===root())close()};
  root().querySelectorAll("[data-action]").forEach(b=>b.onclick=()=>{const a=b.dataset.action;if(a==="save")saveProject();if(a==="snapshot")snapshot();if(a==="explorer")document.getElementById("explorerPanel")?.classList.toggle("open");if(a==="command")document.getElementById("commandBtn")?.click();if(a==="market")document.getElementById("platformBtn")?.click();});
  document.getElementById("createSnapshot")?.addEventListener("click",()=>snapshot());
  document.querySelectorAll("[data-restore]").forEach(b=>b.onclick=()=>restore(+b.dataset.restore));
  document.getElementById("createProject")?.addEventListener("click",()=>{const n=document.getElementById("newProjectName")?.value.trim();if(!n)return toast("Digite um nome");const s=get();s.projects.unshift({id:Date.now(),name:n,time:new Date().toLocaleString("pt-BR")});put(s);document.getElementById("projectName").value=n;toast("Projeto registrado");render("projects")});
- document.querySelectorAll("[data-delete-project]").forEach(b=>b.onclick=()=>{const s=get();s.projects=s.projects.filter(p=>p.id!==+b.dataset.deleteProject);put(s);render("projects")});
+ document.querySelectorAll("[data-load-project]").forEach(b=>b.onclick=()=>{const s=get(),p=s.projects.find(x=>x.id===+b.dataset.loadProject);if(p){document.getElementById("projectName").value=p.name;toast("Projeto aberto: "+p.name);render("home")}});document.querySelectorAll("[data-delete-project]").forEach(b=>b.onclick=()=>{const s=get();s.projects=s.projects.filter(p=>p.id!==+b.dataset.deleteProject);put(s);render("projects")});
  document.querySelectorAll("[data-toggle]").forEach(b=>b.onclick=()=>{const s=get();const k=b.dataset.toggle;s.settings[k]=!s.settings[k];put(s);render("settings")});
  document.getElementById("exportSuiteData")?.addEventListener("click",()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(get(),null,2)],{type:"application/json"}));a.download="studio-suite-config.json";a.click();URL.revokeObjectURL(a.href)});
  document.getElementById("resetSuiteData")?.addEventListener("click",()=>{localStorage.removeItem(KEY);toast("Configurações restauradas");render("settings")});
