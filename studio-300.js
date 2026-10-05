@@ -262,9 +262,9 @@ function extExec(name,args,s,nodes,selectedNodes){
  if(name==="getNearestNode"||name==="getFarthestNode"){if(!n)return null;const p=pos(n);const arr=list.filter(x=>x.id!==n.id).map(x=>({x,d:Math.hypot(...[0,1,2].map(i=>(pos(x)[i]-p[i])**2))})).sort((a,b)=>a.d-b.d);return clone2((name==="getNearestNode"?arr[0]:arr.at(-1))?.x||null)}
  if(name==="moveSelectionBy")return mutate2(()=>sel.forEach(x=>x.position=[0,1,2].map(i=>(Number(pos(x)[i])||0)+(Number(Array.isArray(a)?a[i]:a?.["xyz"?.[i]])||0))));
  if(name==="rotateSelectionBy")return mutate2(()=>sel.forEach(x=>x.rotation=[0,1,2].map(i=>(Number(x.rotation?.[i])||0)+(Number(Array.isArray(a)?a[i]:0)||0))));
- if(name==="scaleSelectionBy")return mutate2(()=>sel.forEach(x=>x.size=size(x).map(v=>Math.max(.1,v*(Number(a)||1))));
+ if(name==="scaleSelectionBy")return mutate2(()=>sel.forEach(x=>x.size=size(x).map(v=>Math.max(.1,v*(Number(a)||1)))));
  if(name==="setPivot")return mutate2(()=>sel.forEach(x=>x.pivot=Array.isArray(a)?[...a]:[0,0,0]));
- if(name==="resetPivot")return mutate2(()=>sel.forEach(x=>delete x.pivot);
+ if(name==="resetPivot")return mutate2(()=>sel.forEach(x=>delete x.pivot));
  if(name==="snapSelection"||name==="snapSelectionToGrid")return mutate2(()=>{const g=Math.max(.01,Number(a)||Number(s.grid)||1);sel.forEach(x=>x.position=pos(x).map(v=>Math.round(v/g)*g))});
  if(name==="snapSelectionToOrigin")return mutate2(()=>sel.forEach(x=>x.position=[0,0,0]));
  if(["mirrorSelectionX","mirrorSelectionY","mirrorSelectionZ"].includes(name))return mutate2(()=>sel.forEach(x=>{const i={mirrorSelectionX:0,mirrorSelectionY:1,mirrorSelectionZ:2}[name];x.position[i]*=-1}));
