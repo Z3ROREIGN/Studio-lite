@@ -114,13 +114,27 @@ async function selectFile(id){
  try{if(!n.sourceLoaded){const d=await api("source",{instanceId:n.id});n.source=String(d.source||"");n.enabled=d.enabled!==false;n.sourceLoaded=true}$("#rbxlCode").value=n.source||"";$("#rbxlHint").textContent=n.enabled===false?"Desabilitado":"Luau";$("#rbxlStatus").textContent=n.name+" aberto";renderTree($("#rbxlSearch").value);setTimeout(()=>$("#rbxlCode").focus(),0)}
  catch(e){$("#rbxlHint").textContent="Source indisponível";$("#rbxlStatus").textContent="Falha ao carregar Source: "+e.message}
 }
-async function saveCurrent(){async function publishAll(){
+async function saveCurrent(){
+ const n=state.current?state.files.get(state.current):null;
+ if(!n){$("#rbxlStatus").textContent="Nenhum script aberto.";return}
+ if(!state.dirty.has(n.id)){$("#rbxlStatus").textContent="Nenhuma alteração pendente neste script.";return}
+ const b=$("#rbxlSave");b.disabled=true;b.textContent="Salvando…";$("#rbxlStatus").textContent="Salvando "+n.name+"…";
+ try{
+   await api("update",{instanceId:n.id,scriptType:n.type,source:n.source});
+   state.dirty.delete(n.id);n.sourceLoaded=true;$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+n.name+" salvo no Roblox";status("Script salvo");
+ }catch(e){
+   $("#rbxlStatus").textContent="Falha ao salvar: "+e.message;status("Falha ao salvar");
+ }finally{
+   b.textContent="Salvar";b.disabled=!state.dirty.has(n.id);
+ }
+}
+async function publishAll(){
  const changes=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&{instanceId:n.id,scriptType:n.type,source:n.source}}).filter(Boolean);
  if(!changes.length){$("#rbxlStatus").textContent="Nenhuma alteração pendente para publicar.";return}
  const b=$("#rbxlPublish");b.disabled=true;b.textContent="Publicando…";$("#rbxlStatus").textContent="Publicando "+changes.length+" arquivo(s)…";
  try{const d=await api("updateMany",{changes});state.dirty.clear();$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+(d.saved??changes.length)+" arquivo(s) atualizado(s) no Roblox";status("Publicação concluída")}
  catch(e){$("#rbxlStatus").textContent="Falha na publicação: "+e.message;status("Falha na publicação")}
- finally{b.textContent="Publicar";b.disabled=!state.dirty.size}
+ finally{b.textContent="Publicar";b.disabled=!!state.dirty.size}
 }
 function install(){
  window.StudioLiteRBXL={open};const bind=()=>{const b=$("#studioRbxlBtn");if(!b)return;b.type="button";b.dataset.studioRbxl="true";b.onclick=e=>{e.preventDefault();e.stopPropagation();open()}};bind();
