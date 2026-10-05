@@ -1,5 +1,6 @@
 /* Studio RBXL — Open Cloud script workspace
  * search-ui-fix
+ * nested-script-children-fix
  * Conecta a um Place existente e edita somente Script / LocalScript / ModuleScript.
  * Não cria nem remove instâncias.
  */
@@ -122,7 +123,7 @@ function addRow(n,depth,filtered){
  const root=$("#rbxlTree"),row=document.createElement("div");row.className="rbxl-row"+(state.current===n.id?" active":"");row.style.paddingLeft=(8+depth*15)+"px";
  const open=state.expanded.has(n.id),loading=state.loading.has(n.id);
  row.innerHTML='<span class="arrow">'+(n.hasChildren?(loading?"…":open?"⌄":"›"):"")+'</span><span>'+icon(n.type)+'</span><span class="name">'+esc(n.name)+'</span><span class="type">'+esc(n.type)+'</span>';
- row.onclick=async()=>{if(SCRIPT_TYPES.has(n.type)){await selectFile(n.id);return}if(n.hasChildren){if(open&&!filtered){state.expanded.delete(n.id);renderTree($("#rbxlSearch").value);return}await loadChildrenFor(n.id);return}$("#rbxlStatus").textContent=n.name+" • somente leitura"};
+ row.onclick=async()=>{if(SCRIPT_TYPES.has(n.type)){await selectFile(n.id);if(n.hasChildren){if(open&&!filtered){state.expanded.delete(n.id);renderTree($("#rbxlSearch").value);return}await loadChildrenFor(n.id)}return}if(n.hasChildren){if(open&&!filtered){state.expanded.delete(n.id);renderTree($("#rbxlSearch").value);return}await loadChildrenFor(n.id);return}$("#rbxlStatus").textContent=n.name+" • somente leitura"};
  root.appendChild(row);
 }
 async function selectFile(id){
