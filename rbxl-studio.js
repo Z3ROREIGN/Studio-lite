@@ -18,7 +18,7 @@ async function api(action,extra={}){
 }
 function style(){
  if($("#studioRbxlStyles"))return;
- const s=document.createElement("style");s.id="studioRbxlStyles";s.textContent=\`
+ const s=document.createElement("style");s.id="studioRbxlStyles";s.textContent=`
 #studioRbxlModal{position:fixed;inset:0;z-index:99999;background:#05070b;color:#e8edf4;font:13px Inter,system-ui,sans-serif}
 .rbxl-app{height:100%;display:grid;grid-template-rows:62px 1fr;overflow:hidden}
 .rbxl-top{display:flex;align-items:center;gap:14px;padding:0 18px;border-bottom:1px solid #202732;background:#080b10}
@@ -37,12 +37,12 @@ function style(){
 .rbxl-status{display:flex;align-items:center;gap:8px;padding:0 14px;border-top:1px solid #202732;color:#728096;font-size:10px;background:#080b10}.rbxl-dot{width:6px;height:6px;border-radius:50%;background:#4f8cff}.rbxl-auth{position:absolute;inset:0;z-index:3;display:grid;place-items:center;background:#05070bdd;backdrop-filter:blur(8px)}.rbxl-auth-card{width:min(560px,92vw);border:1px solid #293443;background:#0b1017;border-radius:18px;padding:25px;box-shadow:0 30px 100px #000}.rbxl-auth-card h2{margin:0 0 5px}.rbxl-auth-card p{color:#8290a2;font-size:11px;line-height:1.55;margin:0 0 18px}.rbxl-form{display:grid;gap:10px}.rbxl-form label{display:grid;gap:5px;color:#aab5c4;font-size:10px}.rbxl-form input{background:#080c12;border:1px solid #293442;color:#fff;padding:11px;border-radius:8px;outline:none}.rbxl-form input:focus{border-color:#4a8cff}.rbxl-help{display:flex;gap:8px;align-items:center;margin-top:13px;color:#647286;font-size:9px}.rbxl-error{color:#ff8e8e!important}.rbxl-loading{padding:14px;color:#7e8a9d}
 @media(max-width:760px){.rbxl-meta{display:none}.rbxl-brand{min-width:0}.rbxl-body{grid-template-columns:220px 1fr}.rbxl-code{padding:13px;font-size:12px}}
 @media(max-width:560px){.rbxl-body{grid-template-columns:1fr}.rbxl-tree{display:none}.rbxl-top{padding:0 9px;gap:7px}.rbxl-brand{flex:1}.rbxl-actions{gap:4px}.rbxl-btn{padding:8px}}
-\`;document.head.appendChild(s);
+`;document.head.appendChild(s);
 }
 function open(){
  style();const old=$("#studioRbxlModal");if(old){old.remove();return true}
  const bg=document.createElement("div");bg.id="studioRbxlModal";
- bg.innerHTML=\`
+ bg.innerHTML=`
  <div class="rbxl-app" role="dialog" aria-modal="true" aria-label="Studio RBXL">
   <header class="rbxl-top">
    <div class="rbxl-brand"><div class="rbxl-logo">S</div><div><b>STUDIO RBXL</b><small>OPEN CLOUD SCRIPT WORKSPACE</small></div></div>
@@ -63,7 +63,7 @@ function open(){
     <label>Place ID <input id="rbxlPlaceInput" inputmode="numeric" required placeholder="Ex.: 9876543210"></label>
     <button class="rbxl-btn primary" type="submit">Conectar e carregar Workspace</button><div id="rbxlAuthError" class="rbxl-help rbxl-error"></div>
    </form><div class="rbxl-help">✓ Somente leitura da hierarquia • ✓ Edição apenas de scripts existentes • ✓ Sem criar • ✓ Sem excluir</div></div></div>
- </div>\`;
+ </div>`;
  document.body.appendChild(bg);
  const close=()=>{bg.remove();document.removeEventListener("keydown",key,true)};
  const key=e=>{if(e.key==="Escape"){close();return}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();saveCurrent()}};
