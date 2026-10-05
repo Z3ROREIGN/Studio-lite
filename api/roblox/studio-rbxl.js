@@ -75,15 +75,45 @@ async function loadChildren(universeId, placeId, parentId, apiKey) {
   const children = await listChildren(universeId, placeId, parentId, apiKey);
   return children.map(item => nodeFrom(item, parentId)).filter(Boolean);
 }
+function findScriptDetails(value, preferredType = "") {
+  if (!value || typeof value !== "object") return null;
+  const wanted = preferredType && SCRIPT_TYPES.includes(preferredType) ? preferredType : "";
+  const queue = [value];
+  const seen = new Set();
+  while (queue.length) {
+    const current = queue.shift();
+    if (!current || typeof current !== "object" || seen.has(current)) continue;
+    seen.add(current);
+    for (const type of (wanted ? [wanted, ...SCRIPT_TYPES.filter(x => x !== wanted)] : SCRIPT_TYPES)) {
+      const candidate = current[type] || current[type.toLowerCase()];
+      if (candidate && typeof candidate === "object") return { type, details: candidate };
+    }
+    for (const key of Object.keys(current)) {
+      const child = current[key];
+      if (child && typeof child === "object") queue.push(child);
+    }
+  }
+  return null;
+}
+
+function readStringProperty(obj, name) {
+  if (!obj || typeof obj !== "object") return "";
+  const exact = obj[name] ?? obj[name.toLowerCase()];
+  return typeof exact === "string" ? exact : "";
+}
+
 async function loadScriptSource(universeId, placeId, instanceId, apiKey) {
   const full = await getInstance(universeId, placeId, instanceId, apiKey);
-  const details = full?.Details || full?.details || {};
-  const type = inferScriptType(details);
-  const scriptDetails = (type && details[type]) || details;
+  const found = findScriptDetails(full);
+  const fallback = full?.Details || full?.details || {};
+  const type = found?.type || inferScriptType(fallback);
+  const scriptDetails = found?.details || (type && fallback[type]) || fallback;
+  const source = readStringProperty(scriptDetails, "Source") || readStringProperty(full, "Source");
+  const enabledValue = scriptDetails?.Enabled ?? scriptDetails?.enabled ?? full?.Enabled ?? full?.enabled;
   return {
     scriptType: type,
-    source: typeof scriptDetails.Source === "string" ? scriptDetails.Source : (typeof scriptDetails.source === "string" ? scriptDetails.source : ""),
-    enabled: scriptDetails.Enabled ?? scriptDetails.enabled ?? true
+    source,
+    enabled: enabledValue === undefined ? true : Boolean(enabledValue)
   };
 }
 
