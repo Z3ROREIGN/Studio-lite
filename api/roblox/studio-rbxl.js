@@ -32,12 +32,20 @@ async function operation(path, apiKey) {
   const e = new Error("O Roblox ainda está processando a operação. Tente novamente em alguns segundos."); e.status = 504; throw e;
 }
 
+function inferScriptType(details) {
+  const d = details && typeof details === "object" ? details : {};
+  for (const type of SCRIPT_TYPES) if (d[type] && typeof d[type] === "object") return type;
+  return "";
+}
 function nodeFrom(item, parent) {
   const e = item.engineInstance || item.EngineInstance || {};
   const id = String(e.Id || e.id || item.id || item.path?.split("/").pop() || "");
   if (!id) return null;
   const details = e.Details || e.details || {};
-  return { id, parent, name: String(e.Name || e.name || details.Name || "Unnamed"), type: String(e.ClassName || e.className || e.Type || details.ClassName || details.className || "Instance"), hasChildren: Boolean(item.hasChildren ?? item.HasChildren ?? e.HasChildren ?? e.hasChildren), details: details && typeof details === "object" ? details : {} };
+  const scriptType = inferScriptType(details);
+  const name = String(e.Name || e.name || details.Name || "Unnamed");
+  const type = scriptType || String(e.ClassName || e.className || e.Type || details.ClassName || details.className || (item.hasChildren ? "Folder" : "Instance"));
+  return { id, parent, name, type, hasChildren: Boolean(item.hasChildren ?? item.HasChildren ?? e.HasChildren ?? e.hasChildren), details: details && typeof details === "object" ? details : {} };
 }
 
 async function listChildren(universeId, placeId, instanceId, apiKey) {
@@ -54,6 +62,7 @@ async function getInstance(universeId, placeId, instanceId, apiKey) {
   if (!r.ok) { const e = new Error(r.data?.message || r.data?.error || ("Falha ao obter instância (HTTP " + r.status + ").")); e.status = r.status; e.headers = r.headers; throw e; }
   if (r.data?.engineInstance) return r.data.engineInstance;
   if (r.data?.response?.engineInstance) return r.data.response.engineInstance;
+  if (r.data?.response?.instance?.engineInstance) return r.data.response.instance.engineInstance;
   if (r.data?.path) return operation(r.data.path, apiKey).then(x => x?.engineInstance || x);
   return r.data;
 }
@@ -66,10 +75,16 @@ async function loadChildren(universeId, placeId, parentId, apiKey) {
   const children = await listChildren(universeId, placeId, parentId, apiKey);
   return children.map(item => nodeFrom(item, parentId)).filter(Boolean);
 }
-async function loadScriptSource(universeId, placeId, instanceId, apiKey) {
+async async function loadScriptSource(universeId, placeId, instanceId, apiKey) {
   const full = await getInstance(universeId, placeId, instanceId, apiKey);
   const details = full?.Details || full?.details || {};
-  return { source: typeof details.Source === "string" ? details.Source : (typeof details.source === "string" ? details.source : ""), enabled: details.Enabled ?? details.enabled ?? true };
+  const type = inferScriptType(details);
+  const scriptDetails = (type && details[type]) || details;
+  return {
+    scriptType: type,
+    source: typeof scriptDetails.Source === "string" ? scriptDetails.Source : (typeof scriptDetails.source === "string" ? scriptDetails.source : ""),
+    enabled: scriptDetails.Enabled ?? scriptDetails.enabled ?? true
+  };
 }
 
 async function updateScript(universeId, placeId, nodeId, scriptType, source, apiKey) {
