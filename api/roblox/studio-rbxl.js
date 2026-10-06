@@ -180,7 +180,7 @@ async function deleteInstanceWithLuau(universeId, placeId, segments, apiKey) {
   const script = [
     "local target = " + expr,
     "if not target then error(" + JSON.stringify("O objeto não foi encontrado no Roblox.") + ") end",
-    "if target == game then error(" + JSON.stringify("Não é permitido excluir o DataModel.") + ") end",
+    "if #target:GetChildren() >= 0 and target.Parent == game then error(" + JSON.stringify("Não é permitido excluir serviços do Roblox.") + ") end",
     "if target:IsA(" + JSON.stringify("Players") + ") then error(" + JSON.stringify("Não é permitido excluir um serviço.") + ") end",
     "local deletedName = target.Name",
     "local deletedClass = target.ClassName",
