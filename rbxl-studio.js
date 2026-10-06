@@ -189,16 +189,39 @@ function sendCurrentDraftToRoblox(){
  if(!n?.local)return;
  sendScriptToRoblox(n,resolveRobloxParentId(n.parent));
 }
+function scriptLocationCandidates(){
+ const loaded=state.tree.filter(n=>!n.virtual&&!state.removed.has(n.id));
+ const candidates=[];
+ const seen=new Set();
+ const add=(id,name,type,parent)=>{if(seen.has(id))return;seen.add(id);candidates.push({id,name,type,parent})};
+ add("__workspace__","Workspace","Workspace","root");
+ for(const n of loaded){
+   if(n.type==="Folder"||n.hasChildren||n.type==="Workspace"||n.parent==="root") add(n.id,n.name,n.type,n.parent);
+ }
+ return candidates;
+}
+function parentDisplayPath(id){
+ if(id==="__workspace__"||id==="root")return "Workspace";
+ const n=state.tree.find(x=>x.id===id);if(!n)return "Workspace";
+ return nodePathSegments(n).join(" › ")||n.name;
+}
 function showCreateScript(){
  const old=$("#rbxlCreate");if(old)old.remove();
  const box=document.createElement("div");box.id="rbxlCreate";box.className="rbxl-confirm";
- box.innerHTML='<div class="rbxl-confirm-card"><h3>Criar Script</h3><p>Escolha o tipo e onde você quer que o novo script exista. Você pode criar apenas um rascunho local ou enviá-lo de verdade para o Roblox.</p><div style="display:grid;gap:8px;margin-top:14px"><label style="font-size:10px;color:#9aa6b5">Tipo<select id="rbxlCreateType" style="width:100%;margin-top:5px;background:#080c12;border:1px solid #293442;color:#fff;padding:10px;border-radius:8px"><option>Script</option><option>LocalScript</option><option>ModuleScript</option></select></label><label style="font-size:10px;color:#9aa6b5">Nome<input id="rbxlCreateName" value="NewScript" maxlength="80" style="width:100%;box-sizing:border-box;margin-top:5px;background:#080c12;border:1px solid #293442;color:#fff;padding:10px;border-radius:8px"></label></div><div class="rbxl-safe-note">Enviar ao Roblox usa Open Cloud Luau Execution para criar a Instance e SavePlaceAsync para salvar o Place. A chave precisa ter as permissões correspondentes.</div><div class="rbxl-confirm-actions"><button class="rbxl-btn" id="rbxlCreateCancel">Cancelar</button><button class="rbxl-btn" id="rbxlCreateLocal">Criar local</button><button class="rbxl-btn primary" id="rbxlCreateRemote">Criar no Roblox</button></div></div>';
+ box.innerHTML='<div class="rbxl-confirm-card" style="max-width:620px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><h3 style="margin:0">Criar Script</h3><p style="margin:6px 0 0;color:#8995a5">Primeiro escolha o local. Depois defina o tipo e o nome do script.</p></div><button class="rbxl-btn" id="rbxlCreateCancel">×</button></div><div style="margin-top:14px;padding:11px;border:1px solid #293442;border-radius:10px;background:#080c12"><div style="font-size:10px;color:#8995a5">LOCAL DO SCRIPT</div><div id="rbxlCreateLocationLabel" style="margin-top:5px;color:#fff;font-weight:700">Workspace</div><div id="rbxlCreateLocationPath" style="margin-top:3px;color:#657287;font-size:9px">Workspace</div></div><div style="display:grid;gap:8px;margin-top:10px"><label style="font-size:10px;color:#9aa6b5">Local<select id="rbxlCreateParent" style="width:100%;margin-top:5px;background:#080c12;border:1px solid #293442;color:#fff;padding:10px;border-radius:8px"></select></label><label style="font-size:10px;color:#9aa6b5">Tipo<select id="rbxlCreateType" style="width:100%;margin-top:5px;background:#080c12;border:1px solid #293442;color:#fff;padding:10px;border-radius:8px"><option>Script</option><option>LocalScript</option><option>ModuleScript</option></select></label><label style="font-size:10px;color:#9aa6b5">Nome<input id="rbxlCreateName" value="NewScript" maxlength="80" style="width:100%;box-sizing:border-box;margin-top:5px;background:#080c12;border:1px solid #293442;color:#fff;padding:10px;border-radius:8px"></label></div><div class="rbxl-safe-note">O local escolhido será usado tanto para o rascunho quanto para a criação real no Roblox. Se a pasta ainda não foi carregada, abra-a no Explorer antes de criar para que ela apareça na lista.</div><div class="rbxl-confirm-actions"><button class="rbxl-btn" id="rbxlCreateLocal">Criar local</button><button class="rbxl-btn primary" id="rbxlCreateRemote">Criar no Roblox</button></div></div>';
  document.body.appendChild(box);
+ const select=$("#rbxlCreateParent"),label=$("#rbxlCreateLocationLabel"),path=$("#rbxlCreateLocationPath");
+ const candidates=scriptLocationCandidates();
+ select.innerHTML=candidates.map(n=>'<option value="'+esc(n.id)+'">'+esc(n.name)+' • '+esc(n.type)+'</option>').join("");
+ const preferred=currentParentId();
+ if(candidates.some(n=>n.id===preferred))select.value=preferred;else select.value="__workspace__";
+ const refreshLocation=()=>{const n=candidates.find(x=>x.id===select.value)||candidates[0];if(!n)return;label.textContent=n.name;path.textContent=parentDisplayPath(n.id);};
+ select.onchange=refreshLocation;refreshLocation();
  const close=()=>box.remove();
  $("#rbxlCreateCancel").onclick=close;
  const buildNode=()=>{
    const type=$("#rbxlCreateType").value,name=($("#rbxlCreateName").value||"NewScript").trim().replace(/[<>:"/\\\\|?*]/g,"").slice(0,80)||"NewScript";
-   const parent=currentParentId();
+   const parent=select.value||"__workspace__";
    const id="local-"+Date.now()+"-"+Math.random().toString(36).slice(2,8);
    const source=type==="ModuleScript"?"local module = {}\\n\\nreturn module\\n":type==="LocalScript"?"-- Novo LocalScript\\n":"-- Novo Script\\n";
    return {id,parent:parent==="__workspace__"?"root":parent,name,type,hasChildren:false,local:true,source,sourceLoaded:true};
@@ -206,22 +229,21 @@ function showCreateScript(){
  const openDraft=n=>{
    state.tree.push(n);state.files.set(n.id,n);state.current=n.id;state.dirty.add(n.id);
    $("#rbxlSave").disabled=false;$("#rbxlPublish").disabled=true;$("#rbxlSendScript").disabled=false;close();
-   $("#rbxlWelcome").style.display="none";$("#rbxlCode").style.display="block";$("#rbxlFileName").textContent=n.name;$("#rbxlFileType").textContent=n.type+" • rascunho";$("#rbxlDirty").textContent="•";$("#rbxlCode").value=n.source;$("#rbxlHint").textContent="Rascunho local • use Enviar ao Roblox quando quiser";$("#rbxlStatus").textContent="✓ "+n.name+" criado como rascunho";renderTree($("#rbxlSearch").value);setTimeout(()=>$("#rbxlCode").focus(),0);
+   $("#rbxlWelcome").style.display="none";$("#rbxlCode").style.display="block";$("#rbxlFileName").textContent=n.name;$("#rbxlFileType").textContent=n.type+" • rascunho";$("#rbxlDirty").textContent="•";$("#rbxlCode").value=n.source;$("#rbxlHint").textContent="Rascunho local • use Enviar ao Roblox quando quiser";$("#rbxlStatus").textContent="✓ "+n.name+" criado em "+parentDisplayPath(n.parent);renderTree($("#rbxlSearch").value);setTimeout(()=>$("#rbxlCode").focus(),0);
  };
  $("#rbxlCreateLocal").onclick=()=>openDraft(buildNode());
  $("#rbxlCreateRemote").onclick=async()=>{
-   const n=buildNode();close();$("#rbxlStatus").textContent="Preparando criação no Roblox…";
+   const n=buildNode(),parentId=resolveRobloxParentId(n.parent);close();$("#rbxlStatus").textContent="Preparando criação no Roblox em "+parentDisplayPath(parentId)+"…";
    try{
-     const d=await api("createScript",{scriptType:n.type,name:n.name,parentPath:robloxParentExpression(n.parent==="root"?"__workspace__":n.parent),source:n.source});
+     const d=await api("createScript",{scriptType:n.type,name:n.name,parentPath:robloxParentExpression(parentId),source:n.source});
      if(!d.taskPath)throw Error("O Roblox não retornou a tarefa de criação.");
      const task=await waitRobloxTask(d.taskPath);
      if(task.state!=="COMPLETE")throw Error("A criação não foi concluída.");
-     const parentId=resolveRobloxParentId(n.parent);
      await loadChildrenFor(parentId);
      const created=state.tree.filter(x=>!state.removed.has(x.id)&&x.name===n.name&&x.parent===parentId&&x.type===n.type).at(-1);
      if(created)await selectFile(created.id);
-     $("#rbxlStatus").textContent="✓ "+n.name+" criado e salvo no Roblox";
-     $("#rbxlHint").textContent="Criado diretamente no Place";
+     $("#rbxlStatus").textContent="✓ "+n.name+" criado em "+parentDisplayPath(parentId)+" e salvo no Roblox";
+     $("#rbxlHint").textContent="Criado diretamente no local escolhido";
      status("Script criado no Roblox");
    }catch(e){$("#rbxlStatus").textContent="Falha ao criar no Roblox: "+(e.message||String(e));$("#rbxlHint").textContent="Verifique as permissões da chave Open Cloud";status("Falha ao criar script")}
  };
