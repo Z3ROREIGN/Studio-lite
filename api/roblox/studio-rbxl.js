@@ -167,6 +167,40 @@ async function createScriptWithLuau(universeId, placeId, scriptType, name, paren
   return { path: r.data?.path || "", state: r.data?.state || "PROCESSING" };
 }
 
+
+async function deleteInstanceWithLuau(universeId, placeId, segments, apiKey) {
+  if (!Array.isArray(segments) || !segments.length || segments.length > 20) throw new Error("Caminho inválido.");
+  const cleanSegments = segments.map(v => String(v ?? "")).map(v => v.trim()).filter(Boolean);
+  if (!cleanSegments.length || cleanSegments.some(v => v.length > 100 || /["\\r\\n]/.test(v))) throw new Error("Caminho inválido.");
+  const [root, ...children] = cleanSegments;
+  const rootServices = new Set(["Workspace","Players","Lighting","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService"]);
+  if (!rootServices.has(root)) throw new Error("A exclusão precisa começar por um serviço válido.");
+  let expr = root === "Workspace" ? 'game:GetService("Workspace")' : 'game:GetService(' + JSON.stringify(root) + ')';
+  for (const child of children) expr += ':FindFirstChild(' + JSON.stringify(child) + ')';
+  const script = [
+    "local target = " + expr,
+    "if not target then error(" + JSON.stringify("O objeto não foi encontrado no Roblox.") + ") end",
+    "if target == game then error(" + JSON.stringify("Não é permitido excluir o DataModel.") + ") end",
+    "if target:IsA(" + JSON.stringify("Players") + ") then error(" + JSON.stringify("Não é permitido excluir um serviço.") + ") end",
+    "local deletedName = target.Name",
+    "local deletedClass = target.ClassName",
+    "target:Destroy()",
+    "game:GetService(" + JSON.stringify("AssetService") + "):SavePlaceAsync({PlaceId = game.PlaceId})",
+    "return { deleted = true, name = deletedName, className = deletedClass }"
+  ].join("\\n");
+  const path = "/universes/" + universeId + "/places/" + placeId + "/luau-execution-session-tasks";
+  const r = await roblox(path, apiKey, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ script, timeout: "60s" })
+  });
+  if (!r.ok) {
+    const e = new Error(r.data?.message || r.data?.error || ("Falha ao excluir no Roblox (HTTP " + r.status + ")."));
+    e.status = r.status; e.headers = r.headers; throw e;
+  }
+  return { path: r.data?.path || "", state: r.data?.state || "PROCESSING" };
+}
+
 async function getLuauTask(taskPath, apiKey) {
   const cleanPath = clean(taskPath).replace(/^\/+/, "");
   if (!cleanPath.startsWith("universes/") || !cleanPath.includes("/luau-execution-session-tasks/")) {
@@ -220,6 +254,11 @@ export default async function handler(req, res) {
       if (String(body.source ?? "").length > 180000) return json(res, 400, { ok: false, error: "O código é grande demais para esta operação." });
       const task = await createScriptWithLuau(universeId, placeId, scriptType, name, parentPath, String(body.source ?? ""), apiKey);
       return json(res, 200, { ok: true, taskPath: task.path, state: task.state, name, scriptType });
+    }
+    if (action === "deleteInstance") {
+      const segments = Array.isArray(body.segments) ? body.segments : [];
+      const task = await deleteInstanceWithLuau(universeId, placeId, segments, apiKey);
+      return json(res, 200, { ok: true, taskPath: task.path, state: task.state });
     }
     if (action === "task") {
       const task = await getLuauTask(body.taskPath, apiKey);
