@@ -140,6 +140,46 @@ async function updateScript(universeId, placeId, nodeId, scriptType, source, api
   if (r.data?.path) await operation(r.data.path, apiKey);
 }
 
+
+async function createScriptWithLuau(universeId, placeId, scriptType, name, parentPath, source, apiKey) {
+  if (!SCRIPT_TYPES.includes(scriptType)) throw new Error("Tipo de script inválido.");
+  const safe = value => JSON.stringify(String(value ?? "")).replace(/</g, "\\u003c");
+  const script = [
+    "local parent = " + parentPath,
+    "if not parent then error(\"Parent do novo script não foi encontrado\") end",
+    "local script = Instance.new(" + safe(scriptType) + ")",
+    "script.Name = " + safe(name),
+    "script.Source = " + safe(source),
+    "script.Parent = parent",
+    "game:GetService(\"AssetService\"):SavePlaceAsync({PlaceId = game.PlaceId})",
+    "return { created = true, name = script.Name, className = script.ClassName }"
+  ].join("\n");
+  const path = "/universes/" + universeId + "/places/" + placeId + "/luau-execution-session-tasks";
+  const r = await roblox(path, apiKey, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ script, timeout: "60s" })
+  });
+  if (!r.ok) {
+    const e = new Error(r.data?.message || r.data?.error || ("Falha ao criar Script no Roblox (HTTP " + r.status + ")."));
+    e.status = r.status; e.headers = r.headers; throw e;
+  }
+  return { path: r.data?.path || "", state: r.data?.state || "PROCESSING" };
+}
+
+async function getLuauTask(taskPath, apiKey) {
+  const cleanPath = clean(taskPath).replace(/^\/+/, "");
+  if (!cleanPath.startsWith("universes/") || !cleanPath.includes("/luau-execution-session-tasks/")) {
+    const e = new Error("Tarefa Roblox inválida."); e.status = 400; throw e;
+  }
+  const r = await roblox("/" + cleanPath, apiKey);
+  if (!r.ok) {
+    const e = new Error(r.data?.message || r.data?.error || ("Falha ao consultar tarefa Roblox (HTTP " + r.status + ")."));
+    e.status = r.status; e.headers = r.headers; throw e;
+  }
+  return r.data;
+}
+
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
   const body = req.body || {};
@@ -170,12 +210,34 @@ export default async function handler(req, res) {
       for (const change of changes) await updateScript(universeId, placeId, clean(change.instanceId), clean(change.scriptType), change.source, apiKey);
       return json(res, 200, { ok: true, saved: changes.length });
     }
+    if (action === "createScript") {
+      const scriptType = clean(body.scriptType);
+      const name = clean(body.name).replace(/[<>:"/\\|?*]/g, "").slice(0, 80);
+      const parentPath = clean(body.parentPath);
+      if (!SCRIPT_TYPES.includes(scriptType)) return json(res, 400, { ok: false, error: "Tipo de script inválido." });
+      if (!name) return json(res, 400, { ok: false, error: "Nome do script obrigatório." });
+      if (!parentPath || !/^game(?::GetService\(\"[^\"]+\"\)|(?::FindFirstChild\(\"[^\"]+\"\))*)$/.test(parentPath)) return json(res, 400, { ok: false, error: "Local de criação inválido." });
+      if (String(body.source ?? "").length > 180000) return json(res, 400, { ok: false, error: "O código é grande demais para esta operação." });
+      const task = await createScriptWithLuau(universeId, placeId, scriptType, name, parentPath, String(body.source ?? ""), apiKey);
+      return json(res, 200, { ok: true, taskPath: task.path, state: task.state, name, scriptType });
+    }
+    if (action === "task") {
+      const task = await getLuauTask(body.taskPath, apiKey);
+      return json(res, 200, {
+        ok: true,
+        state: task.state || "PROCESSING",
+        output: task.output || null,
+        error: task.error || null,
+        taskPath: clean(body.taskPath)
+      });
+    }
     return json(res, 400, { ok: false, error: "Ação inválida." });
   } catch (error) {
     console.error("Studio RBXL Open Cloud:", error);
     const status = Number(error?.status);
     if (status === 429) { const reset = Number(error?.headers?.["x-ratelimit-reset"]); return json(res, 429, { ok: false, code: "ROBLOX_RATE_LIMITED", error: "O Roblox limitou temporariamente as solicitações. Aguarde alguns segundos e tente novamente.", retryAfter: Number.isFinite(reset) && reset > 0 ? reset : 5 }); }
     if (status === 504) return json(res, 504, { ok: false, code: "ROBLOX_OPERATION_PENDING", error: error?.message || "O Roblox ainda está processando a operação.", retryable: true });
+    if (status === 400) return json(res, 400, { ok: false, code: "ROBLOX_INVALID_REQUEST", error: error?.message || "Requisição inválida." });
     if (status === 403) return json(res, 403, { ok: false, code: "ROBLOX_FORBIDDEN", error: error?.message || "A chave do Roblox não tem a permissão necessária." });
     return json(res, 500, { ok: false, error: error?.message || String(error) });
   }
