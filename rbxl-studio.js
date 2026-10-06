@@ -88,6 +88,11 @@ function luauString(value){
  const s=String(value??"");
  return "\""+s.replace(/\\/g,"\\\\").replace(/"/g,"\\\"").replace(/\r/g,"\\r").replace(/\n/g,"\\n").replace(/\t/g,"\\t")+"\"";
 }
+function resolveRobloxParentId(parentId){
+ const workspace=state.tree.find(n=>n.name==="Workspace"&&n.parent==="root");
+ if(parentId==="root"||parentId==="__workspace__")return workspace?.id||"__workspace__";
+ return parentId;
+}
 function robloxParentExpression(parentId){
  if(!parentId||parentId==="__workspace__"||parentId==="root")return 'game:GetService("Workspace")';
  const chain=[];let id=parentId;const seen=new Set();
@@ -151,7 +156,7 @@ async function sendScriptToRoblox(node,parentId){
 function sendCurrentDraftToRoblox(){
  const n=state.current?state.files.get(state.current):null;
  if(!n?.local)return;
- sendScriptToRoblox(n,n.parent==="root"?"__workspace__":n.parent);
+ sendScriptToRoblox(n,resolveRobloxParentId(n.parent));
 }
 function showCreateScript(){
  const old=$("#rbxlCreate");if(old)old.remove();
@@ -180,9 +185,9 @@ function showCreateScript(){
      if(!d.taskPath)throw Error("O Roblox não retornou a tarefa de criação.");
      const task=await waitRobloxTask(d.taskPath);
      if(task.state!=="COMPLETE")throw Error("A criação não foi concluída.");
-     const parentId=n.parent==="root"?"__workspace__":n.parent;
+     const parentId=resolveRobloxParentId(n.parent);
      await loadChildrenFor(parentId);
-     const created=state.tree.filter(x=>!state.removed.has(x.id)&&x.name===n.name&&x.parent===n.parent&&x.type===n.type).at(-1);
+     const created=state.tree.filter(x=>!state.removed.has(x.id)&&x.name===n.name&&x.parent===parentId&&x.type===n.type).at(-1);
      if(created)await selectFile(created.id);
      $("#rbxlStatus").textContent="✓ "+n.name+" criado e salvo no Roblox";
      $("#rbxlHint").textContent="Criado diretamente no Place";
