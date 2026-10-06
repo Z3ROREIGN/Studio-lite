@@ -50,7 +50,7 @@ function open(){
   <header class="rbxl-top">
    <div class="rbxl-brand"><div class="rbxl-logo">S</div><div><b>STUDIO RBXL</b><small>OPEN CLOUD SCRIPT WORKSPACE</small></div></div>
    <div class="rbxl-meta"><div class="rbxl-pill">Universe <strong id="rbxlUniverse">—</strong></div><div class="rbxl-pill">Place <strong id="rbxlPlace">—</strong></div><div class="rbxl-pill">Modo <strong>Edição + criação</strong></div></div>
-   <div class="rbxl-actions"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn" id="rbxlRemoveScript">Remover</button><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar</button><button class="rbxl-btn" id="rbxlClose">×</button></div>
+   <div class="rbxl-actions"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar</button><button class="rbxl-btn" id="rbxlClose">×</button></div>
   </header>
   <div class="rbxl-body">
    <aside class="rbxl-tree"><div class="rbxl-tree-head"><b>WORKSPACE</b><span id="rbxlCount">0 arquivos</span><input id="rbxlSearch" class="rbxl-search" placeholder="⌕ Procurar script..."></div><div id="rbxlTree" class="rbxl-list"><div class="rbxl-loading">Conecte um Place para carregar o Workspace.</div></div></aside>
@@ -76,15 +76,29 @@ function open(){
  $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;
  return true;
 }
-function requestScriptAction(action){
- const current=state.current?state.files.get(state.current):null;
- if(action==="create"){showCreateScript();return}
- if(!current||!SCRIPT_TYPES.has(current.type)){showConfirm("Remover Script","Selecione primeiro um Script, LocalScript ou ModuleScript.",()=>{});return}
- showConfirm("Remover Script","Remover \""+current.name+"\" do Workspace desta sessão? O item será retirado da árvore local, sem enviar uma exclusão ao Roblox.",()=>{
-   state.removed.add(current.id);state.dirty.delete(current.id);if(state.current===current.id)state.current=null;$("#rbxlSave").disabled=true;$("#rbxlPublish").disabled=!hasPublishableChanges();$("#rbxlSendScript").disabled=true;$("#rbxlCode").style.display="none";$("#rbxlWelcome").style.display="grid";$("#rbxlFileName").textContent="Nenhum arquivo";$("#rbxlFileType").textContent="";$("#rbxlDirty").textContent="";renderTree($("#rbxlSearch").value);$("#rbxlStatus").textContent="✓ "+current.name+" removido da sessão local. A API Open Cloud não suporta exclusão de Instance.";status("Script removido da sessão");
- });
+function nodePathSegments(node){
+ const chain=[];let cur=node,guard=0;
+ while(cur&&cur.parent&&cur.parent!=="root"&&cur.parent!=="__workspace__"&&guard++<30){chain.unshift(cur.name);cur=state.tree.find(x=>x.id===cur.parent)}
+ if(cur&&cur.parent==="root")chain.unshift(cur.name);else if(node.parent==="root")chain.unshift(node.name);
+ return chain;
 }
-function luauString(value){
+function nodeKindLabel(n){if(!n)return "item";if(SCRIPT_TYPES.has(n.type))return "script";if(n.type==="Folder"||n.hasChildren)return "pasta";return "objeto"}
+function clearCurrentSelection(){state.current=null;$("#rbxlSave").disabled=true;$("#rbxlPublish").disabled=!hasPublishableChanges();$("#rbxlSendScript").disabled=true;$("#rbxlCode").style.display="none";$("#rbxlWelcome").style.display="grid";$("#rbxlFileName").textContent="Nenhum arquivo";$("#rbxlFileType").textContent="";$("#rbxlDirty").textContent=""}
+function markSubtreeRemoved(id){const ids=new Set([id]);let changed=true;while(changed){changed=false;for(const n of state.tree)if(n.parent&&ids.has(n.parent)&&!ids.has(n.id)){ids.add(n.id);changed=true}}for(const x of ids){state.removed.add(x);state.dirty.delete(x);state.files.delete(x)}return ids}
+async function deleteNodeFromRoblox(node){
+ const b=$("#rbxlRemoveScript");b.disabled=true;b.textContent="Excluindo…";$("#rbxlStatus").textContent="Excluindo "+node.name+" no Roblox…";
+ try{const d=await api("deleteInstance",{segments:nodePathSegments(node)});if(!d.taskPath)throw Error("O Roblox não retornou a tarefa de exclusão.");const task=await waitRobloxTask(d.taskPath);if(task.state!=="COMPLETE")throw Error("A exclusão não foi concluída.");const parentId=node.parent||"__workspace__";markSubtreeRemoved(node.id);clearCurrentSelection();await loadChildrenFor(resolveRobloxParentId(parentId));renderTree($("#rbxlSearch").value);$("#rbxlStatus").textContent="✓ "+node.name+" foi excluído do Roblox e salvo no Place.";$("#rbxlHint").textContent="Exclusão concluída";status("Exclusão concluída")}
+ catch(e){$("#rbxlStatus").textContent="Não foi possível excluir "+node.name+": "+(e.message||String(e));$("#rbxlHint").textContent="Nada foi removido localmente";status("Exclusão não concluída")}
+ finally{b.disabled=false;b.textContent="Excluir"}
+}
+function requestScriptAction(action){
+ const current=state.current?state.files.get(state.current):null;if(action==="create"){showCreateScript();return}
+ if(!current){showConfirm("O que você quer excluir?","Selecione um Script, uma pasta ou outro objeto na árvore primeiro.",()=>{});return}
+ if(current.virtual){showConfirm("Workspace protegido","O Workspace é a raiz da árvore e não pode ser excluído.",()=>{});return}
+ const kind=nodeKindLabel(current),path=nodePathSegments(current).join(" › ")||current.name,isLocal=!!current.local,hasChildren=!!current.hasChildren,childText=hasChildren?"\n\nAtenção: esta pasta/objeto possui itens dentro. Eles também serão excluídos.":"";
+ if(isLocal){showConfirm("Excluir rascunho","Arquivo: "+current.name+"\nTipo: "+current.type+"\nLocal: "+path+"\n\nEste rascunho ainda não existe no Roblox."+childText+"\n\nExcluir somente deste editor?",()=>{markSubtreeRemoved(current.id);clearCurrentSelection();renderTree($("#rbxlSearch").value);$("#rbxlStatus").textContent="✓ "+current.name+" removido deste editor.";status("Rascunho excluído")});return}
+ showConfirm("Excluir do Roblox","Você está prestes a excluir:\n\n"+current.name+"\nTipo: "+current.type+"\nLocal: "+path+childText+"\n\nEsta ação será enviada ao Roblox e salva no Place. Ela pode remover a pasta e todo o conteúdo dentro dela.\n\nContinuar?",()=>deleteNodeFromRoblox(current));
+}function luauString(value){
  const s=String(value??"");
  return "\""+s.replace(/\\/g,"\\\\").replace(/"/g,"\\\"").replace(/\r/g,"\\r").replace(/\n/g,"\\n").replace(/\t/g,"\\t")+"\"";
 }
