@@ -83,7 +83,7 @@ function requestScriptAction(action){
  const target=current?current.name:"nenhum script selecionado";
  const message=isCreate
    ?"Você confirmou que deseja criar um novo Script? O Studio RBXL vai verificar se a operação é suportada antes de enviar qualquer alteração ao Roblox."
-   :"Você confirmou que deseja remover o script "+target+""? Esta operação seria permanente no Roblox e exige confirmação explícita.";
+   :"Você confirmou que deseja remover o script \""+target+"\"? Esta operação seria permanente no Roblox e exige confirmação explícita.";
  showConfirm(title,message,async()=>{
    if(isCreate){safeUnsupportedAction("criar Script");return}
    if(!current||!SCRIPT_TYPES.has(current.type)){safeUnsupportedAction("remover Script","Selecione um Script, LocalScript ou ModuleScript.");return}
