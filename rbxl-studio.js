@@ -9,7 +9,7 @@
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const SCRIPT_TYPES=new Set(["Script","LocalScript","ModuleScript"]);
-const state={apiKey:"",universeId:"",placeId:"",tree:[],files:new Map(),dirty:new Set(),current:null,expanded:new Set(["__workspace__"]),loading:new Set()};
+const state={apiKey:"",universeId:"",placeId:"",tree:[],files:new Map(),dirty:new Set(),removed:new Set(),current:null,expanded:new Set(["__workspace__"]),loading:new Set()};
 const status=t=>{try{window.StudioLiteCore?.setStatus?.(t)}catch{}try{$("#status").textContent=t;$("#footerStatus").textContent=t}catch{}};
 const icon=t=>SCRIPT_TYPES.has(t)?"▱":t==="Workspace"?"◈":t==="Folder"?"▰":"◇";
 
@@ -78,17 +78,32 @@ function open(){
 }
 function requestScriptAction(action){
  const current=state.current?state.files.get(state.current):null;
- const isCreate=action==="create";
- const title=isCreate?"Criar novo Script":"Remover Script";
- const target=current?current.name:"nenhum script selecionado";
- const message=isCreate
-   ?"Você confirmou que deseja criar um novo Script? O Studio RBXL vai verificar se a operação é suportada antes de enviar qualquer alteração ao Roblox."
-   :"Você confirmou que deseja remover o script \""+target+"\"? Esta operação seria permanente no Roblox e exige confirmação explícita.";
- showConfirm(title,message,async()=>{
-   if(isCreate){safeUnsupportedAction("criar Script");return}
-   if(!current||!SCRIPT_TYPES.has(current.type)){safeUnsupportedAction("remover Script","Selecione um Script, LocalScript ou ModuleScript.");return}
-   safeUnsupportedAction("remover Script");
+ if(action==="create"){showCreateScript();return}
+ if(!current||!SCRIPT_TYPES.has(current.type)){showConfirm("Remover Script","Selecione primeiro um Script, LocalScript ou ModuleScript.",()=>{});return}
+ showConfirm("Remover Script","Remover \""+current.name+"\" do Workspace desta sessão? O item será retirado da árvore local, sem enviar uma exclusão ao Roblox.",()=>{
+   state.removed.add(current.id);state.dirty.delete(current.id);if(state.current===current.id)state.current=null;$("#rbxlCode").style.display="none";$("#rbxlWelcome").style.display="grid";$("#rbxlFileName").textContent="Nenhum arquivo";$("#rbxlFileType").textContent="";$("#rbxlDirty").textContent="";renderTree($("#rbxlSearch").value);$("#rbxlStatus").textContent="✓ "+current.name+" removido da sessão local. A API Open Cloud não suporta exclusão de Instance.";status("Script removido da sessão");
  });
+}
+function showCreateScript(){
+ const old=$("#rbxlCreate");if(old)old.remove();
+ const box=document.createElement("div");box.id="rbxlCreate";box.className="rbxl-confirm";
+ box.innerHTML='<div class="rbxl-confirm-card"><h3>Criar Script</h3><p>Escolha o tipo. O novo script será criado como rascunho nesta sessão e poderá ser editado normalmente. A API Open Cloud atual não possui operação para criar a Instance no Roblox.</p><div style="display:grid;gap:8px;margin-top:14px"><label style="font-size:10px;color:#9aa6b5">Tipo<select id="rbxlCreateType" style="width:100%;margin-top:5px;background:#080c12;border:1px solid #293442;color:#fff;padding:10px;border-radius:8px"><option>Script</option><option>LocalScript</option><option>ModuleScript</option></select></label><label style="font-size:10px;color:#9aa6b5">Nome<input id="rbxlCreateName" value="NewScript" maxlength="80" style="width:100%;box-sizing:border-box;margin-top:5px;background:#080c12;border:1px solid #293442;color:#fff;padding:10px;border-radius:8px"></label></div><div class="rbxl-safe-note">Confirmação: nada será enviado ao Roblox nesta etapa. O rascunho fica disponível para edição sem causar erro 500.</div><div class="rbxl-confirm-actions"><button class="rbxl-btn" id="rbxlCreateCancel">Cancelar</button><button class="rbxl-btn primary" id="rbxlCreateOk">Criar rascunho</button></div></div>';
+ document.body.appendChild(box);
+ const close=()=>box.remove();
+ $("#rbxlCreateCancel").onclick=close;
+ $("#rbxlCreateOk").onclick=()=>{
+   const type=$("#rbxlCreateType").value,name=($("#rbxlCreateName").value||"NewScript").trim().replace(/[<>:"/\\|?*]/g,"").slice(0,80)||"NewScript";
+   const parent=currentParentId();
+   const id="local-"+Date.now()+"-"+Math.random().toString(36).slice(2,8);
+   const source=type==="ModuleScript"?"local module = {}\n\nreturn module\n":type==="LocalScript"?"-- Novo LocalScript\n":"-- Novo Script\n";
+   const n={id,parent:parent==="__workspace__"?"root":parent,name,type,hasChildren:false,local:true,source,sourceLoaded:true};
+   state.tree.push(n);state.files.set(id,n);state.current=id;state.dirty.add(id);close();$("#rbxlWelcome").style.display="none";$("#rbxlCode").style.display="block";$("#rbxlFileName").textContent=name;$("#rbxlFileType").textContent=type+" • rascunho";$("#rbxlDirty").textContent="•";$("#rbxlCode").value=source;$("#rbxlHint").textContent="Rascunho local • não enviado ao Roblox";$("#rbxlStatus").textContent="✓ "+name+" criado como rascunho";renderTree($("#rbxlSearch").value);setTimeout(()=>$("#rbxlCode").focus(),0);
+ };
+}
+function currentParentId(){
+ const n=state.current?state.files.get(state.current):null;
+ if(n?.parent)return n.parent;
+ return "__workspace__";
 }
 function showConfirm(title,message,onConfirm){
  const old=$("#rbxlConfirm");if(old)old.remove();
@@ -143,9 +158,9 @@ async function loadChildrenFor(parentId){
 function renderTree(filter=""){
  const root=$("#rbxlTree");if(!root)return;root.innerHTML="";
  if(!state.tree.length){root.innerHTML='<div class="rbxl-loading">Nenhuma instância foi retornada pelo Roblox.</div>';return}
- const all=[{id:"__workspace__",parent:null,name:"Workspace",type:"Workspace",virtual:true,hasChildren:true},...state.tree.map(n=>({...n,parent:n.parent==="root"?"__workspace__":n.parent}))],by=new Map();
+ const visible=state.tree.filter(n=>!state.removed.has(n.id)); const all=[{id:"__workspace__",parent:null,name:"Workspace",type:"Workspace",virtual:true,hasChildren:true},...visible.map(n=>({...n,parent:n.parent==="root"?"__workspace__":n.parent}))],by=new Map();
  all.forEach(n=>by.set(n.id,[]));all.forEach(n=>{if(n.parent&&by.has(n.parent))by.get(n.parent).push(n)});
- if(filter){state.tree.filter(n=>((n.name+" "+n.type).toLowerCase().includes(filter.toLowerCase()))).forEach(n=>addRow(n,0,true));return}
+ if(filter){visible.filter(n=>((n.name+" "+n.type).toLowerCase().includes(filter.toLowerCase()))).forEach(n=>addRow(n,0,true));return}
  const draw=(parent,depth)=>{for(const n of(by.get(parent)||[]).sort((a,b)=>{const as=SCRIPT_TYPES.has(a.type),bs=SCRIPT_TYPES.has(b.type);return as===bs?a.name.localeCompare(b.name):as?1:-1})){addRow(n,depth,false);if(n.hasChildren&&state.expanded.has(n.id))draw(n.id,depth+1)}};
  draw("__workspace__",0);
 }
@@ -157,7 +172,8 @@ function addRow(n,depth,filtered){
  root.appendChild(row);
 }
 async function selectFile(id){
- const n=state.files.get(id);if(!n)return;state.current=id;$("#rbxlWelcome").style.display="none";$("#rbxlCode").style.display="block";$("#rbxlFileName").textContent=n.name;$("#rbxlFileType").textContent=n.type;$("#rbxlDirty").textContent=state.dirty.has(id)?"•":"";
+ const n=state.files.get(id);if(!n)return;
+ if(n.local){state.current=id;$("#rbxlWelcome").style.display="none";$("#rbxlCode").style.display="block";$("#rbxlFileName").textContent=n.name;$("#rbxlFileType").textContent=n.type+" • rascunho";$("#rbxlDirty").textContent=state.dirty.has(id)?"•":"*";$("#rbxlCode").value=n.source||"";$("#rbxlHint").textContent="Rascunho local • não enviado ao Roblox";$("#rbxlStatus").textContent=n.name+" aberto como rascunho";renderTree($("#rbxlSearch").value);setTimeout(()=>$("#rbxlCode").focus(),0);return}state.current=id;$("#rbxlWelcome").style.display="none";$("#rbxlCode").style.display="block";$("#rbxlFileName").textContent=n.name;$("#rbxlFileType").textContent=n.type;$("#rbxlDirty").textContent=state.dirty.has(id)?"•":"";
  $("#rbxlCode").value=n.source||"";$("#rbxlHint").textContent=n.sourceLoaded?(n.enabled===false?"Desabilitado":"Luau"):"Carregando Source…";$("#rbxlStatus").textContent=n.name+" • carregando…";renderTree($("#rbxlSearch").value);
  try{if(!n.sourceLoaded){const d=await api("source",{instanceId:n.id});
       if(d.scriptType&&SCRIPT_TYPES.has(d.scriptType)) n.type=d.scriptType;
@@ -168,6 +184,7 @@ async function selectFile(id){
 }
 async function saveCurrent(){
  const n=state.current?state.files.get(state.current):null;
+ if(n?.local){n.source=$("#rbxlCode").value;state.dirty.delete(n.id);$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+n.name+" salvo no rascunho local. Para existir no Roblox, a API atual precisa oferecer criação de Instance.";status("Rascunho salvo localmente");return}
  if(!n){$("#rbxlStatus").textContent="Nenhum script aberto.";return}
  if(!state.dirty.has(n.id)){$("#rbxlStatus").textContent="Nenhuma alteração pendente neste script.";return}
  const b=$("#rbxlSave");b.disabled=true;b.textContent="Salvando…";$("#rbxlStatus").textContent="Salvando "+n.name+"…";
