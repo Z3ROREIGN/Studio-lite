@@ -81,7 +81,7 @@ function requestScriptAction(action){
  if(action==="create"){showCreateScript();return}
  if(!current||!SCRIPT_TYPES.has(current.type)){showConfirm("Remover Script","Selecione primeiro um Script, LocalScript ou ModuleScript.",()=>{});return}
  showConfirm("Remover Script","Remover \""+current.name+"\" do Workspace desta sessão? O item será retirado da árvore local, sem enviar uma exclusão ao Roblox.",()=>{
-   state.removed.add(current.id);state.dirty.delete(current.id);if(state.current===current.id)state.current=null;$("#rbxlCode").style.display="none";$("#rbxlWelcome").style.display="grid";$("#rbxlFileName").textContent="Nenhum arquivo";$("#rbxlFileType").textContent="";$("#rbxlDirty").textContent="";renderTree($("#rbxlSearch").value);$("#rbxlStatus").textContent="✓ "+current.name+" removido da sessão local. A API Open Cloud não suporta exclusão de Instance.";status("Script removido da sessão");
+   state.removed.add(current.id);state.dirty.delete(current.id);if(state.current===current.id)state.current=null;$("#rbxlSave").disabled=true;$("#rbxlPublish").disabled=!hasPublishableChanges();$("#rbxlCode").style.display="none";$("#rbxlWelcome").style.display="grid";$("#rbxlFileName").textContent="Nenhum arquivo";$("#rbxlFileType").textContent="";$("#rbxlDirty").textContent="";renderTree($("#rbxlSearch").value);$("#rbxlStatus").textContent="✓ "+current.name+" removido da sessão local. A API Open Cloud não suporta exclusão de Instance.";status("Script removido da sessão");
  });
 }
 function showCreateScript(){
@@ -97,7 +97,7 @@ function showCreateScript(){
    const id="local-"+Date.now()+"-"+Math.random().toString(36).slice(2,8);
    const source=type==="ModuleScript"?"local module = {}\n\nreturn module\n":type==="LocalScript"?"-- Novo LocalScript\n":"-- Novo Script\n";
    const n={id,parent:parent==="__workspace__"?"root":parent,name,type,hasChildren:false,local:true,source,sourceLoaded:true};
-   state.tree.push(n);state.files.set(id,n);state.current=id;state.dirty.add(id);close();$("#rbxlWelcome").style.display="none";$("#rbxlCode").style.display="block";$("#rbxlFileName").textContent=name;$("#rbxlFileType").textContent=type+" • rascunho";$("#rbxlDirty").textContent="•";$("#rbxlCode").value=source;$("#rbxlHint").textContent="Rascunho local • não enviado ao Roblox";$("#rbxlStatus").textContent="✓ "+name+" criado como rascunho";renderTree($("#rbxlSearch").value);setTimeout(()=>$("#rbxlCode").focus(),0);
+   state.tree.push(n);state.files.set(id,n);state.current=id;state.dirty.add(id);$("#rbxlSave").disabled=false;$("#rbxlPublish").disabled=true;close();$("#rbxlWelcome").style.display="none";$("#rbxlCode").style.display="block";$("#rbxlFileName").textContent=name;$("#rbxlFileType").textContent=type+" • rascunho";$("#rbxlDirty").textContent="•";$("#rbxlCode").value=source;$("#rbxlHint").textContent="Rascunho local • não enviado ao Roblox";$("#rbxlStatus").textContent="✓ "+name+" criado como rascunho";renderTree($("#rbxlSearch").value);setTimeout(()=>$("#rbxlCode").focus(),0);
  };
 }
 function currentParentId(){
@@ -120,11 +120,12 @@ function safeUnsupportedAction(action,detail=""){
  $("#rbxlHint").textContent="Operação não suportada pela API";
  status("Studio RBXL: operação bloqueada com segurança");
 }
+function hasPublishableChanges(){return [...state.dirty].some(id=>{const n=state.files.get(id);return n&&!n.local&&!state.removed.has(n.id)})}
 function markDirty(){if(!state.current)return;const n=state.files.get(state.current);if(!n)return;n.source=$("#rbxlCode").value;state.dirty.add(n.id);$("#rbxlDirty").textContent="•";$("#rbxlSave").disabled=false;$("#rbxlPublish").disabled=false;$("#rbxlStatus").textContent="Alteração local não salva";status("Studio RBXL: alteração pendente")}
 async function connect(){
  const key=$("#rbxlApiKey").value.trim(),u=$("#rbxlUniverseInput").value.trim(),p=$("#rbxlPlaceInput").value.trim(),err=$("#rbxlAuthError");err.textContent="";
  if(!key||!/^\d+$/.test(u)||!/^\d+$/.test(p)){err.textContent="Informe uma chave válida e IDs numéricos.";return}
- state.apiKey=key;state.universeId=u;state.placeId=p;state.tree=[];state.files.clear();state.expanded=new Set(["__workspace__"]);
+ state.apiKey=key;state.universeId=u;state.placeId=p;state.tree=[];state.files.clear();state.dirty.clear();state.removed.clear();state.current=null;state.expanded=new Set(["__workspace__"]);
  const btn=$("#rbxlAuth").querySelector("button");btn.disabled=true;btn.textContent="Conectando…";$("#rbxlStatus").textContent="Carregando Workspace…";
  try{
   const d=await api("load");
@@ -184,7 +185,7 @@ async function selectFile(id){
 }
 async function saveCurrent(){
  const n=state.current?state.files.get(state.current):null;
- if(n?.local){n.source=$("#rbxlCode").value;state.dirty.delete(n.id);$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+n.name+" salvo no rascunho local. Para existir no Roblox, a API atual precisa oferecer criação de Instance.";status("Rascunho salvo localmente");return}
+ if(n?.local){n.source=$("#rbxlCode").value;state.dirty.delete(n.id);$("#rbxlDirty").textContent="";$("#rbxlSave").disabled=true;$("#rbxlPublish").disabled=!hasPublishableChanges();$("#rbxlStatus").textContent="✓ "+n.name+" salvo no rascunho local. Para existir no Roblox, a API atual precisa oferecer criação de Instance.";status("Rascunho salvo localmente");return}
  if(!n){$("#rbxlStatus").textContent="Nenhum script aberto.";return}
  if(!state.dirty.has(n.id)){$("#rbxlStatus").textContent="Nenhuma alteração pendente neste script.";return}
  const b=$("#rbxlSave");b.disabled=true;b.textContent="Salvando…";$("#rbxlStatus").textContent="Salvando "+n.name+"…";
@@ -198,7 +199,7 @@ async function saveCurrent(){
  }
 }
 async function publishAll(){
- const changes=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&{instanceId:n.id,scriptType:n.type,source:n.source}}).filter(Boolean);
+ const changes=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&!n.local&&!state.removed.has(n.id)?{instanceId:n.id,scriptType:n.type,source:n.source}:null}).filter(Boolean);
  if(!changes.length){$("#rbxlStatus").textContent="Nenhuma alteração pendente para publicar.";return}
  const b=$("#rbxlPublish");b.disabled=true;b.textContent="Publicando…";$("#rbxlStatus").textContent="Publicando "+changes.length+" arquivo(s)…";
  try{const d=await api("updateMany",{changes});state.dirty.clear();$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+(d.saved??changes.length)+" arquivo(s) atualizado(s) no Roblox";status("Publicação concluída")}
