@@ -79,27 +79,40 @@ function open(){
 function nodePathSegments(node){
  if(!node)return [];
  const byId=new Map((state.tree||[]).map(n=>[String(n.id),n]));
+ const start=byId.get(String(node.id))||node;
  const chain=[];
- let cur=node;
  const seen=new Set();
- for(let guard=0;cur&&guard++<40;){
+ let cur=start;
+ for(let guard=0;cur&&guard++<60;){
+   const id=String(cur.id??"").trim();
+   if(id&&seen.has(id))return [];
+   if(id)seen.add(id);
    const name=String(cur.name??"").trim();
+   const parent=String(cur.parent??"").trim();
    if(name)chain.unshift(name);
-   const parent=String(cur.parent??"");
+   else return [];
    if(!parent||parent==="root"||parent==="__workspace__")break;
-   if(seen.has(parent))return [];
-   seen.add(parent);
    cur=byId.get(parent)||null;
+   if(!cur)return [];
  }
  if(!chain.length)return [];
+ const root=chain[0];
+ const validRoot=new Set(["Workspace","Players","Lighting","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService"]);
+ if(!validRoot.has(root))return [];
  return chain;
+}
+function assertScriptPath(node){
+ const segments=nodePathSegments(node);
+ if(!segments.length)throw Error("Não foi possível reconstruir o caminho de "+String(node?.name||"script")+" na árvore atual.");
+ if(segments.some(v=>!String(v).trim()))throw Error("O caminho do script contém um nome vazio.");
+ return segments;
 }
 function nodeKindLabel(n){if(!n)return "item";if(SCRIPT_TYPES.has(n.type))return "script";if(n.type==="Folder"||n.hasChildren)return "pasta";return "objeto"}
 function clearCurrentSelection(){state.current=null;$("#rbxlSave").disabled=true;$("#rbxlPublish").disabled=!hasPublishableChanges();$("#rbxlSendScript").disabled=true;$("#rbxlCode").style.display="none";$("#rbxlWelcome").style.display="grid";$("#rbxlFileName").textContent="Nenhum arquivo";$("#rbxlFileType").textContent="";$("#rbxlDirty").textContent=""}
 function markSubtreeRemoved(id){const ids=new Set([id]);let changed=true;while(changed){changed=false;for(const n of state.tree)if(n.parent&&ids.has(n.parent)&&!ids.has(n.id)){ids.add(n.id);changed=true}}for(const x of ids){state.removed.add(x);state.dirty.delete(x);state.files.delete(x)}return ids}
 async function deleteNodeFromRoblox(node){
  const b=$("#rbxlRemoveScript");b.disabled=true;b.textContent="Excluindo…";$("#rbxlStatus").textContent="Excluindo "+node.name+" no Roblox…";
- try{const d=await api("deleteInstance",{segments:nodePathSegments(node)});if(!d.taskPath)throw Error("O Roblox não retornou a tarefa de exclusão.");const task=await waitRobloxTask(d.taskPath);if(task.state!=="COMPLETE")throw Error("A exclusão não foi concluída.");const parentId=node.parent||"__workspace__";markSubtreeRemoved(node.id);clearCurrentSelection();await loadChildrenFor(resolveRobloxParentId(parentId));renderTree($("#rbxlSearch").value);$("#rbxlStatus").textContent="✓ "+node.name+" foi excluído do Roblox e salvo no Place.";$("#rbxlHint").textContent="Exclusão concluída";status("Exclusão concluída")}
+ try{const d=await api("deleteInstance",{segments:assertScriptPath(node)});if(!d.taskPath)throw Error("O Roblox não retornou a tarefa de exclusão.");const task=await waitRobloxTask(d.taskPath);if(task.state!=="COMPLETE")throw Error("A exclusão não foi concluída.");const parentId=node.parent||"__workspace__";markSubtreeRemoved(node.id);clearCurrentSelection();await loadChildrenFor(resolveRobloxParentId(parentId));renderTree($("#rbxlSearch").value);$("#rbxlStatus").textContent="✓ "+node.name+" foi excluído do Roblox e salvo no Place.";$("#rbxlHint").textContent="Exclusão concluída";status("Exclusão concluída")}
  catch(e){$("#rbxlStatus").textContent="Não foi possível excluir "+node.name+": "+(e.message||String(e));$("#rbxlHint").textContent="Nada foi removido localmente";status("Exclusão não concluída")}
  finally{b.disabled=false;b.textContent="Excluir"}
 }
@@ -350,7 +363,7 @@ async function saveCurrent(){
  if(!state.dirty.has(n.id)){$("#rbxlStatus").textContent="Nenhuma alteração pendente neste script.";return}
  const b=$("#rbxlSave");b.disabled=true;b.textContent="Salvando…";$("#rbxlStatus").textContent="Salvando "+n.name+"…";
  try{
-   await api("update",{instanceId:n.id,scriptType:n.type,source:n.source,segments:nodePathSegments(n)});
+   await api("update",{instanceId:n.id,scriptType:n.type,source:n.source,segments:assertScriptPath(n)});
    state.dirty.delete(n.id);n.sourceLoaded=true;$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+n.name+" salvo no Roblox";status("Script salvo");
  }catch(e){
    $("#rbxlStatus").textContent="Falha ao salvar: "+e.message;status("Falha ao salvar");
@@ -359,7 +372,7 @@ async function saveCurrent(){
  }
 }
 async function publishAll(){
- const changes=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&!n.local&&!state.removed.has(n.id)?{instanceId:n.id,scriptType:n.type,source:n.source,segments:nodePathSegments(n)}:null}).filter(Boolean);
+ const changes=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&!n.local&&!state.removed.has(n.id)?{instanceId:n.id,scriptType:n.type,source:n.source,segments:assertScriptPath(n)}:null}).filter(Boolean);
  if(!changes.length){$("#rbxlStatus").textContent="Nenhuma alteração pendente para publicar.";return}
  const b=$("#rbxlPublish");b.disabled=true;b.textContent="Publicando…";$("#rbxlStatus").textContent="Publicando "+changes.length+" arquivo(s)…";
  try{const d=await api("updateMany",{changes});state.dirty.clear();$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+(d.saved??changes.length)+" arquivo(s) atualizado(s) no Roblox";status("Publicação concluída")}
