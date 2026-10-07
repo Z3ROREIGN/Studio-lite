@@ -363,7 +363,7 @@ async function saveCurrent(){
  if(!state.dirty.has(n.id)){$("#rbxlStatus").textContent="Nenhuma alteração pendente neste script.";return}
  const b=$("#rbxlSave");b.disabled=true;b.textContent="Salvando…";$("#rbxlStatus").textContent="Salvando "+n.name+"…";
  try{
-   await api("update",{instanceId:n.id,scriptType:n.type,source:n.source,segments:assertScriptPath(n)});
+   await api("update",{instanceId:n.id,scriptType:n.type,source:n.source});
    state.dirty.delete(n.id);n.sourceLoaded=true;$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+n.name+" salvo no Roblox";status("Script salvo");
  }catch(e){
    $("#rbxlStatus").textContent="Falha ao salvar: "+e.message;status("Falha ao salvar");
@@ -372,11 +372,11 @@ async function saveCurrent(){
  }
 }
 async function publishAll(){
- const changes=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&!n.local&&!state.removed.has(n.id)?{instanceId:n.id,scriptType:n.type,source:n.source,segments:assertScriptPath(n)}:null}).filter(Boolean);
+ const changes=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&!n.local&&!state.removed.has(n.id)?{instanceId:n.id,scriptType:n.type,source:n.source}:null}).filter(Boolean);
  if(!changes.length){$("#rbxlStatus").textContent="Nenhuma alteração pendente para publicar.";return}
  const b=$("#rbxlPublish");b.disabled=true;b.textContent="Publicando…";$("#rbxlStatus").textContent="Publicando "+changes.length+" arquivo(s)…";
- try{const d=await api("updateMany",{changes});state.dirty.clear();$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+(d.saved??changes.length)+" arquivo(s) atualizado(s) no Roblox";status("Publicação concluída")}
- catch(e){$("#rbxlStatus").textContent="Falha na publicação: "+e.message;status("Falha na publicação")}
+ try{const d=await api("updateMany",{changes});state.dirty.clear();$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+(d.saved??changes.length)+" arquivo(s) atualizado(s) no Roblox";$("#rbxlHint").textContent="Publicado pela Roblox Instance API";status("Publicação concluída")}
+ catch(e){$("#rbxlStatus").textContent="Falha na publicação: "+e.message;$("#rbxlHint").textContent="A API agora atualiza pelo Instance ID; se o Roblox bloquear, feche o script no Studio e verifique universe-place-instances:write.";status("Falha na publicação")}
  finally{b.textContent="Publicar";b.disabled=!!state.dirty.size}
 }
 function install(){
