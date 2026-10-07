@@ -278,6 +278,18 @@ function currentParentId(){
  if(n?.parent)return n.parent;
  return "__workspace__";
 }
+
+function showDiagnosticPanel(title,ok,message,solution){
+ const old=$("#rbxlDiagnosticPanel");if(old)old.remove();
+ const box=document.createElement("div");box.id="rbxlDiagnosticPanel";box.className="rbxl-confirm";
+ const statusLabel=ok?"✓ TESTE CONCLUÍDO":"✕ PROBLEMA ENCONTRADO";
+ const statusColor=ok?"#dff7e7":"#ffd7d7";
+ box.innerHTML='<div class="rbxl-confirm-card rbxl-diagnostic-card" style="max-width:700px;width:min(700px,94vw);max-height:86vh;overflow:auto"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px"><div><div style="font-size:10px;letter-spacing:1px;color:#7d8999">'+statusLabel+'</div><h3 style="margin:5px 0 0;font-size:19px">'+esc(title)+'</h3></div><button class="rbxl-btn" id="rbxlDiagnosticClose">×</button></div><div style="margin-top:16px;padding:14px;border:1px solid #293442;border-radius:10px;background:#080c12"><div style="font-size:10px;color:#8995a5">O QUE ACONTECEU</div><div style="margin-top:7px;color:'+statusColor+';white-space:pre-wrap;line-height:1.55;font-size:12px">'+esc(message)+'</div></div><div style="margin-top:12px;padding:14px;border:1px solid #293442;border-radius:10px;background:#080c12"><div style="font-size:10px;color:#8995a5">COMO RESOLVER</div><div style="margin-top:7px;color:#dce5ef;white-space:pre-wrap;line-height:1.6;font-size:12px">'+esc(solution)+'</div></div><div class="rbxl-safe-note">Este diagnóstico não usa alert e permanece aberto nesta aba até você fechá-lo. O erro retornado pelo Roblox é mostrado acima para facilitar a correção.</div><div class="rbxl-confirm-actions"><button class="rbxl-btn primary" id="rbxlDiagnosticDone">Entendi</button></div></div>';
+ document.body.appendChild(box);
+ const close=()=>box.remove();
+ $("#rbxlDiagnosticClose").onclick=close;$("#rbxlDiagnosticDone").onclick=close;
+}
+
 function showConfirm(title,message,onConfirm){
  const old=$("#rbxlConfirm");if(old)old.remove();
  const box=document.createElement("div");box.id="rbxlConfirm";box.className="rbxl-confirm";
@@ -381,12 +393,12 @@ async function testLuau(){
    $("#rbxlStatus").textContent="✓ Luau Execution está funcionando";
    $("#rbxlHint").textContent="A chave consegue criar e executar tarefas Luau neste Place.";
    status("Luau Execution OK");
-   alert("Luau OK\\n\\nA chave tem acesso ao Luau Execution neste Place.\\n\\nSe a publicação ainda falhar, o problema é a permissão de publicação do Place (universe.places:write) ou a configuração de salvamento do Place.");
+   showDiagnosticPanel("Luau Execution funcionando",true,"A chave conseguiu criar e executar uma tarefa Luau neste Place.","Nenhuma correção é necessária para o Luau Execution. Se a publicação continuar falhando, execute “Testar salvamento”. Se o salvamento falhar, verifique universe.places:write e a configuração de salvamento do Place.");
  }catch(e){
    $("#rbxlStatus").textContent="✕ Luau Execution falhou: "+(e.message||String(e));
    $("#rbxlHint").textContent="A mensagem acima é o erro real retornado pelo Roblox.";
    status("Luau Execution falhou");
-   alert("Falha no Luau Execution\\n\\n"+(e.message||String(e))+"\\n\\nConfira: universe.place.luau-execution-session:write e, para salvar o Place, universe.places:write.");
+   showDiagnosticPanel("Luau Execution falhou",false,e.message||String(e),"Confira se a chave possui universe.place.luau-execution-session:write e se o Place correto está permitido na chave. Depois execute novamente “Testar Luau”. Para publicar/salvar o Place, também verifique universe.places:write e a configuração de salvamento do Place.");
  }finally{
    b.disabled=false; b.textContent="Testar Luau";
  }
@@ -401,12 +413,12 @@ async function testSavePermission(){
    $("#rbxlStatus").textContent="✓ Salvamento autorizado neste Place";
    $("#rbxlHint").textContent="A chave consegue executar SavePlaceAsync sem publicar uma nova versão.";
    status("Permissão de salvamento OK");
-   alert("SALVAMENTO OK\\n\\nO Roblox autorizou SavePlaceAsync neste Place.\\n\\nA publicação do Studio RBXL já pode usar Luau + SavePlaceAsync.");
+   showDiagnosticPanel("Salvamento autorizado",true,"O Roblox autorizou SavePlaceAsync neste Place com SaveWithoutPublish=true.","Nenhuma correção é necessária para a permissão de salvamento. A próxima etapa é testar “Publicar alterações”. Se a publicação falhar, a nova aba de diagnóstico mostrará o erro real e a orientação correspondente.");
  }catch(e){
    $("#rbxlStatus").textContent="✕ Salvamento bloqueado: "+(e.message||String(e));
    $("#rbxlHint").textContent="Esse é o erro real retornado pelo Roblox.";
    status("Permissão de salvamento falhou");
-   alert("FALHA NO SALVAMENTO\\n\\n"+(e.message||String(e))+"\\n\\nVerifique a permissão Places: write / universe.places:write, o Place permitido na chave e a configuração de API de salvamento do Place.");
+   showDiagnosticPanel("Salvamento bloqueado",false,e.message||String(e),"Verifique universe.places:write / Places: write, confirme que esta chave permite exatamente este Universe/Place e confira se a API de salvamento está habilitada nas configurações do Place. Depois execute novamente “Testar salvamento”.");
  }finally{
    b.disabled=false; b.textContent="Testar salvamento";
  }
