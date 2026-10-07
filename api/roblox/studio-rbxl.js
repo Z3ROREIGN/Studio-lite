@@ -121,23 +121,37 @@ async function loadScriptSource(universeId, placeId, instanceId, apiKey) {
   };
 }
 
-async function updateScript(universeId, placeId, nodeId, scriptType, source, apiKey) {
-  if (!validId(universeId) || !validId(placeId) || !nodeId) throw new Error("Identificação inválida.");
+async function updateScriptWithLuau(universeId, placeId, segments, scriptType, source, apiKey) {
+  if (!validId(universeId) || !validId(placeId)) throw new Error("Identificação inválida.");
   if (!SCRIPT_TYPES.includes(scriptType)) throw new Error("Somente Script, LocalScript e ModuleScript podem ser editados.");
-  const body = { engineInstance: { Details: { [scriptType]: { Source: String(source ?? "") } } } };
-  const url = "/universes/" + universeId + "/places/" + placeId + "/instances/" + encodeURIComponent(nodeId);
-  let r;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    r = await roblox(url, apiKey, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    if (r.status !== 409 || attempt === 4) break;
-    const waitMs = [4000, 8000, 15000, 25000][attempt];
-    await new Promise(resolve => setTimeout(resolve, waitMs));
-  }
+  if (!Array.isArray(segments) || !segments.length || segments.length > 20) throw new Error("Caminho do script inválido.");
+  const cleanSegments = segments.map(v => String(v ?? "").trim()).filter(Boolean);
+  if (!cleanSegments.length || cleanSegments.some(v => v.length > 100 || /["\\r\\n]/.test(v))) throw new Error("Caminho do script inválido.");
+  const [root, ...children] = cleanSegments;
+  const rootServices = new Set(["Workspace","Players","Lighting","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService"]);
+  if (!rootServices.has(root)) throw new Error("O caminho precisa começar por um serviço válido.");
+  const safe = value => JSON.stringify(String(value ?? "")).replace(/</g, "\\u003c");
+  let expr = 'game:GetService(' + safe(root) + ')';
+  for (const child of children) expr += ':FindFirstChild(' + safe(child) + ')';
+  const script = [
+    "local target = " + expr,
+    "if not target then error(" + JSON.stringify("O script não foi encontrado no Roblox.") + ") end",
+    "if not target:IsA(" + JSON.stringify(scriptType) + ") then error(" + JSON.stringify("O objeto encontrado não é do tipo esperado.") + ") end",
+    "target.Source = " + safe(source),
+    "game:GetService(" + JSON.stringify("AssetService") + "):SavePlaceAsync({PlaceId = game.PlaceId})",
+    "return { saved = true, name = target.Name, className = target.ClassName }"
+  ].join("\n");
+  const path = "/universes/" + universeId + "/places/" + placeId + "/luau-execution-session-tasks";
+  const r = await roblox(path, apiKey, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ script, timeout: "60s" })
+  });
   if (!r.ok) {
-    const e = new Error(r.data?.message || r.data?.error || ("Falha ao salvar (HTTP " + r.status + ")."));
+    const e = new Error(r.data?.message || r.data?.error || ("Falha ao publicar script no Roblox (HTTP " + r.status + ")."));
     e.status = r.status; e.headers = r.headers; throw e;
   }
-  if (r.data?.path) await operation(r.data.path, apiKey);
+  return { path: r.data?.path || "", state: r.data?.state || "PROCESSING" };
 }
 
 
@@ -237,12 +251,23 @@ export default async function handler(req, res) {
       if (!instanceId) return json(res, 400, { ok: false, error: "Instance ID obrigatório." });
       return json(res, 200, { ok: true, instanceId, ...(await loadScriptSource(universeId, placeId, instanceId, apiKey)) });
     }
-    if (action === "update") { await updateScript(universeId, placeId, clean(body.instanceId), clean(body.scriptType), body.source, apiKey); return json(res, 200, { ok: true, saved: true }); }
+    if (action === "update") {
+      const segments = Array.isArray(body.segments) ? body.segments : [];
+      const task = await updateScriptWithLuau(universeId, placeId, segments, clean(body.scriptType), body.source, apiKey);
+      if (!task.path) throw new Error("O Roblox não retornou a tarefa de publicação.");
+      await operation(task.path, apiKey);
+      return json(res, 200, { ok: true, saved: true, published: true });
+    }
     if (action === "updateMany") {
       const changes = Array.isArray(body.changes) ? body.changes : [];
       if (changes.length > 100) return json(res, 400, { ok: false, error: "Limite de 100 arquivos por salvamento." });
-      for (const change of changes) await updateScript(universeId, placeId, clean(change.instanceId), clean(change.scriptType), change.source, apiKey);
-      return json(res, 200, { ok: true, saved: changes.length });
+      for (const change of changes) {
+        const segments = Array.isArray(change.segments) ? change.segments : [];
+        const task = await updateScriptWithLuau(universeId, placeId, segments, clean(change.scriptType), change.source, apiKey);
+        if (!task.path) throw new Error("O Roblox não retornou a tarefa de publicação.");
+        await operation(task.path, apiKey);
+      }
+      return json(res, 200, { ok: true, saved: changes.length, published: true });
     }
     if (action === "createScript") {
       const scriptType = clean(body.scriptType);
