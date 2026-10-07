@@ -360,6 +360,31 @@ async function runLuauDiagnostic(universeId, placeId, apiKey) {
   return { taskPath: r.data.path, state: "COMPLETE", output: task };
 }
 
+async function runSavePermissionDiagnostic(universeId, placeId, apiKey) {
+  const path = "/universes/" + universeId + "/places/" + placeId + "/luau-execution-session-tasks";
+  const script = [
+    'local assetService = game:GetService("AssetService")',
+    'local ok, result = pcall(function()',
+    '  return assetService:SavePlaceAsync({PlaceId = game.PlaceId, SaveWithoutPublish = true})',
+    'end)',
+    'if not ok then error("SavePlaceAsync: " .. tostring(result)) end',
+    'return { ok = true, saveWithoutPublish = true, placeId = game.PlaceId, universeId = game.GameId }'
+  ].join("\n");
+  const r = await roblox(path, apiKey, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ script })
+  });
+  if (!r.ok) {
+    const message = r.data?.message || r.data?.error || r.data?.errorMessage || ("Falha ao iniciar teste de salvamento (HTTP " + r.status + ").");
+    const e = new Error(message);
+    e.status = r.status; e.headers = r.headers; e.roblox = r.data; throw e;
+  }
+  if (!r.data?.path) throw new Error("O Roblox não retornou o caminho da tarefa de salvamento.");
+  const task = await operation(r.data.path, apiKey);
+  return { taskPath: r.data.path, state: "COMPLETE", output: task };
+}
+
 
 async function getLuauTask(taskPath, apiKey) {
   const cleanPath = clean(taskPath).replace(/^\/+/, "");
@@ -387,6 +412,7 @@ export default async function handler(req, res) {
     if (req.method !== "POST") return json(res, 405, { ok: false, error: "Method not allowed" });
     const action = clean(body.action || "load");
     if (action === "diagnostic") return json(res, 200, { ok: true, diagnostic: await runLuauDiagnostic(universeId, placeId, apiKey), message: "Luau Execution está funcionando para esta chave e Place." });
+    if (action === "saveDiagnostic") return json(res, 200, { ok: true, diagnostic: await runSavePermissionDiagnostic(universeId, placeId, apiKey), message: "SavePlaceAsync com SaveWithoutPublish está autorizado neste Place." });
     if (action === "load") return json(res, 200, { ok: true, universeId, placeId, tree: await loadTree(universeId, placeId, apiKey), editable: SCRIPT_TYPES, readOnly: true, lazy: true });
     if (action === "children") {
       const parentId = clean(body.parentId);
@@ -452,8 +478,8 @@ export default async function handler(req, res) {
     const status = Number(error?.status);
     if (status === 429) { const reset = Number(error?.headers?.["x-ratelimit-reset"]); return json(res, 429, { ok: false, code: "ROBLOX_RATE_LIMITED", error: "O Roblox limitou temporariamente as solicitações. Aguarde alguns segundos e tente novamente.", retryAfter: Number.isFinite(reset) && reset > 0 ? reset : 5 }); }
     if (status === 504) return json(res, 504, { ok: false, code: "ROBLOX_OPERATION_PENDING", error: error?.message || "O Roblox ainda está processando a operação.", retryable: true });
-    if (status === 400) return json(res, 400, { ok: false, code: "ROBLOX_INVALID_REQUEST", error: error?.message || "Requisição inválida.", hint: "Para Luau, confira universe.place.luau-execution-session:write; para salvar o Place, confira também universe.places:write e se o Place tem API de salvamento habilitada." });
-    if (status === 403) return json(res, 403, { ok: false, code: "ROBLOX_FORBIDDEN", error: error?.message || "A chave do Roblox não tem a permissão necessária.", hint: "A chave precisa permitir universe.place.luau-execution-session:write. Para SavePlaceAsync, também é necessário universe.places:write e o Place deve ter API de salvamento habilitada." });
+    if (status === 400) return json(res, 400, { ok: false, code: "ROBLOX_INVALID_REQUEST", error: error?.message || "Requisição inválida.", hint: "Para Luau, confira universe.place.luau-execution-session:write; para salvar o Place, confira universe.places:write (Places: write) e se o Place tem API de salvamento habilitada." });
+    if (status === 403) return json(res, 403, { ok: false, code: "ROBLOX_FORBIDDEN", error: error?.message || "A chave do Roblox não tem a permissão necessária.", hint: "A chave precisa permitir universe.place.luau-execution-session:write. Para SavePlaceAsync, também é necessário universe.places:write (Places: write) e o Place deve ter API de salvamento habilitada." });
     return json(res, 500, { ok: false, error: error?.message || String(error) });
   }
 }
