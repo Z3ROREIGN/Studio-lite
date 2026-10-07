@@ -31,8 +31,12 @@ async function operation(path, apiKey) {
       continue;
     }
     if (!r.ok) {
-      const e = new Error(r.data?.message || r.data?.error || r.data?.errorMessage || ("Roblox operation HTTP " + r.status));
-      e.status = r.status; e.headers = r.headers; throw e;
+      const detail = r.data?.message || r.data?.error || r.data?.errorMessage || r.data?.detail || r.data?.description || "";
+      const e = new Error(detail ? ("Roblox HTTP " + r.status + ": " + detail) : ("Roblox operation HTTP " + r.status));
+      e.status = r.status;
+      e.headers = r.headers;
+      e.roblox = r.data;
+      throw e;
     }
     const data = r.data || {};
     const state = String(data.state || "").toUpperCase();
@@ -475,11 +479,23 @@ export default async function handler(req, res) {
     return json(res, 400, { ok: false, error: "Ação inválida." });
   } catch (error) {
     console.error("Studio RBXL Open Cloud:", error);
-    const status = Number(error?.status);
-    if (status === 429) { const reset = Number(error?.headers?.["x-ratelimit-reset"]); return json(res, 429, { ok: false, code: "ROBLOX_RATE_LIMITED", error: "O Roblox limitou temporariamente as solicitações. Aguarde alguns segundos e tente novamente.", retryAfter: Number.isFinite(reset) && reset > 0 ? reset : 5 }); }
-    if (status === 504) return json(res, 504, { ok: false, code: "ROBLOX_OPERATION_PENDING", error: error?.message || "O Roblox ainda está processando a operação.", retryable: true });
-    if (status === 400) return json(res, 400, { ok: false, code: "ROBLOX_INVALID_REQUEST", error: error?.message || "Requisição inválida.", hint: "Para Luau, confira universe.place.luau-execution-session:write; para salvar o Place, confira universe.places:write (Places: write) e se o Place tem API de salvamento habilitada." });
-    if (status === 403) return json(res, 403, { ok: false, code: "ROBLOX_FORBIDDEN", error: error?.message || "A chave do Roblox não tem a permissão necessária.", hint: "A chave precisa permitir universe.place.luau-execution-session:write. Para SavePlaceAsync, também é necessário universe.places:write (Places: write) e o Place deve ter API de salvamento habilitada." });
-    return json(res, 500, { ok: false, error: error?.message || String(error) });
+    const status = Number(error?.status) || 500;
+    const message = error?.message || String(error);
+    const base = {
+      ok: false,
+      code: status >= 400 && status < 600 ? ("ROBLOX_HTTP_" + status) : "STUDIO_RBXL_ERROR",
+      error: message,
+      httpStatus: status
+    };
+    if (status === 429) {
+      const reset = Number(error?.headers?.["x-ratelimit-reset"]);
+      return json(res, 429, { ...base, code: "ROBLOX_RATE_LIMITED", retryAfter: Number.isFinite(reset) && reset > 0 ? reset : 5, hint: "Aguarde alguns segundos e tente novamente." });
+    }
+    if (status === 401) return json(res, 401, { ...base, code: "ROBLOX_UNAUTHORIZED", hint: "A chave foi recusada pelo Roblox. Confirme se a chave está ativa, se foi copiada inteira e se ela pertence ao Universe/Place selecionado." });
+    if (status === 403) return json(res, 403, { ...base, code: "ROBLOX_FORBIDDEN", hint: "Confirme os escopos universe.place.instance:read, universe.place.instance:write e, para Luau/salvamento, universe.place.luau-execution-session:write e universe.place:write. O jogo também precisa ter sessão colaborativa quando usar Engine Instances." });
+    if (status === 404) return json(res, 404, { ...base, code: "ROBLOX_NOT_FOUND", hint: "Confira se Universe ID e Place ID pertencem ao mesmo jogo e se a chave tem acesso a esse jogo." });
+    if (status === 400) return json(res, 400, { ...base, code: "ROBLOX_INVALID_REQUEST", hint: "A requisição chegou ao Roblox, mas foi rejeitada. A mensagem acima é a resposta real da API." });
+    if (status === 504) return json(res, 504, { ...base, code: "ROBLOX_OPERATION_PENDING", retryable: true, hint: "O Roblox demorou para concluir a operação." });
+    return json(res, status >= 400 && status < 600 ? status : 500, base);
   }
 }
