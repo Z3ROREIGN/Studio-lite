@@ -50,7 +50,7 @@ function open(){
   <header class="rbxl-top">
    <div class="rbxl-brand"><div class="rbxl-logo">S</div><div><b>STUDIO RBXL</b><small>OPEN CLOUD SCRIPT WORKSPACE</small></div></div>
    <div class="rbxl-meta"><div class="rbxl-pill">Universe <strong id="rbxlUniverse">—</strong></div><div class="rbxl-pill">Place <strong id="rbxlPlace">—</strong></div><div class="rbxl-pill">Modo <strong>Edição + criação</strong></div></div>
-   <div class="rbxl-actions"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn" id="rbxlTestLuau">Testar Luau</button><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlClose">×</button></div>
+   <div class="rbxl-actions"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn" id="rbxlTestLuau">Testar Luau</button><button class="rbxl-btn" id="rbxlTestSave">Testar salvamento</button><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlClose">×</button></div>
   </header>
   <div class="rbxl-body">
    <aside class="rbxl-tree"><div class="rbxl-tree-head"><b>WORKSPACE</b><span id="rbxlCount">0 arquivos</span><input id="rbxlSearch" class="rbxl-search" placeholder="⌕ Procurar script..."></div><div id="rbxlTree" class="rbxl-list"><div class="rbxl-loading">Conecte um Place para carregar o Workspace.</div></div></aside>
@@ -73,7 +73,7 @@ function open(){
  $("#rbxlClose").onclick=close;$("#rbxlNewScript").onclick=()=>requestScriptAction("create");$("#rbxlSendScript").onclick=sendCurrentDraftToRoblox;$("#rbxlRemoveScript").onclick=()=>requestScriptAction("remove");document.addEventListener("keydown",key,true);
  $("#rbxlForm").onsubmit=async e=>{e.preventDefault();await connect()};
  $("#rbxlSearch").oninput=()=>renderTree($("#rbxlSearch").value);
- $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;$("#rbxlTestLuau").onclick=testLuau;
+ $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;$("#rbxlTestLuau").onclick=testLuau;$("#rbxlTestSave").onclick=testSavePermission;
  return true;
 }
 function nodePathSegments(node){
@@ -389,6 +389,26 @@ async function testLuau(){
    alert("Falha no Luau Execution\\n\\n"+(e.message||String(e))+"\\n\\nConfira: universe.place.luau-execution-session:write e, para salvar o Place, universe.places:write.");
  }finally{
    b.disabled=false; b.textContent="Testar Luau";
+ }
+}
+async function testSavePermission(){
+ const b=$("#rbxlTestSave"); if(!b)return;
+ b.disabled=true; b.textContent="Testando…";
+ $("#rbxlStatus").textContent="Testando permissão de salvamento do Place…";
+ $("#rbxlHint").textContent="Teste seguro: SavePlaceAsync com SaveWithoutPublish=true.";
+ try{
+   await api("saveDiagnostic");
+   $("#rbxlStatus").textContent="✓ Salvamento autorizado neste Place";
+   $("#rbxlHint").textContent="A chave consegue executar SavePlaceAsync sem publicar uma nova versão.";
+   status("Permissão de salvamento OK");
+   alert("SALVAMENTO OK\\n\\nO Roblox autorizou SavePlaceAsync neste Place.\\n\\nA publicação do Studio RBXL já pode usar Luau + SavePlaceAsync.");
+ }catch(e){
+   $("#rbxlStatus").textContent="✕ Salvamento bloqueado: "+(e.message||String(e));
+   $("#rbxlHint").textContent="Esse é o erro real retornado pelo Roblox.";
+   status("Permissão de salvamento falhou");
+   alert("FALHA NO SALVAMENTO\\n\\n"+(e.message||String(e))+"\\n\\nVerifique a permissão Places: write / universe.places:write, o Place permitido na chave e a configuração de API de salvamento do Place.");
+ }finally{
+   b.disabled=false; b.textContent="Testar salvamento";
  }
 }
 async function publishAll(){
