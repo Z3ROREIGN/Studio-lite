@@ -137,9 +137,13 @@ async function loadScriptSource(universeId, placeId, instanceId, apiKey) {
 async function updateScriptWithLuau(universeId, placeId, segments, scriptType, source, apiKey) {
   if (!validId(universeId) || !validId(placeId)) throw new Error("Identificação inválida.");
   if (!SCRIPT_TYPES.includes(scriptType)) throw new Error("Somente Script, LocalScript e ModuleScript podem ser editados.");
-  if (!Array.isArray(segments) || !segments.length || segments.length > 20) throw new Error("Caminho do script inválido.");
-  const cleanSegments = segments.map(v => String(v ?? "").trim()).filter(Boolean);
-  if (!cleanSegments.length || cleanSegments.some(v => v.length > 100 || /["\\r\\n]/.test(v))) throw new Error("Caminho do script inválido.");
+  if (!Array.isArray(segments) || !segments.length || segments.length > 40) {
+    throw new Error("Caminho de script inválido: o editor não enviou a hierarquia completa.");
+  }
+  const cleanSegments = segments.map(v => String(v ?? "").trim());
+  if (cleanSegments.some(v => !v || v.length > 100 || /["\\r\\n]/.test(v))) {
+    throw new Error("Caminho de script inválido: existe um nome de objeto vazio ou inválido.");
+  }
   const [root, ...children] = cleanSegments;
   const rootServices = new Set(["Workspace","Players","Lighting","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService"]);
   if (!rootServices.has(root)) throw new Error("O caminho precisa começar por um serviço válido.");
