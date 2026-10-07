@@ -338,7 +338,7 @@ async function saveCurrent(){
  if(!state.dirty.has(n.id)){$("#rbxlStatus").textContent="Nenhuma alteração pendente neste script.";return}
  const b=$("#rbxlSave");b.disabled=true;b.textContent="Salvando…";$("#rbxlStatus").textContent="Salvando "+n.name+"…";
  try{
-   await api("update",{instanceId:n.id,scriptType:n.type,source:n.source});
+   await api("update",{instanceId:n.id,scriptType:n.type,source:n.source,segments:nodePathSegments(n)});
    state.dirty.delete(n.id);n.sourceLoaded=true;$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+n.name+" salvo no Roblox";status("Script salvo");
  }catch(e){
    $("#rbxlStatus").textContent="Falha ao salvar: "+e.message;status("Falha ao salvar");
@@ -347,7 +347,7 @@ async function saveCurrent(){
  }
 }
 async function publishAll(){
- const changes=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&!n.local&&!state.removed.has(n.id)?{instanceId:n.id,scriptType:n.type,source:n.source}:null}).filter(Boolean);
+ const changes=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&!n.local&&!state.removed.has(n.id)?{instanceId:n.id,scriptType:n.type,source:n.source,segments:nodePathSegments(n)}:null}).filter(Boolean);
  if(!changes.length){$("#rbxlStatus").textContent="Nenhuma alteração pendente para publicar.";return}
  const b=$("#rbxlPublish");b.disabled=true;b.textContent="Publicando…";$("#rbxlStatus").textContent="Publicando "+changes.length+" arquivo(s)…";
  try{const d=await api("updateMany",{changes});state.dirty.clear();$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+(d.saved??changes.length)+" arquivo(s) atualizado(s) no Roblox";status("Publicação concluída")}
