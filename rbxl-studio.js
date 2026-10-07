@@ -16,7 +16,13 @@ const icon=t=>SCRIPT_TYPES.has(t)?"▱":t==="Workspace"?"◈":t==="Folder"?"▰"
 async function api(action,extra={}){
  const r=await fetch("/api/roblox/studio-rbxl",{method:"POST",headers:{"Content-Type":"application/json","x-roblox-api-key":state.apiKey},body:JSON.stringify({action,universeId:state.universeId,placeId:state.placeId,...extra})});
  let d={};try{d=await r.json()}catch{}
- if(!r.ok||!d.ok)throw Error(d.error||("Studio RBXL HTTP "+r.status));
+ if(!r.ok||!d.ok){
+   const err=new Error(d.error||("Studio RBXL HTTP "+r.status));
+   err.httpStatus=d.httpStatus||r.status;
+   err.hint=d.hint||"Verifique a resposta da API do Roblox.";
+   err.code=d.code||"STUDIO_RBXL_ERROR";
+   throw err;
+ }
  return d;
 }
 function style(){
@@ -334,7 +340,13 @@ async function connect(){
   $("#rbxlStatus").textContent=state.tree.length+" itens carregados • pastas disponíveis no Explorer";
   status("Studio RBXL conectado")
 }
- catch(e){err.textContent=e.message||String(e);$("#rbxlStatus").textContent="Falha na conexão"}
+ catch(e){
+   const message=e.message||String(e);
+   const solution=e.hint||"Confira Universe ID, Place ID e a chave Open Cloud. O painel mostra o erro real retornado pela API.";
+   err.textContent=message;
+   $("#rbxlStatus").textContent="Falha na conexão";
+   showDiagnosticPanel("Não foi possível conectar ao Roblox",false,message,solution);
+ }
  finally{const b=$("#rbxlAuth")?.querySelector("button");if(b){b.disabled=false;b.textContent="Conectar e carregar Workspace"}}
 }
 function indexNodes(nodes){for(const n of nodes||[]){if(!n)continue;if(SCRIPT_TYPES.has(n.type)&&!state.files.has(n.id))state.files.set(n.id,{...n,source:"",sourceLoaded:false})}}
