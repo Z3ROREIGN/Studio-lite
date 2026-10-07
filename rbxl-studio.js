@@ -375,8 +375,8 @@ async function publishAll(){
  const changes=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&!n.local&&!state.removed.has(n.id)?{instanceId:n.id,scriptType:n.type,source:n.source}:null}).filter(Boolean);
  if(!changes.length){$("#rbxlStatus").textContent="Nenhuma alteração pendente para publicar.";return}
  const b=$("#rbxlPublish");b.disabled=true;b.textContent="Publicando…";$("#rbxlStatus").textContent="Publicando "+changes.length+" arquivo(s)…";
- try{const d=await api("updateMany",{changes});state.dirty.clear();$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+(d.saved??changes.length)+" arquivo(s) atualizado(s) no Roblox";$("#rbxlHint").textContent="Publicado pela Roblox Instance API";status("Publicação concluída")}
- catch(e){$("#rbxlStatus").textContent="Falha na publicação: "+e.message;$("#rbxlHint").textContent="A API agora atualiza pelo Instance ID; se o Roblox bloquear, feche o script no Studio e verifique universe-place-instances:write.";status("Falha na publicação")}
+ try{const d=await api("publishMany",{changes});state.dirty.clear();$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+(d.saved??changes.length)+" arquivo(s) publicado(s) no Roblox";$("#rbxlHint").textContent="Place salvo com SavePlaceAsync pelo servidor Roblox";status("Publicação concluída")}
+ catch(e){$("#rbxlStatus").textContent="Falha na publicação: "+e.message;$("#rbxlHint").textContent="A publicação usa Luau + SavePlaceAsync. Verifique luau-execution-session:write/read e se o Place permite API de salvamento.";status("Falha na publicação")}
  finally{b.textContent="Publicar";b.disabled=!!state.dirty.size}
 }
 function install(){
