@@ -23,19 +23,32 @@ async function roblox(path, apiKey, init = {}) {
 }
 
 async function operation(path, apiKey) {
-  for (let i = 0; i < 8; i++) {
+  const maxPolls = 120;
+  for (let i = 0; i < maxPolls; i++) {
     const r = await roblox("/" + String(path).replace(/^\//, ""), apiKey);
-    if (r.status === 409 && i < 7) {
-      await new Promise(resolve => setTimeout(resolve, 5000));
+    if (r.status === 409 && i < maxPolls - 1) {
+      await new Promise(resolve => setTimeout(resolve, 3000));
       continue;
     }
-    if (!r.ok) { const e = new Error(r.data?.message || r.data?.error || ("Roblox operation HTTP " + r.status)); e.status = r.status; e.headers = r.headers; throw e; }
-    if (r.data?.done) return r.data?.response || r.data;
-    await new Promise(resolve => setTimeout(resolve, 2500));
+    if (!r.ok) {
+      const e = new Error(r.data?.message || r.data?.error || r.data?.errorMessage || ("Roblox operation HTTP " + r.status));
+      e.status = r.status; e.headers = r.headers; throw e;
+    }
+    const data = r.data || {};
+    const state = String(data.state || "").toUpperCase();
+    if (["FAILED", "ERROR", "CANCELLED", "CANCELED"].includes(state)) {
+      const taskError = data.error;
+      const message = typeof taskError === "string" ? taskError : taskError?.message || taskError?.detail || taskError?.description;
+      const e = new Error(message || "A tarefa do Roblox falhou durante a execução.");
+      e.status = 400; e.headers = r.headers; e.robloxTask = data; throw e;
+    }
+    if (["COMPLETE", "SUCCEEDED"].includes(state) || data.done === true) {
+      return data.response || data.output || data;
+    }
+    if (i < maxPolls - 1) await new Promise(resolve => setTimeout(resolve, 2500));
   }
-  const e = new Error("O Roblox ainda está processando a operação. Tente novamente em alguns segundos."); e.status = 504; throw e;
+  const e = new Error("O Roblox demorou mais de 5 minutos para concluir a operação. Verifique a tarefa no Roblox e tente novamente."); e.status = 504; throw e;
 }
-
 function inferScriptType(details) {
   const d = details && typeof details === "object" ? details : {};
   for (const type of SCRIPT_TYPES) if (d[type] && typeof d[type] === "object") return type;
