@@ -39,7 +39,20 @@ async function operation(path, apiKey) {
     if (["FAILED", "ERROR", "CANCELLED", "CANCELED"].includes(state) || (data.done === true && data.error)) {
       const taskError = data.error;
       const message = typeof taskError === "string" ? taskError : taskError?.message || taskError?.detail || taskError?.description || data.response?.message;
-      const e = new Error(message || "O Roblox recusou ou falhou a operação.");
+      let logText = "";
+      try {
+        if (String(path).includes("/luau-execution-session-tasks/")) {
+          const lr = await roblox("/" + String(path).replace(/^\/+/, "") + "/logs", apiKey);
+          const logs = lr.data?.luauExecutionSessionTaskLogs || lr.data?.logs || [];
+          const messages = [];
+          for (const entry of Array.isArray(logs) ? logs : []) {
+            for (const m of (entry?.messages || [])) messages.push(String(m));
+          }
+          logText = messages.filter(Boolean).join("\n");
+        }
+      } catch {}
+      const finalMessage = logText ? ((message || "A tarefa Luau falhou.") + " | Logs: " + logText) : (message || "O Roblox recusou ou falhou a operação.");
+      const e = new Error(finalMessage);
       e.status = 400; e.headers = r.headers; e.robloxTask = data; throw e;
     }
     if (["COMPLETE", "SUCCEEDED"].includes(state) || data.done === true) {
@@ -214,7 +227,7 @@ async function publishScriptsWithLuau(universeId, placeId, changes, apiKey) {
   const r = await roblox(path, apiKey, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ script, timeout: "300s" })
+    body: JSON.stringify({ script })
   });
   if (!r.ok) {
     const e = new Error(r.data?.message || r.data?.error || ("Falha ao iniciar publicação pelo Roblox (HTTP " + r.status + ")."));
@@ -254,7 +267,7 @@ async function updateScriptWithLuau(universeId, placeId, segments, scriptType, s
   const r = await roblox(path, apiKey, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ script, timeout: "60s" })
+    body: JSON.stringify({ script })
   });
   if (!r.ok) {
     const e = new Error(r.data?.message || r.data?.error || ("Falha ao publicar script no Roblox (HTTP " + r.status + ")."));
@@ -281,7 +294,7 @@ async function createScriptWithLuau(universeId, placeId, scriptType, name, paren
   const r = await roblox(path, apiKey, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ script, timeout: "60s" })
+    body: JSON.stringify({ script })
   });
   if (!r.ok) {
     const e = new Error(r.data?.message || r.data?.error || ("Falha ao criar Script no Roblox (HTTP " + r.status + ")."));
@@ -316,7 +329,7 @@ async function deleteInstanceWithLuau(universeId, placeId, segments, apiKey) {
   const r = await roblox(path, apiKey, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ script, timeout: "60s" })
+    body: JSON.stringify({ script })
   });
   if (!r.ok) {
     const e = new Error(r.data?.message || r.data?.error || ("Falha ao excluir no Roblox (HTTP " + r.status + ")."));
@@ -324,6 +337,29 @@ async function deleteInstanceWithLuau(universeId, placeId, segments, apiKey) {
   }
   return { path: r.data?.path || "", state: r.data?.state || "PROCESSING" };
 }
+
+async function runLuauDiagnostic(universeId, placeId, apiKey) {
+  const path = "/universes/" + universeId + "/places/" + placeId + "/luau-execution-session-tasks";
+  const script = [
+    'local ok, err = pcall(function() return game:GetService("Workspace") ~= nil end)',
+    'if not ok then error(tostring(err)) end',
+    'return { ok = true, placeId = game.PlaceId, universeId = game.GameId }'
+  ].join("\n");
+  const r = await roblox(path, apiKey, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ script })
+  });
+  if (!r.ok) {
+    const message = r.data?.message || r.data?.error || r.data?.errorMessage || ("Falha ao iniciar diagnóstico Luau (HTTP " + r.status + ").");
+    const e = new Error(message);
+    e.status = r.status; e.headers = r.headers; e.roblox = r.data; throw e;
+  }
+  if (!r.data?.path) throw new Error("O Roblox não retornou o caminho da tarefa Luau.");
+  const task = await operation(r.data.path, apiKey);
+  return { taskPath: r.data.path, state: "COMPLETE", output: task };
+}
+
 
 async function getLuauTask(taskPath, apiKey) {
   const cleanPath = clean(taskPath).replace(/^\/+/, "");
@@ -350,6 +386,7 @@ export default async function handler(req, res) {
     if (req.method === "GET") return json(res, 200, { ok: true, service: "studio-rbxl-open-cloud" });
     if (req.method !== "POST") return json(res, 405, { ok: false, error: "Method not allowed" });
     const action = clean(body.action || "load");
+    if (action === "diagnostic") return json(res, 200, { ok: true, diagnostic: await runLuauDiagnostic(universeId, placeId, apiKey), message: "Luau Execution está funcionando para esta chave e Place." });
     if (action === "load") return json(res, 200, { ok: true, universeId, placeId, tree: await loadTree(universeId, placeId, apiKey), editable: SCRIPT_TYPES, readOnly: true, lazy: true });
     if (action === "children") {
       const parentId = clean(body.parentId);
@@ -415,8 +452,8 @@ export default async function handler(req, res) {
     const status = Number(error?.status);
     if (status === 429) { const reset = Number(error?.headers?.["x-ratelimit-reset"]); return json(res, 429, { ok: false, code: "ROBLOX_RATE_LIMITED", error: "O Roblox limitou temporariamente as solicitações. Aguarde alguns segundos e tente novamente.", retryAfter: Number.isFinite(reset) && reset > 0 ? reset : 5 }); }
     if (status === 504) return json(res, 504, { ok: false, code: "ROBLOX_OPERATION_PENDING", error: error?.message || "O Roblox ainda está processando a operação.", retryable: true });
-    if (status === 400) return json(res, 400, { ok: false, code: "ROBLOX_INVALID_REQUEST", error: error?.message || "Requisição inválida." });
-    if (status === 403) return json(res, 403, { ok: false, code: "ROBLOX_FORBIDDEN", error: error?.message || "A chave do Roblox não tem a permissão necessária." });
+    if (status === 400) return json(res, 400, { ok: false, code: "ROBLOX_INVALID_REQUEST", error: error?.message || "Requisição inválida.", hint: "Para Luau, confira universe.place.luau-execution-session:write; para salvar o Place, confira também universe.places:write e se o Place tem API de salvamento habilitada." });
+    if (status === 403) return json(res, 403, { ok: false, code: "ROBLOX_FORBIDDEN", error: error?.message || "A chave do Roblox não tem a permissão necessária.", hint: "A chave precisa permitir universe.place.luau-execution-session:write. Para SavePlaceAsync, também é necessário universe.places:write e o Place deve ter API de salvamento habilitada." });
     return json(res, 500, { ok: false, error: error?.message || String(error) });
   }
 }
