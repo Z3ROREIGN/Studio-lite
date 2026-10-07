@@ -161,6 +161,70 @@ async function updateScriptWithInstance(universeId, placeId, instanceId, scriptT
   return { path: r.data.path };
 }
 
+async function resolveInstanceSegments(universeId, placeId, instanceId, apiKey) {
+  const segments = [];
+  let currentId = clean(instanceId);
+  const seen = new Set();
+  for (let guard = 0; guard < 50 && currentId && currentId !== "root"; guard++) {
+    if (seen.has(currentId)) throw new Error("Foi detectado um ciclo na hierarquia do Roblox.");
+    seen.add(currentId);
+    const instance = await getInstance(universeId, placeId, currentId, apiKey);
+    const engine = instance?.engineInstance || instance?.EngineInstance || instance || {};
+    const name = clean(engine.Name || engine.name);
+    if (!name) throw new Error("O Roblox retornou uma instância sem nome para o Instance ID informado.");
+    segments.unshift(name);
+    currentId = clean(engine.Parent || engine.parent);
+  }
+  if (!segments.length) throw new Error("Não foi possível reconstruir a localização da instância no Roblox.");
+  const rootServices = new Set(["Workspace","Players","Lighting","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService"]);
+  if (!rootServices.has(segments[0])) throw new Error("A instância pertence a um serviço raiz não suportado: " + segments[0]);
+  return segments;
+}
+
+async function publishScriptsWithLuau(universeId, placeId, changes, apiKey) {
+  if (!Array.isArray(changes) || !changes.length) throw new Error("Nenhum script foi selecionado para publicação.");
+  if (changes.length > 50) throw new Error("Limite de 50 scripts por publicação.");
+  const safe = value => JSON.stringify(String(value ?? "")).replace(/</g, "\\u003c");
+  const lines = [];
+  for (const change of changes) {
+    const instanceId = clean(change.instanceId);
+    const scriptType = clean(change.scriptType);
+    if (!instanceId || !SCRIPT_TYPES.includes(scriptType)) throw new Error("Script inválido na lista de publicação.");
+    const source = String(change.source ?? "");
+    if (source.length > 190000) throw new Error("O script " + instanceId + " ultrapassa o limite de tamanho.");
+    const segments = await resolveInstanceSegments(universeId, placeId, instanceId, apiKey);
+    let expr = segments[0] === "Workspace" ? 'game:GetService("Workspace")' : 'game:GetService(' + safe(segments[0]) + ')';
+    for (const child of segments.slice(1)) expr += ':FindFirstChild(' + safe(child) + ')';
+    lines.push(
+      "do",
+      "  local target = " + expr,
+      "  if not target then error(" + safe("Script não encontrado no Roblox: " + segments.join(" > ")) + ") end",
+      "  if not target:IsA(" + safe(scriptType) + ") then error(" + safe("Tipo inesperado para " + segments.join(" > ")) + ") end",
+      "  target.Source = " + safe(source),
+      "end"
+    );
+  }
+  lines.push(
+    'game:GetService("AssetService"):SavePlaceAsync({PlaceId = game.PlaceId})',
+    'return { published = true, scripts = ' + String(changes.length) + ' }'
+  );
+  const script = lines.join("\n");
+  if (script.length > 195000) throw new Error("O lote de publicação ficou grande demais. Publique menos scripts por vez.");
+  const path = "/universes/" + universeId + "/places/" + placeId + "/luau-execution-session-tasks";
+  const r = await roblox(path, apiKey, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ script, timeout: "300s" })
+  });
+  if (!r.ok) {
+    const e = new Error(r.data?.message || r.data?.error || ("Falha ao iniciar publicação pelo Roblox (HTTP " + r.status + ")."));
+    e.status = r.status; e.headers = r.headers; throw e;
+  }
+  if (!r.data?.path) throw new Error("O Roblox não retornou a tarefa de publicação.");
+  await operation(r.data.path, apiKey);
+  return { published: true, count: changes.length };
+}
+
 async function updateScriptWithLuau(universeId, placeId, segments, scriptType, source, apiKey) {
   if (!validId(universeId) || !validId(placeId)) throw new Error("Identificação inválida.");
   if (!SCRIPT_TYPES.includes(scriptType)) throw new Error("Somente Script, LocalScript e ModuleScript podem ser editados.");
@@ -313,6 +377,11 @@ export default async function handler(req, res) {
         results.push({ instanceId: clean(change.instanceId), ok: true });
       }
       return json(res, 200, { ok: true, saved: results.length, published: true, method: "instance-api" });
+    }
+    if (action === "publishMany") {
+      const changes = Array.isArray(body.changes) ? body.changes : [];
+      const result = await publishScriptsWithLuau(universeId, placeId, changes, apiKey);
+      return json(res, 200, { ok: true, published: true, saved: result.count, method: "luau-save-place" });
     }
     if (action === "createScript") {
       const scriptType = clean(body.scriptType);
