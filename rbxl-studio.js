@@ -77,9 +77,21 @@ function open(){
  return true;
 }
 function nodePathSegments(node){
- const chain=[];let cur=node,guard=0;
- while(cur&&cur.parent&&cur.parent!=="root"&&cur.parent!=="__workspace__"&&guard++<30){chain.unshift(cur.name);cur=state.tree.find(x=>x.id===cur.parent)}
- if(cur&&cur.parent==="root")chain.unshift(cur.name);else if(node.parent==="root")chain.unshift(node.name);
+ if(!node)return [];
+ const byId=new Map((state.tree||[]).map(n=>[String(n.id),n]));
+ const chain=[];
+ let cur=node;
+ const seen=new Set();
+ for(let guard=0;cur&&guard++<40;){
+   const name=String(cur.name??"").trim();
+   if(name)chain.unshift(name);
+   const parent=String(cur.parent??"");
+   if(!parent||parent==="root"||parent==="__workspace__")break;
+   if(seen.has(parent))return [];
+   seen.add(parent);
+   cur=byId.get(parent)||null;
+ }
+ if(!chain.length)return [];
  return chain;
 }
 function nodeKindLabel(n){if(!n)return "item";if(SCRIPT_TYPES.has(n.type))return "script";if(n.type==="Folder"||n.hasChildren)return "pasta";return "objeto"}
