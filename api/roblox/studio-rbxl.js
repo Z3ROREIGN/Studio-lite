@@ -134,6 +134,33 @@ async function loadScriptSource(universeId, placeId, instanceId, apiKey) {
   };
 }
 
+async function updateScriptWithInstance(universeId, placeId, instanceId, scriptType, source, apiKey) {
+  if (!validId(universeId) || !validId(placeId) || !clean(instanceId)) throw new Error("Identificação da instância inválida.");
+  if (!SCRIPT_TYPES.includes(scriptType)) throw new Error("Somente Script, LocalScript e ModuleScript podem ser editados.");
+  const sourceText = String(source ?? "");
+  if (sourceText.length > 190000) throw new Error("O código ultrapassa o limite permitido pela API do Roblox.");
+  const path = "/universes/" + universeId + "/places/" + placeId + "/instances/" + encodeURIComponent(clean(instanceId));
+  const body = {
+    engineInstance: {
+      Details: {
+        [scriptType]: { Source: sourceText }
+      }
+    }
+  };
+  const r = await roblox(path, apiKey, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) {
+    const message = r.data?.message || r.data?.error || ("Falha ao atualizar Script pelo Instance API (HTTP " + r.status + ").");
+    const e = new Error(message);
+    e.status = r.status; e.headers = r.headers; throw e;
+  }
+  if (!r.data?.path) throw new Error("O Roblox não retornou a operação de atualização da instância.");
+  return { path: r.data.path };
+}
+
 async function updateScriptWithLuau(universeId, placeId, segments, scriptType, source, apiKey) {
   if (!validId(universeId) || !validId(placeId)) throw new Error("Identificação inválida.");
   if (!SCRIPT_TYPES.includes(scriptType)) throw new Error("Somente Script, LocalScript e ModuleScript podem ser editados.");
@@ -271,22 +298,21 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true, instanceId, ...(await loadScriptSource(universeId, placeId, instanceId, apiKey)) });
     }
     if (action === "update") {
-      const segments = Array.isArray(body.segments) ? body.segments : [];
-      const task = await updateScriptWithLuau(universeId, placeId, segments, clean(body.scriptType), body.source, apiKey);
-      if (!task.path) throw new Error("O Roblox não retornou a tarefa de publicação.");
+      const instanceId = clean(body.instanceId);
+      const task = await updateScriptWithInstance(universeId, placeId, instanceId, clean(body.scriptType), body.source, apiKey);
       await operation(task.path, apiKey);
-      return json(res, 200, { ok: true, saved: true, published: true });
+      return json(res, 200, { ok: true, saved: true, published: true, method: "instance-api" });
     }
     if (action === "updateMany") {
       const changes = Array.isArray(body.changes) ? body.changes : [];
       if (changes.length > 100) return json(res, 400, { ok: false, error: "Limite de 100 arquivos por salvamento." });
+      const results = [];
       for (const change of changes) {
-        const segments = Array.isArray(change.segments) ? change.segments : [];
-        const task = await updateScriptWithLuau(universeId, placeId, segments, clean(change.scriptType), change.source, apiKey);
-        if (!task.path) throw new Error("O Roblox não retornou a tarefa de publicação.");
+        const task = await updateScriptWithInstance(universeId, placeId, clean(change.instanceId), clean(change.scriptType), change.source, apiKey);
         await operation(task.path, apiKey);
+        results.push({ instanceId: clean(change.instanceId), ok: true });
       }
-      return json(res, 200, { ok: true, saved: changes.length, published: true });
+      return json(res, 200, { ok: true, saved: results.length, published: true, method: "instance-api" });
     }
     if (action === "createScript") {
       const scriptType = clean(body.scriptType);
