@@ -81,6 +81,33 @@ Nunca coloque a API Key em:
 
 <section class="section" id="rbxl-excluir"><h2>Excluir arquivos e pastas</h2><p>O Studio RBXL possui uma aba própria para exclusão, evitando apagar um item errado diretamente no Explorer.</p><div class="steps"><div class="step"><b>Clique em Excluir.</b><br>Abra a aba/modal de exclusão na barra de ferramentas.</div><div class="step"><b>Procure o item.</b><br>Use o campo de pesquisa para localizar arquivos, pastas ou objetos já carregados.</div><div class="step"><b>Selecione o item.</b><br>A lista mostra nome, tipo e caminho completo para facilitar a conferência.</div><div class="step"><b>Confirme a exclusão.</b><br>O Studio diferencia rascunhos locais de objetos reais do Roblox antes de executar a operação.</div><div class="step"><b>Aguarde a atualização.</b><br>Ao excluir um objeto remoto, o Studio executa a operação permitida pelo Open Cloud e atualiza o Explorer.</div></div><div class="note warn"><b>Importante:</b> a lista de exclusão trabalha com itens que já foram carregados no Explorer. Para encontrar itens mais profundos, abra primeiro o container correspondente.</div></section>
 
+<section class="section" id="roblox-studio-setup"><h2>Configuração necessária no Roblox Studio</h2>
+<p>Para a edição remota funcionar de forma confiável, há uma diferença importante entre o que precisa ficar no <b>Roblox Studio</b> e o que é feito pelo <b>Studio Lite/Open Cloud</b>. O Studio Lite não precisa de um script “ponte” para editar <b>Script, LocalScript e ModuleScript</b>: a API Engine Open Cloud atualiza diretamente essas instâncias. A Roblox informa que essas APIs permitem ler/atualizar esses três tipos de script, mas há restrições de sessão e de scripts abertos no Studio.</p>
+<div class="note good"><b>Recomendação:</b> deixe o Roblox Studio aberto apenas quando precisar testar. Para editar/publicar pelo Studio Lite, não deixe o script que será atualizado aberto no editor de código do Roblox Studio.</div>
+<h3>O que você deve deixar no Roblox Studio</h3>
+<table><thead><tr><th>Item</th><th>Deixar?</th><th>Motivo</th></tr></thead><tbody>
+<tr><td>Script</td><td><b>Sim</b></td><td>É suportado pelo Open Cloud Engine Instances.</td></tr>
+<tr><td>LocalScript</td><td><b>Sim</b></td><td>É suportado pelo Open Cloud Engine Instances.</td></tr>
+<tr><td>ModuleScript</td><td><b>Sim</b></td><td>É suportado pelo Open Cloud Engine Instances.</td></tr>
+<tr><td>Containers/serviços</td><td><b>Sim</b></td><td>Workspace, ReplicatedStorage, ServerScriptService etc. continuam normalmente no projeto.</td></tr>
+<tr><td>Scripts abertos no editor do Roblox Studio</td><td><b>Não</b></td><td>A API não pode atualizar scripts que estejam atualmente abertos no Roblox Studio.</td></tr>
+<tr><td>Scripts pertencentes a Package</td><td><b>Não</b></td><td>Scripts de pacotes têm restrições na API.</td></tr>
+<tr><td>Script “ponte” obrigatório</td><td><b>Não</b></td><td>Não é necessário criar RemoteEvent ou script especial só para o Studio Lite editar Source.</td></tr>
+</tbody></table>
+<h3>Permissões da API Key</h3>
+<div class="code">Engine Instances:
+  universe.place.instance:read
+  universe.place.instance:write
+
+Publicação via Luau:
+  universe.place.luau-execution-session:read
+  universe.place.luau-execution-session:write</div>
+<p>A experiência precisa ter uma sessão colaborativa habilitada para usar as APIs de Engine Instances. Para a publicação atual do Studio Lite, o fluxo Luau executa a alteração no servidor e usa <code>SavePlaceAsync</code>.</p>
+<h3>Salvar/Publicar o Place</h3>
+<p><code>SavePlaceAsync</code> salva o estado do Place e, por padrão, publica a versão. A Roblox informa que ele só funciona em places criados com <code>CreatePlaceAsync</code> ou quando a API foi habilitada nas configurações do Place.</p>
+<div class="note warn"><b>Se editar funcionar mas publicar falhar:</b> confira a API de salvamento do Place nas configurações, os escopos de Luau Execution e os logs da tarefa Luau.</div>
+</section>
+
 <section class="section" id="rbxl-publicar"><h2>Criar no Roblox x Publicar alterações</h2><p>Essas duas ações são diferentes e devem ser usadas em situações diferentes.</p><table><thead><tr><th>Ação</th><th>Quando usar</th><th>Resultado</th></tr></thead><tbody><tr><td><b>Criar no Roblox</b></td><td>Quando você criou um novo Script, LocalScript ou ModuleScript no editor.</td><td>Cria uma nova instância no Roblox, usando o local escolhido no Explorer.</td></tr><tr><td><b>Publicar alterações</b></td><td>Quando você editou o Source de scripts que já existem no Roblox.</td><td>Atualiza os scripts existentes que possuem alterações pendentes.</td></tr></tbody></table><div class="note good"><b>Regra simples:</b> novo script → <b>Criar no Roblox</b>. Script existente editado → <b>Publicar alterações</b>.</div></section>
 
 <section class="section" id="publicar"><h2>Salvar, executar e publicar</h2><div class="grid"><div class="card"><strong>Salvar</strong>Use para gravar o estado/alterações disponíveis no editor atual.</div><div class="card"><strong>Executar</strong>Inicia o modo de execução/preview oferecido pelo editor web.</div><div class="card"><strong>Publicar</strong>Envia as alterações para o destino suportado pelo modo atual.</div><div class="card"><strong>Exportar</strong>Use quando precisar guardar uma representação/exportação que o editor disponibilizar.</div></div>
