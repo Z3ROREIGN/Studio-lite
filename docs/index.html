@@ -113,6 +113,53 @@ Publicação via Luau:
 <section class="section" id="publicar"><h2>Salvar, executar e publicar</h2><div class="grid"><div class="card"><strong>Salvar</strong>Use para gravar o estado/alterações disponíveis no editor atual.</div><div class="card"><strong>Executar</strong>Inicia o modo de execução/preview oferecido pelo editor web.</div><div class="card"><strong>Publicar</strong>Envia as alterações para o destino suportado pelo modo atual.</div><div class="card"><strong>Exportar</strong>Use quando precisar guardar uma representação/exportação que o editor disponibilizar.</div></div>
 <div class="note warn"><b>Boa prática:</b> teste primeiro, salve depois e publique por último. Em integrações com Open Cloud, erros de permissão, sessão ou limite da API podem impedir a atualização.</div></section>
 
+<section class="section" id="roblox-studio-completo"><h2>Guia completo: o que deixar no Roblox Studio</h2>
+<p>Esta seção reúne as informações práticas para usar o Studio Lite conectado a uma experiência Roblox. A regra principal é: <b>não é necessário instalar um script-ponte no jogo</b> para editar o Source de scripts. O Studio Lite usa Roblox Open Cloud.</p>
+<h3>Tipos de instância</h3>
+<table><thead><tr><th>Tipo</th><th>Status</th><th>Uso</th></tr></thead><tbody>
+<tr><td>Script</td><td>✅ Suportado</td><td>Leitura e atualização do Source.</td></tr>
+<tr><td>LocalScript</td><td>✅ Suportado</td><td>Leitura e atualização do Source.</td></tr>
+<tr><td>ModuleScript</td><td>✅ Suportado</td><td>Leitura e atualização do Source.</td></tr>
+<tr><td>Workspace</td><td>✅ Container</td><td>Usado para navegar pela hierarquia.</td></tr>
+<tr><td>ReplicatedStorage</td><td>✅ Container</td><td>Usado para localizar objetos/scripts.</td></tr>
+<tr><td>ServerScriptService</td><td>✅ Container</td><td>Local comum para Scripts de servidor.</td></tr>
+<tr><td>ServerStorage</td><td>✅ Container</td><td>Local comum para scripts/objetos do servidor.</td></tr>
+<tr><td>StarterGui / StarterPlayer / StarterPack</td><td>✅ Container</td><td>Podem conter scripts e objetos do projeto.</td></tr>
+<tr><td>Package</td><td>⚠️ Restrição</td><td>Scripts pertencentes a Packages não devem ser usados como alvo de edição Open Cloud.</td></tr>
+</tbody></table>
+<h3>Enquanto o Roblox Studio estiver aberto</h3>
+<ul><li>Você pode deixar o Roblox Studio aberto para testar o jogo.</li><li><b>Feche a aba do editor</b> do script que o Studio Lite vai atualizar.</li><li>Se a API informar que existe uma sessão de edição ao vivo, feche o Script Editor e tente novamente.</li><li>Não mantenha o mesmo Source sendo editado simultaneamente nos dois editores.</li></ul>
+<h3>O que NÃO precisa ser criado no jogo</h3>
+<div class="grid"><div class="card"><strong>❌ RemoteEvent especial</strong>Não é necessário para editar Source via Open Cloud.</div><div class="card"><strong>❌ RemoteFunction especial</strong>Não é necessário para a conexão do Studio Lite.</div><div class="card"><strong>❌ Script Loader</strong>O Studio Lite não depende de um loader dentro do jogo.</div><div class="card"><strong>❌ Plugin obrigatório</strong>O fluxo Open Cloud não depende de plugin instalado no Roblox Studio.</div></div>
+<h3>Configuração da API Key</h3>
+<div class="code">Para edição:
+universe.place.instance:read
+universe.place.instance:write
+
+Para publicação via Luau:
+universe.place.luau-execution-session:read
+universe.place.luau-execution-session:write</div>
+<p>A experiência também precisa estar configurada para os recursos de Engine Instances quando esse fluxo for utilizado. A chave deve ser criada no Roblox Creator Hub e ter somente as permissões necessárias.</p>
+<h3>Como o Studio Lite funciona</h3>
+<div class="steps"><div class="step"><b>1. Conexão.</b><br>O usuário informa API Key, Universe ID e Place ID.</div><div class="step"><b>2. Explorer.</b><br>O Studio Lite consulta a hierarquia do Place e identifica os objetos.</div><div class="step"><b>3. Edição.</b><br>Ao abrir um Script, LocalScript ou ModuleScript, o Source é obtido pela API.</div><div class="step"><b>4. Salvamento.</b><br>Alterações de Source usam a API de Engine Instances.</div><div class="step"><b>5. Publicação.</b><br>O fluxo de publicação usa Luau Execution no servidor e <code>AssetService:SavePlaceAsync()</code>.</div></div>
+<h3>Requisitos para publicar</h3>
+<ul><li>API Key com os escopos de Luau Execution.</li><li>Place configurado para permitir o salvamento usado pelo fluxo.</li><li>O alvo deve ser um Place válido da Universe.</li><li>A tarefa Luau precisa conseguir iniciar e concluir.</li><li>Se a edição funcionar e a publicação não, o problema normalmente está na configuração de salvamento/permissões, não no Source do script.</li></ul>
+<div class="note warn"><b>Importante:</b> editar um Script e publicar o Place são operações diferentes. É possível a edição do Source funcionar enquanto a publicação falha por falta de permissão/configuração do Place.</div>
+<h3>Checklist antes de testar</h3>
+<div class="code">☐ Universe ID correto
+☐ Place ID correto
+☐ API Key correta
+☐ instance:read habilitado
+☐ instance:write habilitado
+☐ luau-execution-session:read habilitado
+☐ luau-execution-session:write habilitado
+☐ Sessão colaborativa configurada quando exigida
+☐ Script não está aberto no editor do Roblox Studio
+☐ Script não pertence a Package
+☐ Place permite o salvamento/publicação
+☐ Testar primeiro um Script simples</div>
+</section>
+
 <section class="section" id="seguranca"><h2>Segurança</h2><ul><li>Trate API Keys como senhas.</li><li>Use somente o menor conjunto de permissões necessário.</li><li>Não compartilhe sua chave com amigos, bots ou serviços desconhecidos.</li><li>Revogue e gere outra chave se suspeitar que ela vazou.</li><li>Em um produto multiusuário, cada usuário deve fornecer/autenticar seus próprios recursos; não use uma única chave secreta para todos.</li></ul></section>
 
 <section class="section" id="erros"><h2>Problemas comuns</h2><table><thead><tr><th>Problema</th><th>O que verificar</th></tr></thead><tbody><tr><td>Studio RBXL não abre</td><td>Atualize a página, limpe cache antigo, confira Universe ID, Place ID e configuração da chave.</td></tr><tr><td>403 Forbidden</td><td>A API Key não possui recurso/escopo suficiente ou o acesso não está autorizado.</td></tr><tr><td>429 Rate Limited</td><td>A API recebeu muitas solicitações. Aguarde e tente novamente; o backend possui tratamento de retry para esse caso.</td></tr><tr><td>409 Conflict</td><td>Uma operação do Roblox ainda está ocupada. Aguarde e tente salvar novamente.</td></tr><tr><td>500 Internal Server Error</td><td>Confira o status da implantação e os dados enviados. Um 500 também pode indicar erro no backend.</td></tr><tr><td>Script não salva</td><td>Verifique se ele está aberto no Roblox Studio, se pertence a um pacote e se a chave tem escrita.</td></tr><tr><td>Busca não encontra item</td><td>O Explorer usa carregamento progressivo; expanda os containers necessários para que seus filhos sejam carregados.</td></tr></tbody></table>
