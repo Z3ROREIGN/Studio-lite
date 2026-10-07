@@ -50,7 +50,7 @@ function open(){
   <header class="rbxl-top">
    <div class="rbxl-brand"><div class="rbxl-logo">S</div><div><b>STUDIO RBXL</b><small>OPEN CLOUD SCRIPT WORKSPACE</small></div></div>
    <div class="rbxl-meta"><div class="rbxl-pill">Universe <strong id="rbxlUniverse">—</strong></div><div class="rbxl-pill">Place <strong id="rbxlPlace">—</strong></div><div class="rbxl-pill">Modo <strong>Edição + criação</strong></div></div>
-   <div class="rbxl-actions"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlClose">×</button></div>
+   <div class="rbxl-actions"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn" id="rbxlTestLuau">Testar Luau</button><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlClose">×</button></div>
   </header>
   <div class="rbxl-body">
    <aside class="rbxl-tree"><div class="rbxl-tree-head"><b>WORKSPACE</b><span id="rbxlCount">0 arquivos</span><input id="rbxlSearch" class="rbxl-search" placeholder="⌕ Procurar script..."></div><div id="rbxlTree" class="rbxl-list"><div class="rbxl-loading">Conecte um Place para carregar o Workspace.</div></div></aside>
@@ -73,7 +73,7 @@ function open(){
  $("#rbxlClose").onclick=close;$("#rbxlNewScript").onclick=()=>requestScriptAction("create");$("#rbxlSendScript").onclick=sendCurrentDraftToRoblox;$("#rbxlRemoveScript").onclick=()=>requestScriptAction("remove");document.addEventListener("keydown",key,true);
  $("#rbxlForm").onsubmit=async e=>{e.preventDefault();await connect()};
  $("#rbxlSearch").oninput=()=>renderTree($("#rbxlSearch").value);
- $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;
+ $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;$("#rbxlTestLuau").onclick=testLuau;
  return true;
 }
 function nodePathSegments(node){
@@ -369,6 +369,26 @@ async function saveCurrent(){
    $("#rbxlStatus").textContent="Falha ao salvar: "+e.message;status("Falha ao salvar");
  }finally{
    b.textContent="Salvar";b.disabled=!state.dirty.has(n.id);
+ }
+}
+async function testLuau(){
+ const b=$("#rbxlTestLuau"); if(!b)return;
+ b.disabled=true; b.textContent="Testando…";
+ $("#rbxlStatus").textContent="Testando Luau Execution no Roblox…";
+ $("#rbxlHint").textContent="Nenhuma alteração será feita no Place.";
+ try{
+   const d=await api("diagnostic");
+   $("#rbxlStatus").textContent="✓ Luau Execution está funcionando";
+   $("#rbxlHint").textContent="A chave consegue criar e executar tarefas Luau neste Place.";
+   status("Luau Execution OK");
+   alert("Luau OK\\n\\nA chave tem acesso ao Luau Execution neste Place.\\n\\nSe a publicação ainda falhar, o problema é a permissão de publicação do Place (universe.places:write) ou a configuração de salvamento do Place.");
+ }catch(e){
+   $("#rbxlStatus").textContent="✕ Luau Execution falhou: "+(e.message||String(e));
+   $("#rbxlHint").textContent="A mensagem acima é o erro real retornado pelo Roblox.";
+   status("Luau Execution falhou");
+   alert("Falha no Luau Execution\\n\\n"+(e.message||String(e))+"\\n\\nConfira: universe.place.luau-execution-session:write e, para salvar o Place, universe.places:write.");
+ }finally{
+   b.disabled=false; b.textContent="Testar Luau";
  }
 }
 async function publishAll(){
