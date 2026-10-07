@@ -141,8 +141,9 @@ async function updateScriptWithLuau(universeId, placeId, segments, scriptType, s
     throw new Error("Caminho de script inválido: o editor não enviou a hierarquia completa.");
   }
   const cleanSegments = segments.map(v => String(v ?? "").trim());
-  if (cleanSegments.some(v => !v || v.length > 100 || /["\\r\\n]/.test(v))) {
-    throw new Error("Caminho de script inválido: existe um nome de objeto vazio ou inválido.");
+  const badIndex = cleanSegments.findIndex(v => !v || v.length > 100 || /[\\u0000-\\u001F\\u007F]/.test(v));
+  if (badIndex !== -1) {
+    throw new Error("Caminho de script inválido: o nome do objeto na posição " + (badIndex + 1) + " está vazio ou contém caracteres de controle.");
   }
   const [root, ...children] = cleanSegments;
   const rootServices = new Set(["Workspace","Players","Lighting","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService"]);
@@ -201,8 +202,9 @@ async function createScriptWithLuau(universeId, placeId, scriptType, name, paren
 
 async function deleteInstanceWithLuau(universeId, placeId, segments, apiKey) {
   if (!Array.isArray(segments) || !segments.length || segments.length > 20) throw new Error("Caminho inválido.");
-  const cleanSegments = segments.map(v => String(v ?? "")).map(v => v.trim()).filter(Boolean);
-  if (!cleanSegments.length || cleanSegments.some(v => v.length > 100 || /["\\r\\n]/.test(v))) throw new Error("Caminho inválido.");
+  const cleanSegments = segments.map(v => String(v ?? "").trim());
+  const badIndex = cleanSegments.findIndex(v => !v || v.length > 100 || /[\\u0000-\\u001F\\u007F]/.test(v));
+  if (badIndex !== -1) throw new Error("Caminho inválido: o nome do objeto na posição " + (badIndex + 1) + " está vazio ou contém caracteres de controle.");
   const [root, ...children] = cleanSegments;
   const rootServices = new Set(["Workspace","Players","Lighting","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService"]);
   if (!rootServices.has(root)) throw new Error("A exclusão precisa começar por um serviço válido.");
