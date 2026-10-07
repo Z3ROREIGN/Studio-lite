@@ -36,10 +36,10 @@ async function operation(path, apiKey) {
     }
     const data = r.data || {};
     const state = String(data.state || "").toUpperCase();
-    if (["FAILED", "ERROR", "CANCELLED", "CANCELED"].includes(state)) {
+    if (["FAILED", "ERROR", "CANCELLED", "CANCELED"].includes(state) || (data.done === true && data.error)) {
       const taskError = data.error;
-      const message = typeof taskError === "string" ? taskError : taskError?.message || taskError?.detail || taskError?.description;
-      const e = new Error(message || "A tarefa do Roblox falhou durante a execução.");
+      const message = typeof taskError === "string" ? taskError : taskError?.message || taskError?.detail || taskError?.description || data.response?.message;
+      const e = new Error(message || "O Roblox recusou ou falhou a operação.");
       e.status = 400; e.headers = r.headers; e.robloxTask = data; throw e;
     }
     if (["COMPLETE", "SUCCEEDED"].includes(state) || data.done === true) {
