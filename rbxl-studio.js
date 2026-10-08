@@ -28,7 +28,8 @@ function icon(t){
   Accessory:"<path d='M6 10a6 6 0 0 1 12 0v9H6z'/><path d='M9 10a3 3 0 0 1 6 0'/>",ScreenGui:"<rect x='3' y='5' width='18' height='14' rx='2'/><path d='M7 9h10M7 13h6'/>",
   Frame:"<rect x='4' y='4' width='16' height='16' rx='2'/><path d='M8 8h8v8H8z'/>",Configuration:"<circle cx='12' cy='12' r='3'/><path d='M12 3v3M12 18v3M3 12h3M18 12h3'/>"
  };
- const d=paths[type]||"<circle cx='12' cy='12' r='8'/><path d='M12 8v8M8 12h8'/>";
+ const generic={Instance:"<path d='M6 4h12l3 3v13H3V7z'/><path d='M6 4v5h12V4M8 13h8M8 17h5'/>",Players:"<circle cx='9' cy='9' r='3'/><circle cx='16' cy='10' r='2.5'/><path d='M3 19c1-4 11-4 12 0M14 18c.5-2 5-2 7 0'/>",Lighting:"<circle cx='12' cy='11' r='4'/><path d='M12 2v3M12 17v3M3 11h3M18 11h3M5.5 4.5l2 2M16.5 15.5l2 2M18.5 4.5l-2 2M7.5 15.5l-2 2'/>",ReplicatedStorage:"<path d='M12 3 21 8v8l-9 5-9-5V8z'/><path d='m3 8 9 5 9-5M12 13v8'/>",ServerScriptService:"<path d='M4 4h16v16H4z'/><path d='m8 9 3 3-3 3M13 15h3'/>",StarterGui:"<rect x='3' y='5' width='18' height='14' rx='2'/><path d='M7 9h10M7 13h7'/>",StarterPack:"<path d='M5 8h14v11H5z'/><path d='M8 8a4 4 0 0 1 8 0'/>",SoundService:"<path d='M4 10h4l5-4v12l-5-4H4z'/><path d='M16 9c2 2 2 4 0 6M19 6c4 4 4 8 0 12'/>"};
+const d=paths[type]||generic[type]||generic.Instance;
  return '<svg class="rbxl-icon" viewBox="0 0 24 24" aria-hidden="true">'+d+'</svg>';
 }
 
@@ -354,12 +355,8 @@ async function connect(){
   $("#rbxlPlace").textContent=p;
   $("#rbxlAuth").remove();
   renderTree();
-  const workspace=state.tree.find(n=>n.name==="Workspace");
-  if(workspace){
-    state.expanded.add(workspace.id);
-    await loadChildrenFor(workspace.id);
-  }
-  $("#rbxlCount").textContent=countScripts()+" scripts";
+  await loadEntireHierarchy();
+  $("#rbxlCount").textContent=state.tree.filter(n=>!state.removed.has(n.id)).length+" itens";
   $("#rbxlStatus").textContent=state.tree.length+" itens carregados • pastas disponíveis no Explorer";
   status("Studio RBXL conectado")
 }
@@ -373,16 +370,23 @@ async function connect(){
  finally{const b=$("#rbxlAuth")?.querySelector("button");if(b){b.disabled=false;b.textContent="Conectar e carregar Workspace"}}
 }
 function normalizeCloudInstances(items,parentId="root"){
- const CONTAINERS=new Set(["Folder","Model","Tool","Configuration","ScreenGui","SurfaceGui","BillboardGui","Frame","ScrollingFrame","ViewportFrame","WorldModel"]);
- return (Array.isArray(items)?items:[]).map(item=>{
-  const e=item?.engineInstance||item?.EngineInstance||{};
-  const details=e?.Details||e?.details||{};
-  const id=String(e.Id||e.id||item?.id||"").trim();
+ const CONTAINERS=new Set(["Folder","Model","Tool","Configuration","ScreenGui","SurfaceGui","BillboardGui","Frame","ScrollingFrame","ViewportFrame","WorldModel","Part","MeshPart","UnionOperation","Terrain","Camera","SpawnLocation","Seat","VehicleSeat","Accessory","Humanoid"]);
+ const SERVICES=new Set(["Workspace","Players","Lighting","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService"]);
+ const list=Array.isArray(items)?items:[];
+ return list.map(item=>{
+  const e=item?.engineInstance||item?.EngineInstance||item?.instance?.engineInstance||item?.instance||item||{};
+  const details=e?.Details||e?.details||item?.Details||item?.details||{};
+  const id=String(e.Id||e.id||item?.id||item?.instanceId||item?.path?.split("/").pop()||e.path?.split("/").pop()||"").trim();
   if(!id)return null;
-  const type=["Script","LocalScript","ModuleScript"].find(t=>details?.[t]||details?.[t.toLowerCase()])||String(e.ClassName||e.className||e.Type||details.ClassName||details.className||"Instance");
+  const scriptType=["Script","LocalScript","ModuleScript"].find(t=>details?.[t]||details?.[t.toLowerCase()]);
+  const explicit=String(e.ClassName||e.className||e.Type||e.type||item?.ClassName||item?.className||"").trim();
+  const detailType=Object.keys(details).find(k=>CONTAINERS.has(k)||["Script","LocalScript","ModuleScript"].includes(k))||"";
+  const name=String(e.Name||e.name||item?.Name||item?.name||details.Name||details.name||"").trim()||"Unnamed";
+  const type=scriptType||explicit||detailType||(SERVICES.has(name)?name:"Instance");
   const explicitChildren=item?.hasChildren??item?.HasChildren??e.HasChildren??e.hasChildren;
-  const hasChildren=explicitChildren===undefined?CONTAINERS.has(type):Boolean(explicitChildren);
-  return {id,parent:String(parentId||"root"),name:String(e.Name||e.name||details.Name||"Unnamed"),type,hasChildren,details};
+  const hasChildren=explicitChildren===undefined?(SERVICES.has(name)||CONTAINERS.has(type)):Boolean(explicitChildren);
+  const parent=String(e.Parent||e.parent||item?.parent||parentId||"root").trim()||"root";
+  return {id,parent:id===parent?String(parentId||"root"):parent,name,type,hasChildren,details};
  }).filter(Boolean);
 }
 async function waitCloudOperation(operationPath,parentId="root"){
@@ -398,6 +402,39 @@ async function waitCloudOperation(operationPath,parentId="root"){
 }
 function indexNodes(nodes){for(const n of nodes||[]){if(!n)continue;if(SCRIPT_TYPES.has(n.type)&&!state.files.has(n.id))state.files.set(n.id,{...n,source:"",sourceLoaded:false})}}
 function countScripts(){return state.files.size}
+async function loadEntireHierarchy(){
+ const queue=["root"];
+ const visited=new Set(["root"]);
+ let processed=0;
+ const maxNodes=2500;
+ while(queue.length && processed<maxNodes){
+  const parentId=queue.shift();
+  if(parentId!=="root")state.expanded.add(parentId);
+  let d;
+  try{d=await api("children",{parentId:parentId==="root"?"root":parentId});}
+  catch(e){$("#rbxlStatus").textContent="Alguns itens não puderam ser carregados: "+(e.message||String(e));continue}
+  let children=Array.isArray(d.children)?d.children:[];
+  if(d.pending){
+   try{children=await waitCloudOperation(d.operationPath,parentId)}catch(e){continue}
+  }
+  const normalized=normalizeCloudInstances(children,parentId);
+  const byId=new Map(state.tree.map(n=>[String(n.id),n]));
+  for(const n of normalized){
+   const existing=byId.get(String(n.id));
+   if(existing)Object.assign(existing,n);
+   else{state.tree.push(n);byId.set(String(n.id),n)}
+   processed++;
+   if(n.hasChildren&&!visited.has(String(n.id))){visited.add(String(n.id));queue.push(String(n.id))}
+   if(processed>=maxNodes)break;
+  }
+  indexNodes(normalized);
+  renderTree($("#rbxlSearch").value);
+  $("#rbxlCount").textContent=state.tree.filter(n=>!state.removed.has(n.id)).length+" itens";
+  $("#rbxlStatus").textContent="Carregando Explorer… "+processed+" itens";
+ }
+ renderTree($("#rbxlSearch").value);
+ $("#rbxlStatus").textContent=state.tree.filter(n=>!state.removed.has(n.id)).length+" itens carregados";
+}
 async function loadChildrenFor(parentId){
  if(!parentId||parentId==="root")return;
  if(state.loading.has(parentId))return;
@@ -439,9 +476,25 @@ function renderTree(filter=""){
 function addRow(n,depth,filtered){
  const root=$("#rbxlTree"),row=document.createElement("div");row.className="rbxl-row"+(state.current===n.id?" active":"");row.style.paddingLeft=(8+depth*15)+"px";
  const open=state.expanded.has(n.id),loading=state.loading.has(n.id);
- row.innerHTML='<span class="arrow">'+(n.hasChildren?(loading?"…":open?"⌄":"›"):"")+'</span><span>'+icon(n.type)+'</span><span class="name">'+esc(n.name)+'</span><span class="type">'+esc(n.type)+'</span>';
+ row.innerHTML='<span class="arrow">'+(n.hasChildren?(loading?"…":open?"⌄":"›"):"")+'</span><span class="rbxl-icon-wrap">'+icon(n.type==="Instance"?iconTypeForName(n.name):n.type)+'</span><span class="name">'+esc(n.name)+'</span><span class="type">'+esc(n.type==="Instance"?"Objeto":n.type)+'</span>';
  row.onclick=async()=>{if(n.virtual)return;if(SCRIPT_TYPES.has(n.type)){await selectFile(n.id);if(n.hasChildren){if(open&&!filtered){state.expanded.delete(n.id);renderTree($("#rbxlSearch").value);return}await loadChildrenFor(n.id)}return}state.current=n.id;renderTree($("#rbxlSearch").value);$("#rbxlStatus").textContent=n.name+" selecionado • use Excluir para remover";if(n.hasChildren){if(open&&!filtered){state.expanded.delete(n.id);renderTree($("#rbxlSearch").value);return}await loadChildrenFor(n.id)}};
  root.appendChild(row);
+}
+function iconTypeForName(name){
+ const s=String(name||"").toLowerCase();
+ if(s==="workspace")return "Workspace";
+ if(["players","lighting","replicatedfirst","replicatedstorage","serverscriptservice","serverstorage","startergui","starterpack","starterplayer","teams","soundservice","chat","textchatservice","materialservice","testservice","voicechatservice"].includes(s))return name;
+ if(s.includes("terrain"))return "Terrain";
+ if(s.includes("camera"))return "Camera";
+ if(s.includes("spawn"))return "SpawnLocation";
+ if(s.includes("humanoid"))return "Humanoid";
+ if(s.includes("mesh"))return "MeshPart";
+ if(s.includes("part"))return "Part";
+ if(s.includes("model"))return "Model";
+ if(s.includes("tool"))return "Tool";
+ if(s.includes("folder"))return "Folder";
+ if(s.includes("gui")||s.includes("screen"))return "ScreenGui";
+ return "Instance";
 }
 async function selectFile(id){
  const n=state.files.get(id);if(!n)return;
