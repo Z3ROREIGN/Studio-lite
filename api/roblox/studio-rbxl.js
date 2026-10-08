@@ -218,48 +218,29 @@ async function resolveInstanceSegments(universeId, placeId, instanceId, apiKey) 
   return segments;
 }
 
-async function publishScriptsWithLuau(universeId, placeId, changes, apiKey) {
-  if (!Array.isArray(changes) || !changes.length) throw new Error("Nenhum script foi selecionado para publicação.");
-  if (changes.length > 50) throw new Error("Limite de 50 scripts por publicação.");
-  const safe = value => JSON.stringify(String(value ?? "")).replace(/</g, "\\u003c");
-  const lines = [];
-  for (const change of changes) {
-    const instanceId = clean(change.instanceId);
-    const scriptType = clean(change.scriptType);
-    if (!instanceId || !SCRIPT_TYPES.includes(scriptType)) throw new Error("Script inválido na lista de publicação.");
-    const source = String(change.source ?? "");
-    if (source.length > 190000) throw new Error("O script " + instanceId + " ultrapassa o limite de tamanho.");
-    const segments = await resolveInstanceSegments(universeId, placeId, instanceId, apiKey);
-    let expr = segments[0] === "Workspace" ? 'game:GetService("Workspace")' : 'game:GetService(' + safe(segments[0]) + ')';
-    for (const child of segments.slice(1)) expr += ':FindFirstChild(' + safe(child) + ')';
-    lines.push(
-      "do",
-      "  local target = " + expr,
-      "  if not target then error(" + safe("Script não encontrado no Roblox: " + segments.join(" > ")) + ") end",
-      "  if not target:IsA(" + safe(scriptType) + ") then error(" + safe("Tipo inesperado para " + segments.join(" > ")) + ") end",
-      "  target.Source = " + safe(source),
-      "end"
-    );
-  }
-  lines.push(
-    'game:GetService("AssetService"):SavePlaceAsync({PlaceId = game.PlaceId})',
-    'return { published = true, scripts = ' + String(changes.length) + ' }'
-  );
-  const script = lines.join("\n");
-  if (script.length > 195000) throw new Error("O lote de publicação ficou grande demais. Publique menos scripts por vez.");
+async function publishPlaceWithLuau(universeId, placeId, apiKey) {
+  if (!validId(universeId) || !validId(placeId)) throw new Error("Universe ID ou Place ID inválido.");
   const path = "/universes/" + universeId + "/places/" + placeId + "/luau-execution-session-tasks";
+  const script = [
+    'local assetService = game:GetService("AssetService")',
+    'local ok, result = pcall(function()',
+    '  assetService:SavePlaceAsync({PlaceId = game.PlaceId, SaveWithoutPublish = false})',
+    'end)',
+    'if not ok then error("SavePlaceAsync: " .. tostring(result)) end',
+    'return { published = true, placeId = game.PlaceId, universeId = game.GameId }'
+  ].join("\n");
   const r = await roblox(path, apiKey, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ script })
   });
   if (!r.ok) {
-    const e = new Error(r.data?.message || r.data?.error || ("Falha ao iniciar publicação pelo Roblox (HTTP " + r.status + ")."));
-    e.status = r.status; e.headers = r.headers; throw e;
+    const e = new Error(r.data?.message || r.data?.error || ("Falha ao iniciar publicação do Place (HTTP " + r.status + ")."));
+    e.status = r.status; e.headers = r.headers; e.roblox = r.data; throw e;
   }
   if (!r.data?.path) throw new Error("O Roblox não retornou a tarefa de publicação.");
-  await operation(r.data.path, apiKey);
-  return { published: true, count: changes.length };
+  const result = await operation(r.data.path, apiKey);
+  return { published: true, taskPath: r.data.path, result };
 }
 
 async function updateScriptWithLuau(universeId, placeId, segments, scriptType, source, apiKey) {
@@ -485,8 +466,35 @@ export default async function handler(req, res) {
     }
     if (action === "publishMany") {
       const changes = Array.isArray(body.changes) ? body.changes : [];
-      const result = await publishScriptsWithLuau(universeId, placeId, changes, apiKey);
-      return json(res, 200, { ok: true, published: true, saved: result.count, method: "luau-save-place" });
+      if (!changes.length) return json(res, 400, { ok: false, error: "Nenhuma alteração foi enviada para publicação." });
+      if (changes.length > 100) return json(res, 400, { ok: false, error: "Limite de 100 arquivos por publicação." });
+
+      // Primeiro aplica somente o Source dos scripts pela Engine Instances API,
+      // que é o endpoint oficial para editar Script/LocalScript/ModuleScript.
+      const saved = [];
+      for (const change of changes) {
+        const task = await updateScriptWithInstance(
+          universeId,
+          placeId,
+          clean(change.instanceId),
+          clean(change.scriptType),
+          change.source,
+          apiKey
+        );
+        await operation(task.path, apiKey);
+        saved.push({ instanceId: clean(change.instanceId), ok: true });
+      }
+
+      // Depois cria uma versão publicada do Place. Assim uma falha no SavePlaceAsync
+      // não desfaz as edições já aplicadas e o usuário pode tentar publicar novamente.
+      const published = await publishPlaceWithLuau(universeId, placeId, apiKey);
+      return json(res, 200, {
+        ok: true,
+        published: true,
+        saved: saved.length,
+        method: "instance-api-plus-save-place",
+        taskPath: published.taskPath
+      });
     }
     if (action === "createScript") {
       const scriptType = clean(body.scriptType);
