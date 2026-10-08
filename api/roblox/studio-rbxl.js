@@ -391,6 +391,33 @@ async function runSavePermissionDiagnostic(universeId, placeId, apiKey) {
 }
 
 
+async function runPublishPreflight(universeId, placeId, apiKey) {
+  // Este teste usa a mesma operação que a publicação usa, mas com
+  // SaveWithoutPublish=true. Assim conseguimos identificar bloqueios do Roblox
+  // (incluindo PlaceOngoingTeamCreateSession) antes de alterar scripts.
+  const path = "/universes/" + universeId + "/places/" + placeId + "/luau-execution-session-tasks";
+  const script = [
+    'local assetService = game:GetService("AssetService")',
+    'local ok, result = pcall(function()',
+    '  return assetService:SavePlaceAsync({PlaceId = game.PlaceId, SaveWithoutPublish = true})',
+    'end)',
+    'if not ok then error("SavePlaceAsync: " .. tostring(result)) end',
+    'return { ok = true, placeId = game.PlaceId, universeId = game.GameId, saveWithoutPublish = true }'
+  ].join("\n");
+  const r = await roblox(path, apiKey, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ script })
+  });
+  if (!r.ok) {
+    const e = new Error(r.data?.message || r.data?.error || r.data?.errorMessage || ("Falha ao iniciar pré-diagnóstico de publicação (HTTP " + r.status + ")."));
+    e.status = r.status; e.headers = r.headers; e.roblox = r.data; throw e;
+  }
+  if (!r.data?.path) throw new Error("O Roblox não retornou o caminho da tarefa de pré-diagnóstico.");
+  const result = await operation(r.data.path, apiKey);
+  return { taskPath: r.data.path, state: "COMPLETE", output: result };
+}
+
 async function getLuauTask(taskPath, apiKey) {
   const cleanPath = clean(taskPath).replace(/^\/+/, "");
   if (!cleanPath.startsWith("universes/") || !cleanPath.includes("/luau-execution-session-tasks/")) {
@@ -418,6 +445,13 @@ export default async function handler(req, res) {
     const action = clean(body.action || "load");
     if (action === "diagnostic") return json(res, 200, { ok: true, diagnostic: await runLuauDiagnostic(universeId, placeId, apiKey), message: "Luau Execution está funcionando para esta chave e Place." });
     if (action === "saveDiagnostic") return json(res, 200, { ok: true, diagnostic: await runSavePermissionDiagnostic(universeId, placeId, apiKey), message: "SavePlaceAsync com SaveWithoutPublish está autorizado neste Place." });
+    if (action === "publishPreflight") {
+      return json(res, 200, {
+        ok: true,
+        diagnostic: await runPublishPreflight(universeId, placeId, apiKey),
+        message: "O teste de publicação/salvamento foi concluído sem criar uma nova versão publicada."
+      });
+    }
     if (action === "load") {
       const tree = await loadTree(universeId, placeId, apiKey);
       if (tree?.pending) return json(res, 200, { ok: true, pending: true, operationPath: tree.operationPath, universeId, placeId, editable: SCRIPT_TYPES, readOnly: true, lazy: true });
