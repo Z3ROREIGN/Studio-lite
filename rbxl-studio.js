@@ -324,7 +324,11 @@ async function connect(){
  state.apiKey=key;state.universeId=u;state.placeId=p;state.tree=[];state.files.clear();state.dirty.clear();state.removed.clear();state.current=null;state.expanded=new Set(["__workspace__"]);
  const btn=$("#rbxlAuth").querySelector("button");btn.disabled=true;btn.textContent="Conectando…";$("#rbxlStatus").textContent="Carregando Workspace…";
  try{
-  const d=await api("load");
+  let d=await api("load");
+  if(d.pending){
+   $("#rbxlStatus").textContent="Aguardando resposta do Roblox…";
+   d.tree=await waitCloudOperation(d.operationPath,"root");
+  }
   state.tree=Array.isArray(d.tree)?d.tree:[];
   indexNodes(state.tree);
   $("#rbxlUniverse").textContent=u;
@@ -349,12 +353,40 @@ async function connect(){
  }
  finally{const b=$("#rbxlAuth")?.querySelector("button");if(b){b.disabled=false;b.textContent="Conectar e carregar Workspace"}}
 }
+function normalizeCloudInstances(items,parentId="root"){
+ return (Array.isArray(items)?items:[]).map(item=>{
+  const e=item?.engineInstance||item?.EngineInstance||{};
+  const details=e?.Details||e?.details||{};
+  const id=String(e.Id||e.id||item?.id||"").trim();
+  if(!id)return null;
+  const type=["Script","LocalScript","ModuleScript"].find(t=>details?.[t]||details?.[t.toLowerCase()])||String(e.ClassName||e.className||e.Type||details.ClassName||details.className||"Instance");
+  return {id,parent:String(e.Parent||e.parent||parentId),name:String(e.Name||e.name||"Unnamed"),type,hasChildren:Boolean(item?.hasChildren??item?.HasChildren??e.HasChildren??e.hasChildren),details};
+ }).filter(Boolean);
+}
+async function waitCloudOperation(operationPath,parentId="root"){
+ for(let i=0;i<40;i++){
+  const d=await api("operation",{operationPath});
+  if(d.done){
+   return normalizeCloudInstances(d.instances||[],parentId);
+  }
+  $("#rbxlStatus").textContent="Roblox está preparando a hierarquia… "+Math.min(99,Math.round(((i+1)/40)*100))+"%";
+  await new Promise(r=>setTimeout(r,1200));
+ }
+ throw Error("O Roblox demorou demais para devolver a hierarquia. Tente novamente; a chave não foi exposta.");
+}
 function indexNodes(nodes){for(const n of nodes||[]){if(!n)continue;if(SCRIPT_TYPES.has(n.type)&&!state.files.has(n.id))state.files.set(n.id,{...n,source:"",sourceLoaded:false})}}
 function countScripts(){return state.files.size}
 async function loadChildrenFor(parentId){
  if(state.loading.has(parentId))return;
  state.loading.add(parentId);renderTree($("#rbxlSearch").value);$("#rbxlStatus").textContent="Carregando pasta…";
- try{const d=await api("children",{parentId});const ids=new Set(state.tree.map(n=>n.id));for(const n of(d.children||[])){if(!ids.has(n.id))state.tree.push(n)}indexNodes(d.children||[]);state.expanded.add(parentId);renderTree($("#rbxlSearch").value);$("#rbxlStatus").textContent="Pasta carregada"}
+ try{
+  let d=await api("children",{parentId});
+  let children=Array.isArray(d.children)?d.children:[];
+  if(d.pending)children=await waitCloudOperation(d.operationPath,parentId);
+  const ids=new Set(state.tree.map(n=>n.id));
+  for(const n of children){if(!ids.has(n.id))state.tree.push(n)}
+  indexNodes(children);state.expanded.add(parentId);renderTree($("#rbxlSearch").value);$("#rbxlStatus").textContent="Pasta carregada";
+ }
  catch(e){$("#rbxlStatus").textContent="Falha ao carregar pasta: "+e.message}
  finally{state.loading.delete(parentId);renderTree($("#rbxlSearch").value)}
 }
