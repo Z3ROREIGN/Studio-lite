@@ -23,8 +23,8 @@ async function roblox(path, apiKey, init = {}) {
 }
 
 async function operation(path, apiKey, options = {}) {
-  const maxPolls = Math.max(1, Math.min(Number(options.maxPolls) || 2, 10));
-  const delayMs = Math.max(250, Math.min(Number(options.delayMs) || 1500, 5000));
+  const maxPolls = Math.max(1, Math.min(Number(options.maxPolls) || 120, 120));
+  const delayMs = Math.max(250, Math.min(Number(options.delayMs) || 2500, 5000));
   for (let i = 0; i < maxPolls; i++) {
     const r = await roblox("/" + String(path).replace(/^\//, ""), apiKey);
     if (r.status === 409 && i < maxPolls - 1) {
@@ -65,7 +65,8 @@ async function operation(path, apiKey, options = {}) {
     }
     if (i < maxPolls - 1) await new Promise(resolve => setTimeout(resolve, delayMs));
   }
-  return { pending: true, path: String(path).replace(/^\/+/, "") };
+  if (options.allowPending) return { pending: true, path: String(path).replace(/^\/+/, "") };
+  const e = new Error("O Roblox demorou mais de 5 minutos para concluir a operação. Verifique a tarefa no Roblox e tente novamente."); e.status = 504; throw e;
 }
 function inferScriptType(details) {
   const d = details && typeof details === "object" ? details : {};
@@ -89,7 +90,7 @@ async function listChildren(universeId, placeId, instanceId, apiKey) {
   if (r.data?.response?.instances) return r.data.response.instances;
   if (r.data?.instances) return r.data.instances;
   if (r.data?.path) {
-    const done = await operation(r.data.path, apiKey, { maxPolls: 2, delayMs: 1200 });
+    const done = await operation(r.data.path, apiKey, { maxPolls: 2, delayMs: 1200, allowPending: true });
     if (done?.pending) return { pending: true, operationPath: done.path };
     return { instances: done?.instances || done?.response?.instances || [] };
   }
@@ -442,7 +443,7 @@ export default async function handler(req, res) {
       if (!operationPath || !operationPath.startsWith(prefix) || !operationPath.includes("/operations/")) {
         return json(res, 400, { ok: false, code: "INVALID_OPERATION_PATH", error: "Caminho de operação inválido para este Place." });
       }
-      const result = await operation(operationPath, apiKey, { maxPolls: 1, delayMs: 500 });
+      const result = await operation(operationPath, apiKey, { maxPolls: 1, delayMs: 500, allowPending: true });
       if (result?.pending) return json(res, 200, { ok: true, done: false, operationPath });
       const raw = result?.response || result?.output || result || {};
       const instances = raw?.instances || raw?.response?.instances || null;
