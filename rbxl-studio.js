@@ -566,10 +566,23 @@ async function testSavePermission(){
 async function publishAll(){
  const changes=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&!n.local&&!state.removed.has(n.id)?{instanceId:n.id,scriptType:n.type,source:n.source}:null}).filter(Boolean);
  if(!changes.length){$("#rbxlStatus").textContent="Nenhuma alteração pendente para publicar.";return}
- const b=$("#rbxlPublish");b.disabled=true;b.textContent="Publicando…";$("#rbxlStatus").textContent="Publicando "+changes.length+" arquivo(s)…";
- try{const d=await api("publishMany",{changes});state.dirty.clear();$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+(d.saved??changes.length)+" arquivo(s) publicado(s) no Roblox";$("#rbxlHint").textContent="Place salvo com SavePlaceAsync pelo servidor Roblox";status("Publicação concluída")}
- catch(e){$("#rbxlStatus").textContent="Falha na publicação: "+e.message;$("#rbxlHint").textContent="A publicação usa Luau + SavePlaceAsync. Verifique luau-execution-session:write/read e se o Place permite API de salvamento.";status("Falha na publicação")}
- finally{b.textContent="Publicar";b.disabled=!!state.dirty.size}
+ const b=$("#rbxlPublish");b.disabled=true;b.textContent="Publicando…";$("#rbxlStatus").textContent="Aplicando "+changes.length+" alteração(ões)…";$("#rbxlHint").textContent="1/2: atualizando os scripts pela Engine Instances API";
+ try{
+   const d=await api("publishMany",{changes});
+   state.dirty.clear();
+   $("#rbxlDirty").textContent="";
+   $("#rbxlStatus").textContent="✓ "+(d.saved??changes.length)+" arquivo(s) publicados no Roblox";
+   $("#rbxlHint").textContent="2/2: nova versão do Place publicada com SavePlaceAsync";
+   status("Publicação concluída");
+ }catch(e){
+   const msg=e.message||String(e);
+   $("#rbxlStatus").textContent="Falha na publicação: "+msg;
+   $("#rbxlHint").textContent=e.hint||"A alteração pode já ter sido aplicada ao rascunho colaborativo; corrija o erro e tente publicar novamente.";
+   status("Falha na publicação");
+   if(e.code==="ROBLOX_FORBIDDEN")showDiagnosticPanel("Roblox recusou a publicação",false,msg,e.hint||"Confira os escopos da chave e se o Place permite salvamento.");
+   else if(e.code==="ROBLOX_INVALID_REQUEST")showDiagnosticPanel("Roblox rejeitou a publicação",false,msg,e.hint||"A resposta acima veio diretamente do Roblox.");
+ }
+ finally{b.textContent="Publicar";b.disabled=!hasPublishableChanges()}
 }
 function install(){
  window.StudioLiteRBXL={open};const bind=()=>{const b=$("#studioRbxlBtn");if(!b)return;b.type="button";b.dataset.studioRbxl="true";b.onclick=e=>{e.preventDefault();e.stopPropagation();open()}};bind();
