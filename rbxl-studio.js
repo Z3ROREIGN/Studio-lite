@@ -81,7 +81,7 @@ function open(){
   <header class="rbxl-top">
    <div class="rbxl-brand"><div class="rbxl-logo">S</div><div><b>STUDIO RBXL</b><small>OPEN CLOUD SCRIPT WORKSPACE</small></div></div>
    <div class="rbxl-meta"><div class="rbxl-pill">Universe <strong id="rbxlUniverse">—</strong></div><div class="rbxl-pill">Place <strong id="rbxlPlace">—</strong></div><div class="rbxl-pill">Modo <strong>Edição + criação</strong></div></div>
-   <div class="rbxl-actions"><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button></div><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn" id="rbxlTestLuau">Testar Luau</button><button class="rbxl-btn" id="rbxlTestSave">Testar salvamento</button></div><div class="rbxl-action-group"><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlClose" aria-label="Fechar">×</button></div></div>
+   <div class="rbxl-actions"><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button></div><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn" id="rbxlTestLuau">Testar Luau</button><button class="rbxl-btn" id="rbxlTestSave">Testar salvamento</button><button class="rbxl-btn" id="rbxlPreflight">Diagnóstico Roblox</button></div><div class="rbxl-action-group"><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlClose" aria-label="Fechar">×</button></div></div>
   </header>
   <div class="rbxl-body">
    <aside class="rbxl-tree"><div class="rbxl-tree-head"><b>WORKSPACE</b><span id="rbxlCount">0 arquivos</span><input id="rbxlSearch" class="rbxl-search" placeholder="⌕ Procurar script..."></div><div id="rbxlTree" class="rbxl-list"><div class="rbxl-loading">Conecte um Place para carregar o Workspace.</div></div></aside>
@@ -104,7 +104,7 @@ function open(){
  $("#rbxlClose").onclick=close;$("#rbxlNewScript").onclick=()=>requestScriptAction("create");$("#rbxlSendScript").onclick=sendCurrentDraftToRoblox;$("#rbxlRemoveScript").onclick=()=>requestScriptAction("remove");document.addEventListener("keydown",key,true);
  $("#rbxlForm").onsubmit=async e=>{e.preventDefault();await connect()};
  $("#rbxlSearch").oninput=()=>renderTree($("#rbxlSearch").value);
- $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;$("#rbxlTestLuau").onclick=testLuau;$("#rbxlTestSave").onclick=testSavePermission;
+ $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;$("#rbxlTestLuau").onclick=testLuau;$("#rbxlTestSave").onclick=testSavePermission;$("#rbxlPreflight").onclick=publishPreflight;
  return true;
 }
 function nodePathSegments(node){
@@ -543,6 +543,38 @@ async function testLuau(){
    b.disabled=false; b.textContent="Testar Luau";
  }
 }
+async function publishPreflight(){
+ const b=$("#rbxlPreflight"); if(!b)return;
+ b.disabled=true; b.textContent="Diagnosticando…";
+ $("#rbxlStatus").textContent="Verificando o bloqueio de publicação diretamente no Roblox…";
+ $("#rbxlHint").textContent="Teste sem criar uma nova versão publicada.";
+ try{
+   await api("publishPreflight");
+   $("#rbxlStatus").textContent="✓ Pré-diagnóstico de publicação passou";
+   $("#rbxlHint").textContent="O Roblox aceitou SavePlaceAsync neste Place; Team Create não bloqueou este teste.";
+   status("Pré-diagnóstico OK");
+   showDiagnosticPanel(
+     "Diagnóstico do Roblox: OK",
+     true,
+     "A mesma operação de salvamento usada pelo fluxo de publicação foi aceita pelo Roblox.",
+     "A chave, o Universe ID e o Place ID chegaram ao Roblox e SavePlaceAsync foi aceito neste teste. Se Publicar alterações falhar depois disso, o painel mostrará o erro específico da publicação."
+   );
+ }catch(e){
+   const msg=e.message||String(e);
+   const team=e.code==="ROBLOX_TEAM_CREATE_ACTIVE" || /placeongoingteamcreatesession|ongoing team create session|team create session/i.test(msg);
+   $("#rbxlStatus").textContent=team?"✕ Roblox detectou Team Create ativo":"✕ Pré-diagnóstico falhou: "+msg;
+   $("#rbxlHint").textContent=team?"O bloqueio veio do Roblox para este Universe/Place, não da tela de login.":"A mensagem acima é a resposta real retornada pelo Roblox.";
+   status(team?"Team Create detectado":"Diagnóstico falhou");
+   showDiagnosticPanel(
+     team?"Team Create detectado pelo Roblox":"Pré-diagnóstico do Roblox falhou",
+     false,
+     team?"O Roblox retornou PlaceOngoingTeamCreateSession para este Place. Isso acontece no serviço de publicação/salvamento do Roblox, mesmo que a conta usada no site nunca tenha aberto o Team Create.":msg,
+     team?"Este teste confirma o bloqueio no próprio fluxo SavePlaceAsync. Ele não consegue informar pelo Open Cloud qual conta abriu a sessão nem encerrá-la. Criar outra conta não elimina uma sessão que o Roblox esteja mantendo no Place/Universe. Para encerrar uma sessão ativa, o Roblox documenta o uso do Studio.":"Confira a mensagem real acima. O teste separa problemas de chave/IDs de bloqueios do serviço de salvamento."
+   );
+ }
+ finally{b.disabled=false;b.textContent="Diagnóstico Roblox"}
+}
+
 async function testSavePermission(){
  const b=$("#rbxlTestSave"); if(!b)return;
  b.disabled=true; b.textContent="Testando…";
