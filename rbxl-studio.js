@@ -11,7 +11,26 @@ const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 const SCRIPT_TYPES=new Set(["Script","LocalScript","ModuleScript"]);
 const state={apiKey:"",universeId:"",placeId:"",tree:[],files:new Map(),dirty:new Set(),removed:new Set(),current:null,expanded:new Set(["__workspace__"]),loading:new Set()};
 const status=t=>{try{window.StudioLiteCore?.setStatus?.(t)}catch{}try{$("#status").textContent=t;$("#footerStatus").textContent=t}catch{}};
-const icon=t=>SCRIPT_TYPES.has(t)?"▱":t==="Workspace"?"◈":t==="Folder"?"▰":"◇";
+function icon(t){
+ const type=String(t||"Instance");
+ const paths={
+  Workspace:"<path d='M3 7h7l2 2h9v10H3z'/><path d='M3 7V5h7l2 2'/>",Folder:"<path d='M3 7h7l2 2h9v10H3z'/><path d='M3 7V5h7l2 2'/>",
+  Model:"<path d='M12 3 21 8 12 13 3 8z'/><path d='M3 8v8l9 5 9-5V8'/><path d='M12 13v8'/>",Part:"<rect x='4' y='4' width='16' height='16' rx='2'/><path d='m4 9 8 4 8-4M12 13v7'/>",
+  MeshPart:"<path d='m12 3 8 5v8l-8 5-8-5V8z'/><path d='m4 8 8 5 8-5'/>",UnionOperation:"<path d='M4 6h7v7H4zM13 11h7v7h-7z'/><path d='m11 9 3 3'/>",
+  Terrain:"<path d='M3 18c3-5 5-8 8-8 3 0 4 4 6 1 1-1 2-3 4-4v11H3z'/>",
+  Script:"<path d='m8 7-5 5 5 5M16 7l5 5-5 5M13 4l-2 16'/>",LocalScript:"<path d='m8 7-5 5 5 5M16 7l5 5-5 5M13 4l-2 16'/><path d='M17 3v5M14.5 5.5h5'/>",
+  ModuleScript:"<path d='m8 7-5 5 5 5M16 7l5 5-5 5M13 4l-2 16'/><circle cx='18' cy='6' r='2'/>",
+  StringValue:"<path d='M5 4h14v16H5z'/><path d='M8 9h8M8 13h6'/>",BoolValue:"<path d='M5 4h14v16H5z'/><path d='m8 12 2 2 5-5'/>",
+  IntValue:"<path d='M5 4h14v16H5z'/><path d='M9 9h6M9 13h6'/>",NumberValue:"<path d='M5 4h14v16H5z'/><path d='M8 10c0-2 6-2 6 0s-6 2-6 4 6 2 6 0'/>",
+  ObjectValue:"<path d='M5 4h14v16H5z'/><circle cx='12' cy='12' r='3'/>",Camera:"<path d='M4 8h4l2-2h4l2 2h4v10H4z'/><circle cx='12' cy='13' r='3'/>",
+  SpawnLocation:"<path d='M4 10h16v9H4z'/><path d='M12 5v8M8 9l4-4 4 4'/>",Seat:"<path d='M5 7h6v6H7v6M11 13h8v6'/>",
+  Humanoid:"<circle cx='12' cy='7' r='3'/><path d='M12 10v7M7 14l5-2 5 2M9 21l3-4 3 4'/>",Tool:"<path d='m14 5 5 5-8 8-5-5z'/><path d='m5 19-2 2M16 3l5 5'/>",
+  Accessory:"<path d='M6 10a6 6 0 0 1 12 0v9H6z'/><path d='M9 10a3 3 0 0 1 6 0'/>",ScreenGui:"<rect x='3' y='5' width='18' height='14' rx='2'/><path d='M7 9h10M7 13h6'/>",
+  Frame:"<rect x='4' y='4' width='16' height='16' rx='2'/><path d='M8 8h8v8H8z'/>",Configuration:"<circle cx='12' cy='12' r='3'/><path d='M12 3v3M12 18v3M3 12h3M18 12h3'/>"
+ };
+ const d=paths[type]||"<circle cx='12' cy='12' r='8'/><path d='M12 8v8M8 12h8'/>";
+ return '<svg class="rbxl-icon" viewBox="0 0 24 24" aria-hidden="true">'+d+'</svg>';
+}
 
 async function api(action,extra={}){
  const r=await fetch("/api/roblox/studio-rbxl",{method:"POST",headers:{"Content-Type":"application/json","x-roblox-api-key":state.apiKey},body:JSON.stringify({action,universeId:state.universeId,placeId:state.placeId,...extra})});
@@ -42,7 +61,7 @@ function style(){
 .rbxl-tree{min-height:0;border-right:1px solid #202732;background:#080b10;display:flex;flex-direction:column}
 .rbxl-tree-head{padding:14px;border-bottom:1px solid #202732}.rbxl-tree-head b{font-size:11px;letter-spacing:.6px}.rbxl-tree-head span{float:right;color:#687588;font-size:10px}
 .rbxl-search{margin-top:10px;width:100%;box-sizing:border-box;background:#0d1219;border:1px solid #26303d;color:#e9eef5;border-radius:8px;padding:9px 10px;outline:none}
-.rbxl-list{padding:9px;overflow:auto;min-height:0}.rbxl-row{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:7px;color:#9ba7b7;cursor:pointer;user-select:none}.rbxl-row:hover{background:#111822;color:#e6ecf4}.rbxl-row.active{background:#202020;color:#fff}.rbxl-row .arrow{width:12px;color:#687588}.rbxl-row .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rbxl-row .type{margin-left:auto;color:#596679;font-size:9px}
+.rbxl-list{padding:9px;overflow:auto;min-height:0}.rbxl-row{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:7px;color:#9ba7b7;cursor:pointer;user-select:none}.rbxl-row:hover{background:#111822;color:#e6ecf4}.rbxl-row.active{background:#202020;color:#fff}.rbxl-row .arrow{width:12px;color:#687588;flex:0 0 12px}.rbxl-icon-wrap{width:18px;height:18px;display:grid;place-items:center;flex:0 0 18px}.rbxl-icon{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;color:#aeb9c8}.rbxl-row .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rbxl-row .type{margin-left:auto;color:#596679;font-size:9px}
 .rbxl-editor{min-width:0;min-height:0;background:#050505;display:grid;grid-template-rows:48px 1fr 38px}
 .rbxl-filebar{display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid #202732;background:#090d13}.rbxl-filetab{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #283240;border-radius:7px;background:#10161f;min-width:0}.rbxl-filetab b{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rbxl-filetab small{color:#667488}.rbxl-dirty{color:#fff;font-size:16px}
 .rbxl-codewrap{position:relative;min-height:0}.rbxl-code{width:100%;height:100%;box-sizing:border-box;resize:none;border:0;outline:0;background:#060606;color:#dce5f0;padding:18px 22px;font:13px/1.65 "SFMono-Regular",Consolas,"Liberation Mono",monospace;tab-size:2}
@@ -66,8 +85,8 @@ function open(){
   <div class="rbxl-body">
    <aside class="rbxl-tree"><div class="rbxl-tree-head"><b>WORKSPACE</b><span id="rbxlCount">0 arquivos</span><input id="rbxlSearch" class="rbxl-search" placeholder="⌕ Procurar script..."></div><div id="rbxlTree" class="rbxl-list"><div class="rbxl-loading">Conecte um Place para carregar o Workspace.</div></div></aside>
    <main class="rbxl-editor">
-    <div class="rbxl-filebar"><div class="rbxl-filetab"><span>▱</span><b id="rbxlFileName">Nenhum arquivo</b><small id="rbxlFileType"></small><span id="rbxlDirty" class="rbxl-dirty"></span></div><div style="margin-left:auto;color:#657287;font-size:9px">Ctrl/⌘ + S salva • Esc fecha</div></div>
-    <div class="rbxl-codewrap"><div id="rbxlWelcome" class="rbxl-welcome"><div class="rbxl-card"><h2>Workspace de código</h2><p>Conecte uma experiência Roblox existente. O Studio RBXL carrega a hierarquia e permite editar scripts existentes e criar novos scripts no Roblox com uma operação segura de Luau + SavePlaceAsync. Também existe o modo de rascunho local.</p><div class="badgegrid"><div class="rbxl-badge"><b>▱ Script</b>Editar Source</div><div class="rbxl-badge"><b>▱ LocalScript</b>Editar Source</div><div class="rbxl-badge"><b>▱ ModuleScript</b>Editar Source</div></div></div></div><textarea id="rbxlCode" class="rbxl-code" spellcheck="false" autocomplete="off" autocapitalize="off" style="display:none"></textarea></div>
+    <div class="rbxl-filebar"><div class="rbxl-filetab"><span id="rbxlFileIcon">icon("Script")</span><b id="rbxlFileName">Nenhum arquivo</b><small id="rbxlFileType"></small><span id="rbxlDirty" class="rbxl-dirty"></span></div><div style="margin-left:auto;color:#657287;font-size:9px">Ctrl/⌘ + S salva • Esc fecha</div></div>
+    <div class="rbxl-codewrap"><div id="rbxlWelcome" class="rbxl-welcome"><div class="rbxl-card"><h2>Workspace de código</h2><p>Conecte uma experiência Roblox existente. O Studio RBXL carrega a hierarquia e permite editar scripts existentes e criar novos scripts no Roblox com uma operação segura de Luau + SavePlaceAsync. Também existe o modo de rascunho local.</p><div class="badgegrid"><div class="rbxl-badge"><b>icon("Script") Script</b>Editar Source</div><div class="rbxl-badge"><b>icon("LocalScript") LocalScript</b>Editar Source</div><div class="rbxl-badge"><b>icon("ModuleScript") ModuleScript</b>Editar Source</div></div></div></div><textarea id="rbxlCode" class="rbxl-code" spellcheck="false" autocomplete="off" autocapitalize="off" style="display:none"></textarea></div>
     <div class="rbxl-status"><span class="rbxl-dot"></span><span id="rbxlStatus">Aguardando conexão</span><span id="rbxlHint" style="margin-left:auto"></span></div>
    </main>
   </div>
@@ -265,7 +284,7 @@ function showCreateScript(){
  const openDraft=n=>{
    state.tree.push(n);state.files.set(n.id,n);state.current=n.id;state.dirty.add(n.id);
    $("#rbxlSave").disabled=false;$("#rbxlPublish").disabled=true;$("#rbxlSendScript").disabled=false;close();
-   $("#rbxlWelcome").style.display="none";$("#rbxlCode").style.display="block";$("#rbxlFileName").textContent=n.name;$("#rbxlFileType").textContent=n.type+" • rascunho";$("#rbxlDirty").textContent="•";$("#rbxlCode").value=n.source;$("#rbxlHint").textContent="Rascunho local • use Enviar ao Roblox quando quiser";$("#rbxlStatus").textContent="✓ "+n.name+" criado em "+parentDisplayPath(n.parent);renderTree($("#rbxlSearch").value);setTimeout(()=>$("#rbxlCode").focus(),0);
+   $("#rbxlWelcome").style.display="none";$("#rbxlCode").style.display="block";$("#rbxlFileName").textContent=n.name;$("#rbxlFileType").textContent=n.type+" • rascunho";$("#rbxlFileIcon").innerHTML=icon(n.type);$("#rbxlDirty").textContent="•";$("#rbxlCode").value=n.source;$("#rbxlHint").textContent="Rascunho local • use Enviar ao Roblox quando quiser";$("#rbxlStatus").textContent="✓ "+n.name+" criado em "+parentDisplayPath(n.parent);renderTree($("#rbxlSearch").value);setTimeout(()=>$("#rbxlCode").focus(),0);
  };
  $("#rbxlCreateLocal").onclick=()=>openDraft(buildNode());
  $("#rbxlCreateRemote").onclick=async()=>{
@@ -426,7 +445,7 @@ function addRow(n,depth,filtered){
 }
 async function selectFile(id){
  const n=state.files.get(id);if(!n)return;
- if(n.local){state.current=id;$("#rbxlWelcome").style.display="none";$("#rbxlCode").style.display="block";$("#rbxlFileName").textContent=n.name;$("#rbxlFileType").textContent=n.type+" • rascunho";$("#rbxlDirty").textContent=state.dirty.has(id)?"•":"*";$("#rbxlSendScript").disabled=false;$("#rbxlCode").value=n.source||"";$("#rbxlHint").textContent="Rascunho local • não enviado ao Roblox";$("#rbxlStatus").textContent=n.name+" aberto como rascunho";renderTree($("#rbxlSearch").value);setTimeout(()=>$("#rbxlCode").focus(),0);return}state.current=id;$("#rbxlWelcome").style.display="none";$("#rbxlCode").style.display="block";$("#rbxlFileName").textContent=n.name;$("#rbxlFileType").textContent=n.type;$("#rbxlDirty").textContent=state.dirty.has(id)?"•":"";$("#rbxlSendScript").disabled=true;
+ if(n.local){state.current=id;$("#rbxlWelcome").style.display="none";$("#rbxlCode").style.display="block";$("#rbxlFileName").textContent=n.name;$("#rbxlFileType").textContent=n.type+" • rascunho";$("#rbxlDirty").textContent=state.dirty.has(id)?"•":"*";$("#rbxlSendScript").disabled=false;$("#rbxlCode").value=n.source||"";$("#rbxlHint").textContent="Rascunho local • não enviado ao Roblox";$("#rbxlStatus").textContent=n.name+" aberto como rascunho";renderTree($("#rbxlSearch").value);setTimeout(()=>$("#rbxlCode").focus(),0);return}state.current=id;$("#rbxlWelcome").style.display="none";$("#rbxlCode").style.display="block";$("#rbxlFileName").textContent=n.name;$("#rbxlFileType").textContent=n.type;$("#rbxlFileIcon").innerHTML=icon(n.type);$("#rbxlDirty").textContent=state.dirty.has(id)?"•":"";$("#rbxlSendScript").disabled=true;
  $("#rbxlCode").value=n.source||"";$("#rbxlHint").textContent=n.sourceLoaded?(n.enabled===false?"Desabilitado":"Luau"):"Carregando Source…";$("#rbxlStatus").textContent=n.name+" • carregando…";renderTree($("#rbxlSearch").value);
  try{if(!n.sourceLoaded){const d=await api("source",{instanceId:n.id});
       if(d.scriptType&&SCRIPT_TYPES.has(d.scriptType)) n.type=d.scriptType;
