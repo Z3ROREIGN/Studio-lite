@@ -74,25 +74,32 @@ function inferScriptType(details) {
   return "";
 }
 const CONTAINER_TYPES = new Set(["Folder","Model","Tool","Configuration","ScreenGui","SurfaceGui","BillboardGui","Frame","ScrollingFrame","ViewportFrame","WorldModel","Part","MeshPart","UnionOperation","Terrain","Camera","SpawnLocation","Seat","VehicleSeat","Accessory","Hat","Humanoid"]);
+const ROOT_SERVICES = new Set(["Workspace","Players","Lighting","ReplicatedFirst","ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui","StarterPack","StarterPlayer","Teams","SoundService","Chat","TextChatService","MaterialService","TestService","VoiceChatService"]);
+function unwrapInstance(item) {
+  const e = item?.engineInstance || item?.EngineInstance || item?.instance?.engineInstance || item?.instance || item || {};
+  return e && typeof e === "object" ? e : {};
+}
 function nodeFrom(item, parent) {
-  const e = item.engineInstance || item.EngineInstance || {};
-  const id = String(e.Id || e.id || item.id || item.path?.split("/").pop() || "");
+  const e = unwrapInstance(item);
+  const details = e.Details || e.details || item?.Details || item?.details || {};
+  const id = String(e.Id || e.id || item?.id || item?.instanceId || item?.path?.split("/").pop() || e.path?.split("/").pop() || "").trim();
   if (!id) return null;
-  const details = e.Details || e.details || {};
   const scriptType = inferScriptType(details);
-  const explicitClass = String(e.ClassName || e.className || e.Type || details.ClassName || details.className || "").trim();
+  const explicitClass = String(e.ClassName || e.className || e.Type || e.type || item?.ClassName || item?.className || "").trim();
   const detailClass = Object.keys(details).find(k => CONTAINER_TYPES.has(k) || SCRIPT_TYPES.includes(k)) || "";
-  const name = String(e.Name || e.name || details.Name || "Unnamed");
-  const type = scriptType || explicitClass || detailClass || (item.hasChildren || item.HasChildren || e.HasChildren || e.hasChildren ? "Folder" : "Instance");
-  const explicitChildren = item.hasChildren ?? item.HasChildren ?? e.HasChildren ?? e.hasChildren;
-  const hasChildren = explicitChildren === undefined ? CONTAINER_TYPES.has(type) : Boolean(explicitChildren);
-  return { id, parent, name, type, hasChildren, details: details && typeof details === "object" ? details : {} };
+  const name = String(e.Name || e.name || item?.Name || item?.name || details.Name || details.name || "").trim() || "Unnamed";
+  const type = scriptType || explicitClass || detailClass || (ROOT_SERVICES.has(name) ? name : (item?.hasChildren ?? item?.HasChildren ?? e.HasChildren ?? e.hasChildren ? "Folder" : "Instance"));
+  const explicitChildren = item?.hasChildren ?? item?.HasChildren ?? e.HasChildren ?? e.hasChildren;
+  const hasChildren = explicitChildren === undefined ? (ROOT_SERVICES.has(name) || CONTAINER_TYPES.has(type)) : Boolean(explicitChildren);
+  const actualParent = String(e.Parent || e.parent || item?.parent || parent || "root").trim() || "root";
+  return { id, parent: actualParent === id ? parent : actualParent, name, type, hasChildren, details: details && typeof details === "object" ? details : {} };
 }
 
 async function listChildren(universeId, placeId, instanceId, apiKey) {
   const r = await roblox("/universes/" + universeId + "/places/" + placeId + "/instances/" + encodeURIComponent(instanceId) + ":listChildren", apiKey);
   if (!r.ok) { const e = new Error(r.data?.message || r.data?.error || ("Falha ao listar filhos (HTTP " + r.status + ").")); e.status = r.status; e.headers = r.headers; throw e; }
   if (r.data?.response?.instances) return r.data.response.instances;
+  if (r.data?.response?.response?.instances) return r.data.response.response.instances;
   if (r.data?.instances) return r.data.instances;
   if (r.data?.path) {
     const done = await operation(r.data.path, apiKey, { maxPolls: 2, delayMs: 1200, allowPending: true });
@@ -451,7 +458,7 @@ export default async function handler(req, res) {
       const result = await operation(operationPath, apiKey, { maxPolls: 1, delayMs: 500, allowPending: true });
       if (result?.pending) return json(res, 200, { ok: true, done: false, operationPath });
       const raw = result?.response || result?.output || result || {};
-      const instances = raw?.instances || raw?.response?.instances || null;
+      const instances = raw?.instances || raw?.response?.instances || raw?.response?.response?.instances || null;
       return json(res, 200, { ok: true, done: true, operationPath, instances });
     }
     if (action === "source") {
