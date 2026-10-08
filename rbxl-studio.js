@@ -354,13 +354,16 @@ async function connect(){
  finally{const b=$("#rbxlAuth")?.querySelector("button");if(b){b.disabled=false;b.textContent="Conectar e carregar Workspace"}}
 }
 function normalizeCloudInstances(items,parentId="root"){
+ const CONTAINERS=new Set(["Folder","Model","Tool","Configuration","ScreenGui","SurfaceGui","BillboardGui","Frame","ScrollingFrame","ViewportFrame","WorldModel"]);
  return (Array.isArray(items)?items:[]).map(item=>{
   const e=item?.engineInstance||item?.EngineInstance||{};
   const details=e?.Details||e?.details||{};
   const id=String(e.Id||e.id||item?.id||"").trim();
   if(!id)return null;
   const type=["Script","LocalScript","ModuleScript"].find(t=>details?.[t]||details?.[t.toLowerCase()])||String(e.ClassName||e.className||e.Type||details.ClassName||details.className||"Instance");
-  return {id,parent:String(e.Parent||e.parent||parentId),name:String(e.Name||e.name||"Unnamed"),type,hasChildren:Boolean(item?.hasChildren??item?.HasChildren??e.HasChildren??e.hasChildren),details};
+  const explicitChildren=item?.hasChildren??item?.HasChildren??e.HasChildren??e.hasChildren;
+  const hasChildren=explicitChildren===undefined?CONTAINERS.has(type):Boolean(explicitChildren);
+  return {id,parent:String(parentId||"root"),name:String(e.Name||e.name||details.Name||"Unnamed"),type,hasChildren,details};
  }).filter(Boolean);
 }
 async function waitCloudOperation(operationPath,parentId="root"){
@@ -377,15 +380,24 @@ async function waitCloudOperation(operationPath,parentId="root"){
 function indexNodes(nodes){for(const n of nodes||[]){if(!n)continue;if(SCRIPT_TYPES.has(n.type)&&!state.files.has(n.id))state.files.set(n.id,{...n,source:"",sourceLoaded:false})}}
 function countScripts(){return state.files.size}
 async function loadChildrenFor(parentId){
+ if(!parentId||parentId==="root")return;
  if(state.loading.has(parentId))return;
  state.loading.add(parentId);renderTree($("#rbxlSearch").value);$("#rbxlStatus").textContent="Carregando pasta…";
  try{
   let d=await api("children",{parentId});
   let children=Array.isArray(d.children)?d.children:[];
   if(d.pending)children=await waitCloudOperation(d.operationPath,parentId);
-  const ids=new Set(state.tree.map(n=>n.id));
-  for(const n of children){if(!ids.has(n.id))state.tree.push(n)}
-  indexNodes(children);state.expanded.add(parentId);renderTree($("#rbxlSearch").value);$("#rbxlStatus").textContent="Pasta carregada";
+  const normalized=normalizeCloudInstances(children,parentId);
+  const byId=new Map(state.tree.map(n=>[String(n.id),n]));
+  for(const n of normalized){
+   const existing=byId.get(String(n.id));
+   if(existing)Object.assign(existing,n);
+   else{state.tree.push(n);byId.set(String(n.id),n)}
+  }
+  indexNodes(normalized);
+  state.expanded.add(parentId);
+  renderTree($("#rbxlSearch").value);
+  $("#rbxlStatus").textContent=normalized.length+" itens carregados";
  }
  catch(e){$("#rbxlStatus").textContent="Falha ao carregar pasta: "+e.message}
  finally{state.loading.delete(parentId);renderTree($("#rbxlSearch").value)}
@@ -393,7 +405,13 @@ async function loadChildrenFor(parentId){
 function renderTree(filter=""){
  const root=$("#rbxlTree");if(!root)return;root.innerHTML="";
  if(!state.tree.length){root.innerHTML='<div class="rbxl-loading">Nenhuma instância foi retornada pelo Roblox.</div>';return}
- const visible=state.tree.filter(n=>!state.removed.has(n.id)); const all=[{id:"__workspace__",parent:null,name:"Workspace",type:"Workspace",virtual:true,hasChildren:true},...visible.map(n=>({...n,parent:n.parent==="root"?"__workspace__":n.parent}))],by=new Map();
+ const visible=state.tree.filter(n=>!state.removed.has(n.id));
+ const ids=new Set(visible.map(n=>String(n.id)));
+ const all=[{id:"__workspace__",parent:null,name:"Workspace",type:"Workspace",virtual:true,hasChildren:true},...visible.map(n=>{
+   const rawParent=String(n.parent||"root");
+   const parent=rawParent==="root"||rawParent==="__workspace__"||!ids.has(rawParent)?"__workspace__":rawParent;
+   return {...n,parent};
+ })],by=new Map();
  all.forEach(n=>by.set(n.id,[]));all.forEach(n=>{if(n.parent&&by.has(n.parent))by.get(n.parent).push(n)});
  if(filter){visible.filter(n=>((n.name+" "+n.type).toLowerCase().includes(filter.toLowerCase()))).forEach(n=>addRow(n,0,true));return}
  const draw=(parent,depth)=>{for(const n of(by.get(parent)||[]).sort((a,b)=>{const as=SCRIPT_TYPES.has(a.type),bs=SCRIPT_TYPES.has(b.type);return as===bs?a.name.localeCompare(b.name):as?1:-1})){addRow(n,depth,false);if(n.hasChildren&&state.expanded.has(n.id))draw(n.id,depth+1)}};
