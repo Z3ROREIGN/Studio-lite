@@ -538,7 +538,18 @@ export default async function handler(req, res) {
       return json(res, 429, { ...base, code: "ROBLOX_RATE_LIMITED", retryAfter: Number.isFinite(reset) && reset > 0 ? reset : 5, hint: "Aguarde alguns segundos e tente novamente." });
     }
     if (status === 401) return json(res, 401, { ...base, code: "ROBLOX_UNAUTHORIZED", hint: "A chave foi recusada pelo Roblox. Confirme se a chave está ativa, se foi copiada inteira e se ela pertence ao Universe/Place selecionado." });
-    if (status === 403) return json(res, 403, { ...base, code: "ROBLOX_FORBIDDEN", hint: "Confirme os escopos universe.place.instance:read, universe.place.instance:write e, para Luau/salvamento, universe.place.luau-execution-session:write e universe.place:write. O jogo também precisa ter sessão colaborativa quando usar Engine Instances." });
+    const lowerMessage = message.toLowerCase();
+    const teamCreateActive = lowerMessage.includes("placeongoingteamcreatesession") || lowerMessage.includes("ongoing team create session") || lowerMessage.includes("team create session");
+    if (teamCreateActive) {
+      return json(res, 409, {
+        ...base,
+        code: "ROBLOX_TEAM_CREATE_ACTIVE",
+        httpStatus: 409,
+        retryable: true,
+        hint: "O Roblox bloqueou o SavePlaceAsync porque este Place possui uma sessão Team Create ativa. Feche/saia da sessão Team Create no Roblox Studio e tente publicar novamente. A chave e as permissões da API não resolvem esse bloqueio."
+      });
+    }
+    if (status === 403) return json(res, 403, { ...base, code: "ROBLOX_FORBIDDEN", hint: "Confirme os escopos de leitura/escrita de Instances e Luau Execution exigidos pela operação. Se o Roblox retornar um bloqueio específico, siga a mensagem exibida no diagnóstico." });
     if (status === 404) return json(res, 404, { ...base, code: "ROBLOX_NOT_FOUND", hint: "Confira se Universe ID e Place ID pertencem ao mesmo jogo e se a chave tem acesso a esse jogo." });
     if (status === 400) return json(res, 400, { ...base, code: "ROBLOX_INVALID_REQUEST", hint: "A requisição chegou ao Roblox, mas foi rejeitada. A mensagem acima é a resposta real da API." });
     if (status === 504) return json(res, 504, { ...base, code: "ROBLOX_OPERATION_PENDING", retryable: true, hint: "O Roblox demorou para concluir a operação." });
