@@ -403,15 +403,16 @@ async function waitCloudOperation(operationPath,parentId="root"){
 function indexNodes(nodes){for(const n of nodes||[]){if(!n)continue;if(SCRIPT_TYPES.has(n.type)&&!state.files.has(n.id))state.files.set(n.id,{...n,source:"",sourceLoaded:false})}}
 function countScripts(){return state.files.size}
 async function loadEntireHierarchy(){
- const queue=["root"];
- const visited=new Set(["root"]);
- let processed=0;
+ const roots=state.tree.filter(n=>String(n.parent||"root")==="root"||String(n.parent||"root")==="__workspace__");
+ const queue=roots.map(n=>String(n.id)).filter(Boolean);
+ const visited=new Set(queue);
+ let processed=state.tree.length;
  const maxNodes=2500;
  while(queue.length && processed<maxNodes){
   const parentId=queue.shift();
-  if(parentId!=="root")state.expanded.add(parentId);
+  state.expanded.add(parentId);
   let d;
-  try{d=await api("children",{parentId:parentId==="root"?"root":parentId});}
+  try{d=await api("children",{parentId});}
   catch(e){$("#rbxlStatus").textContent="Alguns itens não puderam ser carregados: "+(e.message||String(e));continue}
   let children=Array.isArray(d.children)?d.children:[];
   if(d.pending){
