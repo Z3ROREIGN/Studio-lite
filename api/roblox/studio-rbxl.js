@@ -22,8 +22,9 @@ async function roblox(path, apiKey, init = {}) {
   }
 }
 
-async function operation(path, apiKey) {
-  const maxPolls = 120;
+async function operation(path, apiKey, options = {}) {
+  const maxPolls = Math.max(1, Math.min(Number(options.maxPolls) || 2, 10));
+  const delayMs = Math.max(250, Math.min(Number(options.delayMs) || 1500, 5000));
   for (let i = 0; i < maxPolls; i++) {
     const r = await roblox("/" + String(path).replace(/^\//, ""), apiKey);
     if (r.status === 409 && i < maxPolls - 1) {
@@ -62,9 +63,9 @@ async function operation(path, apiKey) {
     if (["COMPLETE", "SUCCEEDED"].includes(state) || data.done === true) {
       return data.response || data.output || data;
     }
-    if (i < maxPolls - 1) await new Promise(resolve => setTimeout(resolve, 2500));
+    if (i < maxPolls - 1) await new Promise(resolve => setTimeout(resolve, delayMs));
   }
-  const e = new Error("O Roblox demorou mais de 5 minutos para concluir a operação. Verifique a tarefa no Roblox e tente novamente."); e.status = 504; throw e;
+  return { pending: true, path: String(path).replace(/^\/+/, "") };
 }
 function inferScriptType(details) {
   const d = details && typeof details === "object" ? details : {};
@@ -87,8 +88,12 @@ async function listChildren(universeId, placeId, instanceId, apiKey) {
   if (!r.ok) { const e = new Error(r.data?.message || r.data?.error || ("Falha ao listar filhos (HTTP " + r.status + ").")); e.status = r.status; e.headers = r.headers; throw e; }
   if (r.data?.response?.instances) return r.data.response.instances;
   if (r.data?.instances) return r.data.instances;
-  if (r.data?.path) { const done = await operation(r.data.path, apiKey); return done?.instances || done?.response?.instances || []; }
-  return [];
+  if (r.data?.path) {
+    const done = await operation(r.data.path, apiKey, { maxPolls: 2, delayMs: 1200 });
+    if (done?.pending) return { pending: true, operationPath: done.path };
+    return { instances: done?.instances || done?.response?.instances || [] };
+  }
+  return { instances: [] };
 }
 
 async function getInstance(universeId, placeId, instanceId, apiKey) {
@@ -102,12 +107,14 @@ async function getInstance(universeId, placeId, instanceId, apiKey) {
 }
 
 async function loadTree(universeId, placeId, apiKey) {
-  const children = await listChildren(universeId, placeId, "root", apiKey);
-  return children.map(item => nodeFrom(item, "root")).filter(Boolean);
+  const result = await listChildren(universeId, placeId, "root", apiKey);
+  if (result?.pending) return result;
+  return (result?.instances || []).map(item => nodeFrom(item, "root")).filter(Boolean);
 }
 async function loadChildren(universeId, placeId, parentId, apiKey) {
-  const children = await listChildren(universeId, placeId, parentId, apiKey);
-  return children.map(item => nodeFrom(item, parentId)).filter(Boolean);
+  const result = await listChildren(universeId, placeId, parentId, apiKey);
+  if (result?.pending) return result;
+  return (result?.instances || []).map(item => nodeFrom(item, parentId)).filter(Boolean);
 }
 function findScriptDetails(value, preferredType = "") {
   if (!value || typeof value !== "object") return null;
@@ -417,11 +424,29 @@ export default async function handler(req, res) {
     const action = clean(body.action || "load");
     if (action === "diagnostic") return json(res, 200, { ok: true, diagnostic: await runLuauDiagnostic(universeId, placeId, apiKey), message: "Luau Execution está funcionando para esta chave e Place." });
     if (action === "saveDiagnostic") return json(res, 200, { ok: true, diagnostic: await runSavePermissionDiagnostic(universeId, placeId, apiKey), message: "SavePlaceAsync com SaveWithoutPublish está autorizado neste Place." });
-    if (action === "load") return json(res, 200, { ok: true, universeId, placeId, tree: await loadTree(universeId, placeId, apiKey), editable: SCRIPT_TYPES, readOnly: true, lazy: true });
+    if (action === "load") {
+      const tree = await loadTree(universeId, placeId, apiKey);
+      if (tree?.pending) return json(res, 200, { ok: true, pending: true, operationPath: tree.operationPath, universeId, placeId, editable: SCRIPT_TYPES, readOnly: true, lazy: true });
+      return json(res, 200, { ok: true, universeId, placeId, tree, editable: SCRIPT_TYPES, readOnly: true, lazy: true });
+    }
     if (action === "children") {
       const parentId = clean(body.parentId);
       if (!parentId || parentId === "root") return json(res, 400, { ok: false, error: "Parent ID inválido." });
-      return json(res, 200, { ok: true, parentId, children: await loadChildren(universeId, placeId, parentId, apiKey) });
+      const children = await loadChildren(universeId, placeId, parentId, apiKey);
+      if (children?.pending) return json(res, 200, { ok: true, pending: true, operationPath: children.operationPath, parentId });
+      return json(res, 200, { ok: true, parentId, children });
+    }
+    if (action === "operation") {
+      const operationPath = clean(body.operationPath).replace(/^\/+/, "");
+      const prefix = "universes/" + universeId + "/places/" + placeId + "/";
+      if (!operationPath || !operationPath.startsWith(prefix) || !operationPath.includes("/operations/")) {
+        return json(res, 400, { ok: false, code: "INVALID_OPERATION_PATH", error: "Caminho de operação inválido para este Place." });
+      }
+      const result = await operation(operationPath, apiKey, { maxPolls: 1, delayMs: 500 });
+      if (result?.pending) return json(res, 200, { ok: true, done: false, operationPath });
+      const raw = result?.response || result?.output || result || {};
+      const instances = raw?.instances || raw?.response?.instances || null;
+      return json(res, 200, { ok: true, done: true, operationPath, instances });
     }
     if (action === "source") {
       const instanceId = clean(body.instanceId);
