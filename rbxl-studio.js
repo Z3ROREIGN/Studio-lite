@@ -579,7 +579,15 @@ async function publishAll(){
    $("#rbxlStatus").textContent="Falha na publicação: "+msg;
    $("#rbxlHint").textContent=e.hint||"A alteração pode já ter sido aplicada ao rascunho colaborativo; corrija o erro e tente publicar novamente.";
    status("Falha na publicação");
-   if(e.code==="ROBLOX_FORBIDDEN")showDiagnosticPanel("Roblox recusou a publicação",false,msg,e.hint||"Confira os escopos da chave e se o Place permite salvamento.");
+   if(e.code==="ROBLOX_TEAM_CREATE_ACTIVE"){
+     showDiagnosticPanel(
+       "Publicação bloqueada pelo Team Create",
+       false,
+       "O Roblox informou: há uma sessão Team Create ativa neste Place.",
+       e.hint||"Feche ou saia da sessão Team Create no Roblox Studio e tente publicar novamente. As alterações dos scripts podem já ter sido aplicadas ao rascunho colaborativo, mas a criação da versão publicada fica bloqueada enquanto a sessão estiver ativa."
+     );
+     $( "#rbxlHint" ).textContent="Team Create ativo: o Roblox não permite SavePlaceAsync neste momento.";
+   } else if(e.code==="ROBLOX_FORBIDDEN")showDiagnosticPanel("Roblox recusou a publicação",false,msg,e.hint||"Confira os escopos da chave e se o Place permite salvamento.");
    else if(e.code==="ROBLOX_INVALID_REQUEST")showDiagnosticPanel("Roblox rejeitou a publicação",false,msg,e.hint||"A resposta acima veio diretamente do Roblox.");
  }
  finally{b.textContent="Publicar";b.disabled=!hasPublishableChanges()}
