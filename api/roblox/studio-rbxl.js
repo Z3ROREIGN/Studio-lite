@@ -73,15 +73,20 @@ function inferScriptType(details) {
   for (const type of SCRIPT_TYPES) if (d[type] && typeof d[type] === "object") return type;
   return "";
 }
+const CONTAINER_TYPES = new Set(["Folder","Model","Tool","Configuration","ScreenGui","SurfaceGui","BillboardGui","Frame","ScrollingFrame","ViewportFrame","WorldModel","Part","MeshPart","UnionOperation","Terrain","Camera","SpawnLocation","Seat","VehicleSeat","Accessory","Hat","Humanoid"]);
 function nodeFrom(item, parent) {
   const e = item.engineInstance || item.EngineInstance || {};
   const id = String(e.Id || e.id || item.id || item.path?.split("/").pop() || "");
   if (!id) return null;
   const details = e.Details || e.details || {};
   const scriptType = inferScriptType(details);
+  const explicitClass = String(e.ClassName || e.className || e.Type || details.ClassName || details.className || "").trim();
+  const detailClass = Object.keys(details).find(k => CONTAINER_TYPES.has(k) || SCRIPT_TYPES.includes(k)) || "";
   const name = String(e.Name || e.name || details.Name || "Unnamed");
-  const type = scriptType || String(e.ClassName || e.className || e.Type || details.ClassName || details.className || (item.hasChildren ? "Folder" : "Instance"));
-  return { id, parent, name, type, hasChildren: Boolean(item.hasChildren ?? item.HasChildren ?? e.HasChildren ?? e.hasChildren), details: details && typeof details === "object" ? details : {} };
+  const type = scriptType || explicitClass || detailClass || (item.hasChildren || item.HasChildren || e.HasChildren || e.hasChildren ? "Folder" : "Instance");
+  const explicitChildren = item.hasChildren ?? item.HasChildren ?? e.HasChildren ?? e.hasChildren;
+  const hasChildren = explicitChildren === undefined ? CONTAINER_TYPES.has(type) : Boolean(explicitChildren);
+  return { id, parent, name, type, hasChildren, details: details && typeof details === "object" ? details : {} };
 }
 
 async function listChildren(universeId, placeId, instanceId, apiKey) {
