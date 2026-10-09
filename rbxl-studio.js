@@ -96,7 +96,7 @@ function open(){
     <label>Universe ID <input id="rbxlUniverseInput" inputmode="numeric" required placeholder="Ex.: 1234567890"></label>
     <label>Place ID <input id="rbxlPlaceInput" inputmode="numeric" required placeholder="Ex.: 9876543210"></label>
     <button class="rbxl-btn primary" type="submit">Conectar e carregar Workspace</button><div id="rbxlAuthError" class="rbxl-help rbxl-error"></div>
-   </form><div class="rbxl-help">✓ Hierarquia • ✓ Edição • ✓ Criação de scripts • ✓ Publicação segura</div></div></div>
+   </form><div class="rbxl-help">✓ Hierarquia • ✓ Edição • ✓ Criação de scripts</div><div class="rbxl-safe-note"><strong>Colaboração desativada neste site:</strong> o Studio RBXL não ativa/desativa Team Create nem adiciona ou remove colaboradores. Isso não altera as configurações da sua conta Roblox; se o próprio Roblox devolver um bloqueio de sessão ao publicar, a publicação ainda poderá falhar.</div></div></div>
  </div>`;
  document.body.appendChild(bg);
  const close=()=>{bg.remove();document.removeEventListener("keydown",key,true)};
