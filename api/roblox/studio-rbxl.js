@@ -445,6 +445,10 @@ export default async function handler(req, res) {
     const action = clean(body.action || "load");
     if (action === "diagnostic") return json(res, 200, { ok: true, diagnostic: await runLuauDiagnostic(universeId, placeId, apiKey), message: "Luau Execution está funcionando para esta chave e Place." });
     if (action === "saveDiagnostic") return json(res, 200, { ok: true, diagnostic: await runSavePermissionDiagnostic(universeId, placeId, apiKey), message: "SavePlaceAsync com SaveWithoutPublish está autorizado neste Place." });
+    if (action === "publishOnly") {
+      const published = await publishPlaceWithLuau(universeId, placeId, apiKey);
+      return json(res, 200, { ok: true, published: true, method: "save-place-only", taskPath: published.taskPath });
+    }
     if (action === "publishPreflight") {
       return json(res, 200, {
         ok: true,
@@ -580,7 +584,7 @@ export default async function handler(req, res) {
         code: "ROBLOX_TEAM_CREATE_ACTIVE",
         httpStatus: 409,
         retryable: true,
-        hint: "O Roblox bloqueou o SavePlaceAsync porque este Place possui uma sessão Team Create ativa. Feche/saia da sessão Team Create no Roblox Studio e tente publicar novamente. A chave e as permissões da API não resolvem esse bloqueio."
+        hint: "O Roblox recusou a criação da versão publicada com PlaceOngoingTeamCreateSession. As alterações dos scripts já foram enviadas pela Instances API; use Publicar novamente para repetir somente a publicação, sem reenviar os scripts. O site não consegue encerrar uma sessão interna do Roblox por API."
       });
     }
     if (status === 403) return json(res, 403, { ...base, code: "ROBLOX_FORBIDDEN", hint: "Confirme os escopos de leitura/escrita de Instances e Luau Execution exigidos pela operação. Se o Roblox retornar um bloqueio específico, siga a mensagem exibida no diagnóstico." });
