@@ -657,7 +657,8 @@ export default async function handler(req, res) {
         hint: "O Roblox recusou a criação da versão publicada com PlaceOngoingTeamCreateSession. As alterações dos scripts já foram enviadas pela Instances API; use Publicar novamente para repetir somente a publicação, sem reenviar os scripts. O site não consegue encerrar uma sessão interna do Roblox por API."
       });
     }
-    if (status === 403) return json(res, 403, { ...base, code: "ROBLOX_FORBIDDEN", hint: "Confirme os escopos de leitura/escrita de Instances e Luau Execution exigidos pela operação. Se o Roblox retornar um bloqueio específico, siga a mensagem exibida no diagnóstico." });
+    if (status === 403 && clean(body.action) === "teamCreateToggle") return json(res, 403, { ...base, code: "TEAM_CREATE_SCOPE_REQUIRED", hint: "A Roblox recusou a alteração de Team Create porque esta chave não tem autorização para gerenciar colaboração. O endpoint exige o escopo legacy-team-collaboration:manage; isso não é o mesmo que universe.places:write. O site não vai pedir colaboradores nem insistir nesta ação. A publicação ainda pode ser bloqueada pelo próprio serviço do Roblox se ele retornar PlaceOngoingTeamCreateSession." });
+    if (status === 403) return json(res, 403, { ...base, code: "ROBLOX_FORBIDDEN", hint: "A chave não tem permissão para esta operação. Confira o escopo específico exigido pela API, além do acesso ao Universe/Place." });
     if (status === 404) return json(res, 404, { ...base, code: "ROBLOX_NOT_FOUND", hint: "Confira se Universe ID e Place ID pertencem ao mesmo jogo e se a chave tem acesso a esse jogo." });
     if (status === 400) return json(res, 400, { ...base, code: "ROBLOX_INVALID_REQUEST", hint: "A requisição chegou ao Roblox, mas foi rejeitada. A mensagem acima é a resposta real da API." });
     if (status === 504) return json(res, 504, { ...base, code: "ROBLOX_OPERATION_PENDING", retryable: true, hint: "O Roblox demorou para concluir a operação." });
