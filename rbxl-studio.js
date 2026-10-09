@@ -640,7 +640,7 @@ async function publishFullPlaceFile(event){
  if(!file)return;
  input.value="";
  const name=String(file.name||"place.rbxl");
- if(!/\\.(rbxl|rbxlx)$/i.test(name)){
+ if(!/\.(rbxl|rbxlx)$/i.test(name)){
    showDiagnosticPanel("Formato de arquivo inválido",false,"Selecione um arquivo .rbxl ou .rbxlx.","Exporte o Place completo pelo Roblox Studio e selecione o arquivo exportado. Um JSON ou um arquivo parcial de script não pode ser publicado por esta API.");
    return;
  }
@@ -650,7 +650,7 @@ async function publishFullPlaceFile(event){
    showDiagnosticPanel("Arquivo maior que o limite desta rota",false,"O arquivo selecionado tem "+(file.size/1024/1024).toFixed(2)+" MB. Esta rota da Vercel aceita arquivos de até 4 MB para evitar falha por limite de corpo da requisição.","Use um arquivo .rbxl/.rbxlx completo com até 4 MB. Arquivos maiores exigem uma infraestrutura de upload que não passe o binário inteiro pela função da Vercel.");
    return;
  }
- const confirmText="Arquivo completo: "+name+"\\nTamanho: "+(file.size/1024/1024).toFixed(2)+" MB\\nUniverse: "+state.universeId+"\\nPlace: "+state.placeId+"\\n\\nA Roblox vai publicar este arquivo como uma nova versão do Place. Ele substitui o conteúdo publicado pelo conteúdo que está dentro do arquivo.\\n\\nIMPORTANTE: esta ação não injeta automaticamente as edições do editor de scripts neste arquivo. Se você editou scripts nesta tela, o arquivo selecionado precisa já conter essas alterações para que elas sejam publicadas. Continuar?";
+ const confirmText="Arquivo completo: "+name+"\nTamanho: "+(file.size/1024/1024).toFixed(2)+" MB\nUniverse: "+state.universeId+"\nPlace: "+state.placeId+"\n\nA Roblox vai publicar este arquivo como uma nova versão do Place. Ele substitui o conteúdo publicado pelo conteúdo que está dentro do arquivo.\n\nIMPORTANTE: esta ação não injeta automaticamente as edições do editor de scripts neste arquivo. Se você editou scripts nesta tela, o arquivo selecionado precisa já conter essas alterações para que elas sejam publicadas. Continuar?";
  showConfirm("Publicar arquivo completo",confirmText,async()=>{
    const b=$("#rbxlPublishFile");
    b.disabled=true;b.textContent="Enviando arquivo…";
@@ -664,7 +664,7 @@ async function publishFullPlaceFile(event){
          "x-roblox-universe-id":state.universeId,
          "x-roblox-place-id":state.placeId,
          "x-roblox-file-name":name,
-         "content-type":/\\.rbxlx$/i.test(name)?"application/xml":"application/octet-stream"
+         "content-type":/\.rbxlx$/i.test(name)?"application/xml":"application/octet-stream"
        },
        body:file
      });
