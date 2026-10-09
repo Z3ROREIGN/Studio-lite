@@ -653,8 +653,8 @@ export default async function handler(req, res) {
         ...base,
         code: "ROBLOX_TEAM_CREATE_ACTIVE",
         httpStatus: 409,
-        retryable: true,
-        hint: "O Roblox recusou a criação da versão publicada com PlaceOngoingTeamCreateSession. As alterações dos scripts já foram enviadas pela Instances API; use Publicar novamente para repetir somente a publicação, sem reenviar os scripts. O site não consegue encerrar uma sessão interna do Roblox por API."
+        retryable: false,
+        hint: "A Roblox bloqueou SavePlaceAsync com PlaceOngoingTeamCreateSession. Repetir a mesma chamada normalmente não resolve. A API oficial alternativa de publicação aceita um arquivo completo .rbxl/.rbxlx, mas este fluxo de editor de scripts não gera esse arquivo completo; não é seguro afirmar que os scripts foram publicados. Não é necessário cadastrar colaboradores no site. Se não houver sessão aberta no Studio, o bloqueio precisa ser corrigido pela Roblox ou contornado publicando um arquivo completo do Place pela Place Publishing API."
       });
     }
     if (status === 403 && clean(body.action) === "teamCreateToggle") return json(res, 403, { ...base, code: "TEAM_CREATE_SCOPE_REQUIRED", hint: "A Roblox recusou a alteração de Team Create porque esta chave não tem autorização para gerenciar colaboração. O endpoint exige o escopo legacy-team-collaboration:manage; isso não é o mesmo que universe.places:write. O site não vai pedir colaboradores nem insistir nesta ação. A publicação ainda pode ser bloqueada pelo próprio serviço do Roblox se ele retornar PlaceOngoingTeamCreateSession." });
