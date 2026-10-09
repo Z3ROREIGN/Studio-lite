@@ -16,6 +16,25 @@ async function teamCreateRequest(path, apiKey) {
   return { ok: r.ok, status: r.status, data };
 }
 
+async function setTeamCreateEnabled(universeId, enabled, apiKey) {
+  const r = await fetch("https://apis.roblox.com/legacy-develop/v1/universes/" + universeId + "/teamcreate", {
+    method: "PATCH",
+    headers: { "x-api-key": apiKey, "Accept": "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({ isEnabled: Boolean(enabled) })
+  });
+  const text = await r.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { message: text }; }
+  if (!r.ok) {
+    const message = data.message || data.errors?.[0]?.message || data.error || ("Roblox HTTP " + r.status);
+    const e = new Error(message);
+    e.status = r.status;
+    e.roblox = data;
+    throw e;
+  }
+  return { enabled: Boolean(enabled), status: r.status, data };
+}
+
 async function readTeamCreateStatus(universeId, placeId, apiKey) {
   // Read-only calls to Roblox's documented experimental Team Create endpoints.
   const [settings, session] = await Promise.all([
@@ -489,6 +508,11 @@ export default async function handler(req, res) {
     if (req.method !== "POST") return json(res, 405, { ok: false, error: "Method not allowed" });
     const action = clean(body.action || "load");
     if (action === "teamCreateStatus") return json(res, 200, { ok: true, diagnostic: await readTeamCreateStatus(universeId, placeId, apiKey) });
+    if (action === "teamCreateToggle") {
+      if (typeof body.enabled !== "boolean") return json(res, 400, { ok: false, error: "Informe enabled como true ou false." });
+      const result = await setTeamCreateEnabled(universeId, body.enabled, apiKey);
+      return json(res, 200, { ok: true, teamCreate: result, message: body.enabled ? "Team Create foi ativado." : "Team Create foi desativado para este Universe." });
+    }
     if (action === "diagnostic") return json(res, 200, { ok: true, diagnostic: await runLuauDiagnostic(universeId, placeId, apiKey), message: "Luau Execution está funcionando para esta chave e Place." });
     if (action === "saveDiagnostic") return json(res, 200, { ok: true, diagnostic: await runSavePermissionDiagnostic(universeId, placeId, apiKey), message: "SavePlaceAsync com SaveWithoutPublish está autorizado neste Place." });
     if (action === "publishOnly") {
