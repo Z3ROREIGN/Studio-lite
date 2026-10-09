@@ -4,6 +4,51 @@ const BASE = "https://apis.roblox.com/cloud/v2";
 const json = (res, status, body) => { res.status(status).setHeader("Cache-Control", "no-store").json(body); };
 const clean = v => String(v ?? "").trim();
 const validId = v => /^\d+$/.test(clean(v));
+
+async function teamCreateRequest(path, apiKey) {
+  const r = await fetch("https://apis.roblox.com/legacy-develop" + path, {
+    method: "GET",
+    headers: { "x-api-key": apiKey, "Accept": "application/json" }
+  });
+  const text = await r.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { message: text }; }
+  return { ok: r.ok, status: r.status, data };
+}
+
+async function readTeamCreateStatus(universeId, placeId, apiKey) {
+  // Read-only calls to Roblox's documented experimental Team Create endpoints.
+  const [settings, session] = await Promise.all([
+    teamCreateRequest("/v1/universes/" + universeId + "/teamcreate", apiKey),
+    teamCreateRequest("/v1/places/" + placeId + "/teamcreate/active_session/members", apiKey)
+  ]);
+  const settingsBody = settings.data || {};
+  const sessionBody = session.data || {};
+  const members = sessionBody.data || sessionBody.members || sessionBody.activeSessionMembers || [];
+  return {
+    readOnly: true,
+    experimental: true,
+    universeId,
+    placeId,
+    settings: settings.ok ? { available: true, status: settings.status, data: settingsBody } : {
+      available: false, status: settings.status,
+      error: settingsBody.message || settingsBody.errors?.[0]?.message || settingsBody.error || "A Roblox não permitiu consultar as configurações de Team Create."
+    },
+    activeSession: session.ok ? {
+      available: true, status: session.status,
+      members: Array.isArray(members) ? members.map(m => ({
+        userId: m.userId ?? m.id ?? null,
+        name: m.username ?? m.name ?? m.displayName ?? null
+      })) : [],
+      rawCount: Array.isArray(members) ? members.length : null
+    } : {
+      available: false, status: session.status,
+      error: sessionBody.message || sessionBody.errors?.[0]?.message || sessionBody.error || "A Roblox não permitiu consultar os membros da sessão ativa."
+    },
+    hint: "Consulta somente leitura. Os endpoints são experimentais e podem exigir o escopo legacy-universe:manage. A ausência de membros retornados não prova que SavePlaceAsync esteja livre de bloqueio."
+  };
+}
+
 const SCRIPT_TYPES = ["Script", "LocalScript", "ModuleScript"];
 
 async function roblox(path, apiKey, init = {}) {
