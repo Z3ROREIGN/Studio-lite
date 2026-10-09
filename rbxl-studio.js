@@ -81,7 +81,7 @@ function open(){
   <header class="rbxl-top">
    <div class="rbxl-brand"><div class="rbxl-logo">S</div><div><b>STUDIO RBXL</b><small>OPEN CLOUD SCRIPT WORKSPACE</small></div></div>
    <div class="rbxl-meta"><div class="rbxl-pill">Universe <strong id="rbxlUniverse">—</strong></div><div class="rbxl-pill">Place <strong id="rbxlPlace">—</strong></div><div class="rbxl-pill">Modo <strong>Edição + criação</strong></div></div>
-   <div class="rbxl-actions"><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button></div><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn" id="rbxlTestLuau">Testar Luau</button><button class="rbxl-btn" id="rbxlTestSave">Testar salvamento</button><button class="rbxl-btn" id="rbxlPreflight">Diagnóstico Roblox</button><button class="rbxl-btn" id="rbxlTeamCreate">Status Team Create</button></div><div class="rbxl-action-group"><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlClose" aria-label="Fechar">×</button></div></div>
+   <div class="rbxl-actions"><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button></div><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn" id="rbxlTestLuau">Testar Luau</button><button class="rbxl-btn" id="rbxlTestSave">Testar salvamento</button><button class="rbxl-btn" id="rbxlPreflight">Diagnóstico Roblox</button><button class="rbxl-btn" id="rbxlTeamCreate">Desativar Team Create</button></div><div class="rbxl-action-group"><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlClose" aria-label="Fechar">×</button></div></div>
   </header>
   <div class="rbxl-body">
    <aside class="rbxl-tree"><div class="rbxl-tree-head"><b>WORKSPACE</b><span id="rbxlCount">0 arquivos</span><input id="rbxlSearch" class="rbxl-search" placeholder="⌕ Procurar script..."></div><div id="rbxlTree" class="rbxl-list"><div class="rbxl-loading">Conecte um Place para carregar o Workspace.</div></div></aside>
@@ -104,7 +104,7 @@ function open(){
  $("#rbxlClose").onclick=close;$("#rbxlNewScript").onclick=()=>requestScriptAction("create");$("#rbxlSendScript").onclick=sendCurrentDraftToRoblox;$("#rbxlRemoveScript").onclick=()=>requestScriptAction("remove");document.addEventListener("keydown",key,true);
  $("#rbxlForm").onsubmit=async e=>{e.preventDefault();await connect()};
  $("#rbxlSearch").oninput=()=>renderTree($("#rbxlSearch").value);
- $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;$("#rbxlTestLuau").onclick=testLuau;$("#rbxlTestSave").onclick=testSavePermission;$("#rbxlPreflight").onclick=publishPreflight;$("#rbxlTeamCreate").onclick=checkTeamCreateStatus;
+ $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;$("#rbxlTestLuau").onclick=testLuau;$("#rbxlTestSave").onclick=testSavePermission;$("#rbxlPreflight").onclick=publishPreflight;$("#rbxlTeamCreate").onclick=disableTeamCreate;
  return true;
 }
 function nodePathSegments(node){
@@ -544,35 +544,42 @@ async function testLuau(){
  }
 }
 
-async function checkTeamCreateStatus(){
+async function disableTeamCreate(){
  const b=$("#rbxlTeamCreate"); if(!b)return;
- b.disabled=true;b.textContent="Consultando…";
- $("#rbxlStatus").textContent="Consultando configurações e sessão Team Create na API oficial da Roblox…";
- $("#rbxlHint").textContent="Consulta somente leitura; não altera configurações.";
- try{
-   const result=await api("teamCreateStatus");
-   const d=result.diagnostic||{};
-   const settings=d.settings||{},session=d.activeSession||{};
-   const settingsText=settings.available
-     ? JSON.stringify(settings.data,null,2)
-     : "Indisponível (HTTP "+(settings.status||"?")+"): "+(settings.error||"sem detalhe");
-   const sessionText=session.available
-     ? (session.rawCount===null?"A API respondeu, mas o formato da lista não foi reconhecido.":("Membros retornados: "+session.rawCount+"\\n"+JSON.stringify(session.members,null,2)))
-     : "Indisponível (HTTP "+(session.status||"?")+"): "+(session.error||"sem detalhe");
-   const both=settings.available&&session.available;
-   $("#rbxlStatus").textContent=both?"Consulta Team Create concluída":"Consulta parcial; confira permissões e respostas";
-   $("#rbxlHint").textContent="Leitura experimental • nenhum ajuste foi feito";
-   showDiagnosticPanel(
-     "Status Team Create (somente leitura)",
-     both,
-     "Configurações do Universe:\\n"+settingsText+"\\n\\nSessão ativa do Place:\\n"+sessionText,
-     "A Roblox documenta estes endpoints como experimentais. Se aparecer HTTP 403, confira se a chave tem o escopo legacy-universe:manage e acesso ao Universe/Place. Esta consulta não encerra sessões nem desativa Team Create. Mesmo sem membros listados, SavePlaceAsync pode continuar retornando PlaceOngoingTeamCreateSession."
-   );
- }catch(e){
-   $("#rbxlStatus").textContent="Falha ao consultar Team Create: "+(e.message||String(e));
-   $("#rbxlHint").textContent=e.hint||"Veja o painel de diagnóstico.";
-   showDiagnosticPanel("Não foi possível consultar Team Create",false,e.message||String(e),"Confirme se a chave possui o escopo legacy-universe:manage. A API Team Create é experimental e a consulta não altera nem encerra sessões.");
- }finally{b.disabled=false;b.textContent="Status Team Create"}
+ showConfirm(
+   "Desativar Team Create desta experiência?",
+   "Isso tentará desligar o Team Create para o Universe "+state.universeId+". Colaboradores podem perder a colaboração em tempo real nesta experiência. A ação só será aplicada se a Roblox autorizar a chave. Se receber HTTP 403, a Roblox está bloqueando a permissão e o site não consegue contornar isso.",
+   async()=>{
+     b.disabled=true;b.textContent="Desativando…";
+     $("#rbxlStatus").textContent="Enviando solicitação real para desativar Team Create…";
+     $("#rbxlHint").textContent="PATCH da API Roblox; não é apenas um diagnóstico.";
+     try{
+       const result=await api("teamCreateToggle",{enabled:false});
+       $("#rbxlStatus").textContent="✓ Solicitação de desativação aceita pela Roblox";
+       $("#rbxlHint").textContent="Team Create desativado para Universe "+state.universeId;
+       status("Team Create desativado");
+       showDiagnosticPanel(
+         "Team Create desativado",
+         true,
+         result.message||"A Roblox aceitou a solicitação para desativar Team Create.",
+         "Agora tente publicar novamente. Se SavePlaceAsync ainda retornar PlaceOngoingTeamCreateSession, feche e reabra o jogo/experiência e tente mais uma vez. A confirmação da API não garante que uma sessão antiga tenha sido liberada instantaneamente."
+       );
+     }catch(e){
+       const forbidden=Number(e.httpStatus)===403||String(e.message||"").includes("403");
+       $("#rbxlStatus").textContent="✕ Não foi possível desativar Team Create: "+(e.message||String(e));
+       $("#rbxlHint").textContent=forbidden?"A chave não tem autorização para alterar Team Create.":"Veja a resposta da Roblox no painel.";
+       status("Falha ao desativar Team Create");
+       showDiagnosticPanel(
+         "A Roblox não permitiu desativar Team Create",
+         false,
+         (e.message||String(e))+(forbidden?"\n\nHTTP 403 significa que a Roblox recusou a permissão.":""),
+         forbidden
+           ? "A chave Open Cloud precisa de permissão de gerenciamento do Universe para o endpoint experimental Team Create (legacy-universe:manage, quando disponível para essa chave), além de acesso ao Universe correto. A permissão universe.places:write/Luau Execution sozinha não autoriza necessariamente essa alteração. Se a criação da chave não oferecer esse escopo, faça a alteração pelo painel/API oficial da Roblox com uma sessão autenticada da conta proprietária. O site não pode ignorar o HTTP 403."
+           : "Confirme que o Universe ID pertence ao Place informado e que a chave possui permissão de gerenciamento de Team Create. O endpoint é experimental; se a Roblox continuar recusando, use o painel oficial de criação da experiência."
+       );
+     }finally{b.disabled=false;b.textContent="Desativar Team Create"}
+   }
+ );
 }
 
 async function publishPreflight(){
