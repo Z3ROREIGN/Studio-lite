@@ -665,21 +665,21 @@ async function publishAll(){
    $("#rbxlHint").textContent=e.hint||"Confira o diagnóstico antes de tentar novamente.";
    status("Falha na publicação");
    if(e.code==="ROBLOX_TEAM_CREATE_ACTIVE"&&changes.length){
-     // publishMany only reaches SavePlaceAsync after every script update succeeded.
-     // Keep a publish-only retry so the user does not need to resend script changes.
-     state.dirty.clear();state.pendingPublish=true;
+     // Os scripts já foram enviados, mas SavePlaceAsync não publicou a versão.
+     // Não induzir o usuário a repetir uma chamada que a Roblox está bloqueando.
+     state.dirty.clear();state.pendingPublish=false;
      $("#rbxlDirty").textContent="";
-     $("#rbxlStatus").textContent="Scripts enviados; publicação do Place bloqueada pelo Roblox.";
-     $("#rbxlHint").textContent="Toque em Publicar alterações novamente para tentar publicar sem reenviar os scripts.";
+     $("#rbxlStatus").textContent="Scripts enviados; publicação bloqueada pelo Roblox.";
+     $("#rbxlHint").textContent="Os scripts foram enviados, mas a versão não foi publicada. Veja o diagnóstico.";
      showDiagnosticPanel(
-       "Scripts salvos; versão ainda não publicada",
+       "Scripts enviados; publicação não concluída",
        false,
-       "O Roblox recusou SavePlaceAsync com PlaceOngoingTeamCreateSession. O site confirmou que os scripts foram enviados antes desta etapa, mas não pode afirmar que uma nova versão foi publicada.",
-       "Você pode tocar em Publicar alterações novamente: essa tentativa repetirá somente a publicação. Se o Roblox continuar retornando PlaceOngoingTeamCreateSession, o bloqueio está no serviço do Roblox e não pode ser removido por esta API."
+       "O Roblox recusou SavePlaceAsync com PlaceOngoingTeamCreateSession. Os scripts foram enviados pela API, mas isso não significa que uma nova versão do jogo foi publicada.",
+       "O site não vai pedir colaboradores nem repetir automaticamente a mesma operação. A Roblox documenta uma alternativa de publicação por arquivo completo .rbxl/.rbxlx (Place Publishing API), mas o editor atual não gera um arquivo completo atualizado a partir da árvore de scripts. Se você não tem nenhuma sessão do Studio aberta, o erro precisa ser resolvido pela Roblox ou usando o fluxo oficial de publicação com o arquivo completo do Place."
      );
    }else if(e.code==="ROBLOX_TEAM_CREATE_ACTIVE"){
-     state.pendingPublish=true;
-     showDiagnosticPanel("Publicação bloqueada pelo Roblox",false,msg,e.hint||"Tente publicar novamente; a API não consegue encerrar uma sessão interna do Roblox.");
+     state.pendingPublish=false;
+     showDiagnosticPanel("Publicação bloqueada pelo Roblox",false,msg,e.hint||"A Roblox bloqueou SavePlaceAsync. Não é necessário cadastrar colaboradores; consulte o diagnóstico antes de tentar outra vez.");
    }else if(e.code==="ROBLOX_FORBIDDEN")showDiagnosticPanel("Roblox recusou a publicação",false,msg,e.hint||"Confira os escopos da chave e se o Place permite salvamento.");
    else if(e.code==="ROBLOX_INVALID_REQUEST")showDiagnosticPanel("Roblox rejeitou a publicação",false,msg,e.hint||"A resposta acima veio diretamente do Roblox.");
  }
