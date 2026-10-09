@@ -81,7 +81,7 @@ function open(){
   <header class="rbxl-top">
    <div class="rbxl-brand"><div class="rbxl-logo">S</div><div><b>STUDIO RBXL</b><small>OPEN CLOUD SCRIPT WORKSPACE</small></div></div>
    <div class="rbxl-meta"><div class="rbxl-pill">Universe <strong id="rbxlUniverse">—</strong></div><div class="rbxl-pill">Place <strong id="rbxlPlace">—</strong></div><div class="rbxl-pill">Modo <strong>Edição + criação</strong></div></div>
-   <div class="rbxl-actions"><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button></div><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn" id="rbxlTestLuau">Testar Luau</button><button class="rbxl-btn" id="rbxlTestSave">Testar salvamento</button><button class="rbxl-btn" id="rbxlPreflight">Diagnóstico Roblox</button></div><div class="rbxl-action-group"><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlClose" aria-label="Fechar">×</button></div></div>
+   <div class="rbxl-actions"><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button></div><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn" id="rbxlTestLuau">Testar Luau</button><button class="rbxl-btn" id="rbxlTestSave">Testar salvamento</button><button class="rbxl-btn" id="rbxlPreflight">Diagnóstico Roblox</button><button class="rbxl-btn" id="rbxlTeamCreate">Status Team Create</button></div><div class="rbxl-action-group"><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlClose" aria-label="Fechar">×</button></div></div>
   </header>
   <div class="rbxl-body">
    <aside class="rbxl-tree"><div class="rbxl-tree-head"><b>WORKSPACE</b><span id="rbxlCount">0 arquivos</span><input id="rbxlSearch" class="rbxl-search" placeholder="⌕ Procurar script..."></div><div id="rbxlTree" class="rbxl-list"><div class="rbxl-loading">Conecte um Place para carregar o Workspace.</div></div></aside>
@@ -104,7 +104,7 @@ function open(){
  $("#rbxlClose").onclick=close;$("#rbxlNewScript").onclick=()=>requestScriptAction("create");$("#rbxlSendScript").onclick=sendCurrentDraftToRoblox;$("#rbxlRemoveScript").onclick=()=>requestScriptAction("remove");document.addEventListener("keydown",key,true);
  $("#rbxlForm").onsubmit=async e=>{e.preventDefault();await connect()};
  $("#rbxlSearch").oninput=()=>renderTree($("#rbxlSearch").value);
- $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;$("#rbxlTestLuau").onclick=testLuau;$("#rbxlTestSave").onclick=testSavePermission;$("#rbxlPreflight").onclick=publishPreflight;
+ $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;$("#rbxlTestLuau").onclick=testLuau;$("#rbxlTestSave").onclick=testSavePermission;$("#rbxlPreflight").onclick=publishPreflight;$("#rbxlTeamCreate").onclick=checkTeamCreateStatus;
  return true;
 }
 function nodePathSegments(node){
@@ -543,6 +543,38 @@ async function testLuau(){
    b.disabled=false; b.textContent="Testar Luau";
  }
 }
+
+async function checkTeamCreateStatus(){
+ const b=$("#rbxlTeamCreate"); if(!b)return;
+ b.disabled=true;b.textContent="Consultando…";
+ $("#rbxlStatus").textContent="Consultando configurações e sessão Team Create na API oficial da Roblox…";
+ $("#rbxlHint").textContent="Consulta somente leitura; não altera configurações.";
+ try{
+   const result=await api("teamCreateStatus");
+   const d=result.diagnostic||{};
+   const settings=d.settings||{},session=d.activeSession||{};
+   const settingsText=settings.available
+     ? JSON.stringify(settings.data,null,2)
+     : "Indisponível (HTTP "+(settings.status||"?")+"): "+(settings.error||"sem detalhe");
+   const sessionText=session.available
+     ? (session.rawCount===null?"A API respondeu, mas o formato da lista não foi reconhecido.":("Membros retornados: "+session.rawCount+"\\n"+JSON.stringify(session.members,null,2)))
+     : "Indisponível (HTTP "+(session.status||"?")+"): "+(session.error||"sem detalhe");
+   const both=settings.available&&session.available;
+   $("#rbxlStatus").textContent=both?"Consulta Team Create concluída":"Consulta parcial; confira permissões e respostas";
+   $("#rbxlHint").textContent="Leitura experimental • nenhum ajuste foi feito";
+   showDiagnosticPanel(
+     "Status Team Create (somente leitura)",
+     both,
+     "Configurações do Universe:\\n"+settingsText+"\\n\\nSessão ativa do Place:\\n"+sessionText,
+     "A Roblox documenta estes endpoints como experimentais. Se aparecer HTTP 403, confira se a chave tem o escopo legacy-universe:manage e acesso ao Universe/Place. Esta consulta não encerra sessões nem desativa Team Create. Mesmo sem membros listados, SavePlaceAsync pode continuar retornando PlaceOngoingTeamCreateSession."
+   );
+ }catch(e){
+   $("#rbxlStatus").textContent="Falha ao consultar Team Create: "+(e.message||String(e));
+   $("#rbxlHint").textContent=e.hint||"Veja o painel de diagnóstico.";
+   showDiagnosticPanel("Não foi possível consultar Team Create",false,e.message||String(e),"Confirme se a chave possui o escopo legacy-universe:manage. A API Team Create é experimental e a consulta não altera nem encerra sessões.");
+ }finally{b.disabled=false;b.textContent="Status Team Create"}
+}
+
 async function publishPreflight(){
  const b=$("#rbxlPreflight"); if(!b)return;
  b.disabled=true; b.textContent="Diagnosticando…";
