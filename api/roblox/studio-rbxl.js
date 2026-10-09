@@ -443,7 +443,7 @@ export default async function handler(req, res) {
     if (req.method === "GET") return json(res, 200, { ok: true, service: "studio-rbxl-open-cloud" });
     if (req.method !== "POST") return json(res, 405, { ok: false, error: "Method not allowed" });
     const action = clean(body.action || "load");
-    if (action === "diagnostic") return json(res, 200, { ok: true, diagnostic: await runLuauDiagnostic(universeId, placeId, apiKey), message: "Luau Execution está funcionando para esta chave e Place." });
+    if (action === "teamCreateStatus") return json(res, 200, { ok: true, diagnostic: await readTeamCreateStatus(universeId, placeId, apiKey) });\n    if (action === "diagnostic") return json(res, 200, { ok: true, diagnostic: await runLuauDiagnostic(universeId, placeId, apiKey), message: "Luau Execution está funcionando para esta chave e Place." });
     if (action === "saveDiagnostic") return json(res, 200, { ok: true, diagnostic: await runSavePermissionDiagnostic(universeId, placeId, apiKey), message: "SavePlaceAsync com SaveWithoutPublish está autorizado neste Place." });
     if (action === "publishOnly") {
       const published = await publishPlaceWithLuau(universeId, placeId, apiKey);
