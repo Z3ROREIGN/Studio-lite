@@ -81,7 +81,7 @@ function open(){
   <header class="rbxl-top">
    <div class="rbxl-brand"><div class="rbxl-logo">S</div><div><b>STUDIO RBXL</b><small>OPEN CLOUD SCRIPT WORKSPACE</small></div></div>
    <div class="rbxl-meta"><div class="rbxl-pill">Universe <strong id="rbxlUniverse">—</strong></div><div class="rbxl-pill">Place <strong id="rbxlPlace">—</strong></div><div class="rbxl-pill">Modo <strong>Edição + criação</strong></div></div>
-   <div class="rbxl-actions"><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button></div><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn" id="rbxlTestLuau">Testar Luau</button><button class="rbxl-btn" id="rbxlTestSave">Testar salvamento</button><button class="rbxl-btn" id="rbxlPreflight">Diagnóstico Roblox</button></div><div class="rbxl-action-group"><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlClose" aria-label="Fechar">×</button></div></div>
+   <div class="rbxl-actions"><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button></div><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn" id="rbxlTestLuau">Testar Luau</button><button class="rbxl-btn" id="rbxlTestSave">Testar salvamento</button><button class="rbxl-btn" id="rbxlPreflight">Diagnóstico Roblox</button></div><div class="rbxl-action-group"><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlPublishFile">Publicar arquivo .rbxl/.rbxlx</button><input id="rbxlFullPlaceInput" type="file" accept=".rbxl,.rbxlx" hidden><button class="rbxl-btn" id="rbxlClose" aria-label="Fechar">×</button></div></div>
   </header>
   <div class="rbxl-body">
    <aside class="rbxl-tree"><div class="rbxl-tree-head"><b>WORKSPACE</b><span id="rbxlCount">0 arquivos</span><input id="rbxlSearch" class="rbxl-search" placeholder="⌕ Procurar script..."></div><div id="rbxlTree" class="rbxl-list"><div class="rbxl-loading">Conecte um Place para carregar o Workspace.</div></div></aside>
@@ -104,7 +104,7 @@ function open(){
  $("#rbxlClose").onclick=close;$("#rbxlNewScript").onclick=()=>requestScriptAction("create");$("#rbxlSendScript").onclick=sendCurrentDraftToRoblox;$("#rbxlRemoveScript").onclick=()=>requestScriptAction("remove");document.addEventListener("keydown",key,true);
  $("#rbxlForm").onsubmit=async e=>{e.preventDefault();await connect()};
  $("#rbxlSearch").oninput=()=>renderTree($("#rbxlSearch").value);
- $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;$("#rbxlTestLuau").onclick=testLuau;$("#rbxlTestSave").onclick=testSavePermission;$("#rbxlPreflight").onclick=publishPreflight;
+ $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;$("#rbxlPublishFile").onclick=()=>$("#rbxlFullPlaceInput").click();$("#rbxlFullPlaceInput").onchange=publishFullPlaceFile;$("#rbxlTestLuau").onclick=testLuau;$("#rbxlTestSave").onclick=testSavePermission;$("#rbxlPreflight").onclick=publishPreflight;
  return true;
 }
 function nodePathSegments(node){
@@ -633,6 +633,61 @@ async function testSavePermission(){
  }finally{
    b.disabled=false; b.textContent="Testar salvamento";
  }
+}
+async function publishFullPlaceFile(event){
+ const input=event?.target||$("#rbxlFullPlaceInput");
+ const file=input?.files?.[0];
+ if(!file)return;
+ input.value="";
+ const name=String(file.name||"place.rbxl");
+ if(!/\\.(rbxl|rbxlx)$/i.test(name)){
+   showDiagnosticPanel("Formato de arquivo inválido",false,"Selecione um arquivo .rbxl ou .rbxlx.","Exporte o Place completo pelo Roblox Studio e selecione o arquivo exportado. Um JSON ou um arquivo parcial de script não pode ser publicado por esta API.");
+   return;
+ }
+ // Vercel Functions enforce a request-body limit around 4.5 MB. Keep this flow
+ // inside that limit instead of pretending large files can be uploaded.
+ if(file.size>4*1024*1024){
+   showDiagnosticPanel("Arquivo maior que o limite desta rota",false,"O arquivo selecionado tem "+(file.size/1024/1024).toFixed(2)+" MB. Esta rota da Vercel aceita arquivos de até 4 MB para evitar falha por limite de corpo da requisição.","Use um arquivo .rbxl/.rbxlx completo com até 4 MB. Arquivos maiores exigem uma infraestrutura de upload que não passe o binário inteiro pela função da Vercel.");
+   return;
+ }
+ const confirmText="Arquivo completo: "+name+"\\nTamanho: "+(file.size/1024/1024).toFixed(2)+" MB\\nUniverse: "+state.universeId+"\\nPlace: "+state.placeId+"\\n\\nA Roblox vai publicar este arquivo como uma nova versão do Place. Ele substitui o conteúdo publicado pelo conteúdo que está dentro do arquivo.\\n\\nIMPORTANTE: esta ação não injeta automaticamente as edições do editor de scripts neste arquivo. Se você editou scripts nesta tela, o arquivo selecionado precisa já conter essas alterações para que elas sejam publicadas. Continuar?";
+ showConfirm("Publicar arquivo completo",confirmText,async()=>{
+   const b=$("#rbxlPublishFile");
+   b.disabled=true;b.textContent="Enviando arquivo…";
+   $("#rbxlStatus").textContent="Enviando arquivo completo para a API oficial de publicação da Roblox…";
+   $("#rbxlHint").textContent="Não feche esta janela até a resposta.";
+   try{
+     const response=await fetch("/api/roblox/publish",{
+       method:"POST",
+       headers:{
+         "x-roblox-api-key":state.apiKey,
+         "x-roblox-universe-id":state.universeId,
+         "x-roblox-place-id":state.placeId,
+         "x-roblox-file-name":name,
+         "content-type":/\\.rbxlx$/i.test(name)?"application/xml":"application/octet-stream"
+       },
+       body:file
+     });
+     let data={};try{data=await response.json()}catch{}
+     if(!response.ok||data.ok===false){
+       const detail=data.message||data.error||data.errors?.[0]?.message||("Roblox HTTP "+response.status);
+       throw new Error(detail);
+     }
+     const version=data.versionNumber??data.version??data.id??"confirmada pela Roblox";
+     $("#rbxlStatus").textContent="✓ Arquivo completo enviado e versão publicada";
+     $("#rbxlHint").textContent="Método oficial: Place Publishing API";
+     status("Arquivo Roblox publicado");
+     showDiagnosticPanel("Arquivo completo publicado",true,"A Roblox aceitou o arquivo e respondeu com sucesso. Versão: "+String(version)+".","Esta confirmação corresponde ao arquivo completo enviado. Ela não confirma que rascunhos ainda não incluídos no arquivo tenham sido aplicados. Para publicar novas edições de scripts por este método, exporte um arquivo completo que já contenha essas edições e envie-o aqui.");
+   }catch(e){
+     const msg=e?.message||String(e);
+     $("#rbxlStatus").textContent="Falha ao publicar arquivo: "+msg;
+     $("#rbxlHint").textContent="A resposta não confirmou uma nova versão publicada.";
+     status("Falha ao publicar arquivo");
+     showDiagnosticPanel("Falha ao publicar arquivo completo",false,msg,"Confirme universe-places:write na chave Open Cloud e se Universe ID/Place ID correspondem. A API exige um arquivo completo .rbxl/.rbxlx. Se a mensagem mencionar limite de tamanho, a rota da Vercel não aceita esse arquivo; se for 403, confira o escopo da chave; se for erro Roblox, a resposta acima é a causa reportada.");
+   }finally{
+     b.disabled=false;b.textContent="Publicar arquivo .rbxl/.rbxlx";
+   }
+ });
 }
 async function publishAll(){
  const changes=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&!n.local&&!state.removed.has(n.id)?{instanceId:n.id,scriptType:n.type,source:n.source}:null}).filter(Boolean);
