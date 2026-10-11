@@ -592,7 +592,7 @@ function openPublishProgress(fileName){
 function uploadFullPlaceFile(file,name,progress){
  return new Promise((resolve,reject)=>{
   const xhr=new XMLHttpRequest();xhr.open("POST","/api/roblox/publish",true);
-  xhr.setRequestHeader("x-roblox-api-key",state.apiKey);xhr.setRequestHeader("x-roblox-universe-id",state.universeId);xhr.setRequestHeader("x-roblox-place-id",state.placeId);xhr.setRequestHeader("x-roblox-file-name",name);xhr.setRequestHeader("content-type",/\\.rbxlx$/i.test(name)?"application/xml":"application/octet-stream");
+  xhr.setRequestHeader("x-roblox-api-key",state.apiKey);xhr.setRequestHeader("x-roblox-universe-id",state.universeId);xhr.setRequestHeader("x-roblox-place-id",state.placeId);xhr.setRequestHeader("x-roblox-file-name",name);xhr.setRequestHeader("content-type",/\.rbxlx$/i.test(name)?"application/xml":"application/octet-stream");
   xhr.upload.onprogress=e=>{if(e.lengthComputable){const p=Math.round((e.loaded/e.total)*80);progress.update(p,"Enviando arquivo","Transferindo o arquivo completo…",Math.round(e.loaded/1024)+" KB de "+Math.round(e.total/1024)+" KB enviados.");}};
   xhr.upload.onload=()=>progress.update(82,"Arquivo enviado","Aguardando a resposta oficial da Roblox…","A barra fica em 82% enquanto a Roblox processa a nova versão.");
   xhr.onerror=()=>reject(new Error("Falha de rede durante o envio do arquivo."));xhr.ontimeout=()=>reject(new Error("Tempo limite excedido durante a publicação do arquivo."));xhr.timeout=180000;
@@ -633,7 +633,7 @@ async function publishFullPlaceFile(event){
      $("#rbxlStatus").textContent="✓ Arquivo completo enviado e versão publicada";
      $("#rbxlHint").textContent="Método oficial: Place Publishing API";
      status("Arquivo Roblox publicado");
-     showDiagnosticPanel("Arquivo completo publicado",true,"A Roblox aceitou o arquivo e respondeu com sucesso. Versão: "+String(version)+".","Esta confirmação corresponde ao arquivo completo enviado. Ela não confirma que rascunhos ainda não incluídos no arquivo tenham sido aplicados. Para publicar novas edições de scripts por este método, exporte um arquivo completo que já contenha essas edições e envie-o aqui.");
+     if(progress)progress.update(100,"Concluído","Versão publicada: "+String(version),"A Roblox confirmou a nova versão. Somente o arquivo selecionado foi publicado.");
    }catch(e){
      const msg=e?.message||String(e);
      if(progress)progress.finish(false,msg);
