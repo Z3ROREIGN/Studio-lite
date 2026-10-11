@@ -78,7 +78,7 @@ function style(){
 .rbxl-filebar{display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid #202732;background:#090d13}.rbxl-filetab{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #283240;border-radius:7px;background:#10161f;min-width:0}.rbxl-filetab b{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rbxl-filetab small{color:#667488}.rbxl-dirty{color:#fff;font-size:16px}
 .rbxl-codewrap{position:relative;min-height:0}.rbxl-code{width:100%;height:100%;box-sizing:border-box;resize:none;border:0;outline:0;background:#060606;color:#dce5f0;padding:18px 22px;font:13px/1.65 "SFMono-Regular",Consolas,"Liberation Mono",monospace;tab-size:2}
 .rbxl-welcome{height:100%;display:grid;place-items:center;padding:30px;box-sizing:border-box}.rbxl-card{max-width:580px;border:1px solid #27313e;background:#0b1017;border-radius:16px;padding:28px;box-shadow:0 20px 80px #0008}.rbxl-card h2{margin:0 0 8px;font-size:20px}.rbxl-card p{margin:0;color:#8591a2;line-height:1.6}.rbxl-card .badgegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:18px}.rbxl-badge{padding:10px;border:1px solid #242e3b;border-radius:9px;color:#9ca8b7;font-size:10px}.rbxl-badge b{display:block;color:#e0e7ef;margin-bottom:3px}
-.rbxl-status{display:flex;align-items:center;gap:8px;padding:0 14px;border-top:1px solid #202732;color:#728096;font-size:10px;background:#080b10}.rbxl-dot{width:6px;height:6px;border-radius:50%;background:#fff}.rbxl-auth{position:absolute;inset:0;z-index:3;display:grid;place-items:center;background:#05070bdd;backdrop-filter:blur(8px)}.rbxl-auth-card{width:min(560px,92vw);border:1px solid #293443;background:#0b1017;border-radius:18px;padding:25px;box-shadow:0 30px 100px #000}.rbxl-auth-card h2{margin:0 0 5px}.rbxl-auth-card p{color:#8290a2;font-size:11px;line-height:1.55;margin:0 0 18px}.rbxl-form{display:grid;gap:10px}.rbxl-form label{display:grid;gap:5px;color:#aab5c4;font-size:10px}.rbxl-form input{background:#080c12;border:1px solid #293442;color:#fff;padding:11px;border-radius:8px;outline:none}.rbxl-form input:focus{border-color:#fff}.rbxl-help{display:flex;gap:8px;align-items:center;margin-top:13px;color:#647286;font-size:9px}.rbxl-error{color:#ff8e8e!important}.rbxl-loading{padding:14px;color:#7e8a9d}.rbxl-confirm{position:fixed;inset:0;z-index:100001;display:grid;place-items:center;background:#000b;backdrop-filter:blur(8px)}.rbxl-confirm-card{width:min(480px,92vw);box-sizing:border-box;border:1px solid #303a48;background:#0b1017;border-radius:16px;padding:22px;box-shadow:0 30px 100px #000}.rbxl-confirm-card h3{margin:0 0 8px;font-size:16px}.rbxl-confirm-card p{margin:0;color:#8b97a8;line-height:1.55;font-size:11px}.rbxl-confirm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}.rbxl-safe-note{margin-top:12px;padding:10px;border:1px solid #252e3a;border-radius:9px;color:#758195;font-size:10px;line-height:1.45}
+.rbxl-status{display:flex;align-items:center;gap:8px;padding:0 14px;border-top:1px solid #202732;color:#728096;font-size:10px;background:#080b10}.rbxl-dot{width:6px;height:6px;border-radius:50%;background:#fff}.rbxl-auth{position:absolute;inset:0;z-index:3;display:grid;place-items:center;background:#05070bdd;backdrop-filter:blur(8px)}.rbxl-auth-card{width:min(560px,92vw);border:1px solid #293443;background:#0b1017;border-radius:18px;padding:25px;box-shadow:0 30px 100px #000}.rbxl-auth-card h2{margin:0 0 5px}.rbxl-auth-card p{color:#8290a2;font-size:11px;line-height:1.55;margin:0 0 18px}.rbxl-form{display:grid;gap:10px}.rbxl-form label{display:grid;gap:5px;color:#aab5c4;font-size:10px}.rbxl-form input{background:#080c12;border:1px solid #293442;color:#fff;padding:11px;border-radius:8px;outline:none}.rbxl-form input:focus{border-color:#fff}.rbxl-help{display:flex;gap:8px;align-items:center;margin-top:13px;color:#647286;font-size:9px}.rbxl-error{color:#ff8e8e!important}.rbxl-loading{padding:14px;color:#7e8a9d}.rbxl-confirm{position:fixed;inset:0;z-index:100001;display:grid;place-items:center;background:#000b;backdrop-filter:blur(8px)}.rbxl-confirm-card{width:min(480px,92vw);box-sizing:border-box;border:1px solid #303a48;background:#0b1017;border-radius:16px;padding:22px;box-shadow:0 30px 100px #000}.rbxl-confirm-card h3{margin:0 0 8px;font-size:16px}.rbxl-confirm-card p{margin:0;color:#8b97a8;line-height:1.55;font-size:11px}.rbxl-confirm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}.rbxl-safe-note{margin-top:12px;padding:10px;border:1px solid #252e3a;border-radius:9px;color:#758195;font-size:10px;line-height:1.45}.rbxl-progress-overlay{position:fixed;inset:0;z-index:100010;background:#000d;display:grid;place-items:center;padding:16px;backdrop-filter:blur(8px)}.rbxl-progress-card{width:min(520px,94vw);box-sizing:border-box;border:1px solid #303a48;border-radius:16px;background:#0b1017;padding:22px;box-shadow:0 30px 100px #000}.rbxl-progress-track{height:10px;border-radius:99px;background:#202732;overflow:hidden;margin:18px 0 8px}.rbxl-progress-fill{height:100%;width:0;background:#f2f2f2;border-radius:99px;transition:width .18s ease}.rbxl-progress-meta{display:flex;justify-content:space-between;gap:12px;color:#8793a4;font-size:11px}.rbxl-progress-step{margin-top:12px;color:#b7c1ce;font-size:12px;line-height:1.5}.rbxl-progress-log{margin-top:12px;padding:10px;border:1px solid #252e3a;border-radius:9px;color:#778497;font-size:10px;line-height:1.5}
 @media(max-width:980px){.rbxl-top{grid-template-columns:1fr auto;grid-template-areas:"brand actions" "meta meta";gap:7px}.rbxl-actions{max-width:none}.rbxl-meta{width:100%}.rbxl-body{grid-template-columns:240px 1fr}}
 @media(max-width:760px){.rbxl-top{grid-template-columns:1fr;grid-template-areas:"brand" "meta" "actions";padding:7px 9px}.rbxl-meta{display:flex}.rbxl-actions{justify-content:flex-start;width:100%;overflow:visible}.rbxl-action-group{flex-wrap:wrap}.rbxl-body{grid-template-columns:210px 1fr}.rbxl-code{padding:13px;font-size:12px}}
 @media(max-width:560px){.rbxl-body{grid-template-columns:1fr}.rbxl-tree{display:none}.rbxl-top{padding:0 9px;gap:7px}.rbxl-brand{flex:1}.rbxl-actions{gap:4px}.rbxl-btn{padding:8px}}
@@ -93,7 +93,7 @@ function open(){
   <header class="rbxl-top">
    <div class="rbxl-brand"><div class="rbxl-logo">S</div><div><b>STUDIO RBXL</b><small>OPEN CLOUD SCRIPT WORKSPACE</small></div></div>
    <div class="rbxl-meta"><div class="rbxl-pill">Universe <strong id="rbxlUniverse">—</strong></div><div class="rbxl-pill">Place <strong id="rbxlPlace">—</strong></div><div class="rbxl-pill">Modo <strong>Edição + criação</strong></div></div>
-   <div class="rbxl-actions"><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button></div><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn" id="rbxlTestLuau">Testar Luau</button><button class="rbxl-btn" id="rbxlTestSave">Testar salvamento</button></div><div class="rbxl-action-group"><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlPublishFile">Publicar arquivo .rbxl/.rbxlx</button><input id="rbxlFullPlaceInput" type="file" accept=".rbxl,.rbxlx" hidden><button class="rbxl-btn" id="rbxlClose" aria-label="Fechar">×</button></div></div>
+   <div class="rbxl-actions"><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button></div><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn" id="rbxlTestLuau">Testar Luau</button><button class="rbxl-btn" id="rbxlTestSave">Testar salvamento</button></div><div class="rbxl-action-group"><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlPublishFile">Publicar arquivo .rbxl/.rbxlx</button><button class="rbxl-btn" id="rbxlCollabFallback" style="display:none">Alternativa sem colaboração</button><input id="rbxlFullPlaceInput" type="file" accept=".rbxl,.rbxlx" hidden><button class="rbxl-btn" id="rbxlClose" aria-label="Fechar">×</button></div></div>
   </header>
   <div class="rbxl-body">
    <aside class="rbxl-tree"><div class="rbxl-tree-head"><b>WORKSPACE</b><span id="rbxlCount">0 arquivos</span><input id="rbxlSearch" class="rbxl-search" placeholder="⌕ Procurar script..."></div><div id="rbxlTree" class="rbxl-list"><div class="rbxl-loading">Conecte um Place para carregar o Workspace.</div></div></aside>
@@ -116,7 +116,7 @@ function open(){
  $("#rbxlClose").onclick=close;$("#rbxlNewScript").onclick=()=>requestScriptAction("create");$("#rbxlSendScript").onclick=sendCurrentDraftToRoblox;$("#rbxlRemoveScript").onclick=()=>requestScriptAction("remove");document.addEventListener("keydown",key,true);
  $("#rbxlForm").onsubmit=async e=>{e.preventDefault();await connect()};
  $("#rbxlSearch").oninput=()=>renderTree($("#rbxlSearch").value);
- $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;$("#rbxlPublishFile").onclick=()=>$("#rbxlFullPlaceInput").click();$("#rbxlFullPlaceInput").onchange=publishFullPlaceFile;$("#rbxlTestLuau").onclick=testLuau;$("#rbxlTestSave").onclick=testSavePermission;
+ $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;$("#rbxlPublishFile").onclick=()=>$("#rbxlFullPlaceInput").click();$("#rbxlCollabFallback").onclick=()=>$("#rbxlFullPlaceInput").click();$("#rbxlFullPlaceInput").onchange=publishFullPlaceFile;$("#rbxlTestLuau").onclick=testLuau;$("#rbxlTestSave").onclick=testSavePermission;
  return true;
 }
 function nodePathSegments(node){
@@ -579,6 +579,28 @@ async function testSavePermission(){
    b.disabled=false; b.textContent="Testar salvamento";
  }
 }
+
+function openPublishProgress(fileName){
+ const old=$("#rbxlPublishProgress");if(old)old.remove();
+ const box=document.createElement("div");box.id="rbxlPublishProgress";box.className="rbxl-progress-overlay";
+ box.innerHTML='<div class="rbxl-progress-card" role="dialog" aria-modal="true" aria-label="Progresso de publicação"><div style="display:flex;align-items:center;gap:10px"><div style="width:34px;height:34px;display:grid;place-items:center;border:1px solid #303a48;border-radius:10px;font-weight:800">S</div><div><h3 id="rbxlProgressTitle" style="margin:0 0 4px;font-size:16px">Preparando publicação</h3><div id="rbxlProgressFile" style="font-size:10px;color:#78869a"></div></div></div><div class="rbxl-progress-track"><div id="rbxlProgressFill" class="rbxl-progress-fill"></div></div><div class="rbxl-progress-meta"><span id="rbxlProgressStepLabel">Preparando arquivo…</span><strong id="rbxlProgressPercent">0%</strong></div><div id="rbxlProgressStep" class="rbxl-progress-step">Validando o arquivo completo antes do envio.</div><div id="rbxlProgressLog" class="rbxl-progress-log">Não feche esta janela durante a publicação.</div><div class="rbxl-confirm-actions"><button id="rbxlProgressClose" class="rbxl-btn" style="display:none">Fechar</button></div></div>';
+ document.body.appendChild(box);$("#rbxlProgressFile").textContent=fileName;$("#rbxlProgressClose").onclick=()=>box.remove();
+ const update=(percent,label,step,log)=>{const p=Math.max(0,Math.min(100,Math.round(percent)));const fill=$("#rbxlProgressFill");if(fill)fill.style.width=p+"%";if($("#rbxlProgressPercent"))$("#rbxlProgressPercent").textContent=p+"%";if(label&&$("#rbxlProgressStepLabel"))$("#rbxlProgressStepLabel").textContent=label;if(step&&$("#rbxlProgressStep"))$("#rbxlProgressStep").textContent=step;if(log&&$("#rbxlProgressLog"))$("#rbxlProgressLog").textContent=log;};
+ const finish=(success,message)=>{update(success?100:(Number($("#rbxlProgressPercent")?.textContent?.replace("%",""))||0),success?"Concluído":"Interrompido",message,success?"A Roblox respondeu com uma versão publicada.":"A publicação não foi confirmada. O arquivo local continua intacto.");if($("#rbxlProgressTitle"))$("#rbxlProgressTitle").textContent=success?"Publicação confirmada":"Publicação não concluída";if($("#rbxlProgressClose"))$("#rbxlProgressClose").style.display="inline-block";};
+ return {box,update,finish,close:()=>box.remove()};
+}
+function uploadFullPlaceFile(file,name,progress){
+ return new Promise((resolve,reject)=>{
+  const xhr=new XMLHttpRequest();xhr.open("POST","/api/roblox/publish",true);
+  xhr.setRequestHeader("x-roblox-api-key",state.apiKey);xhr.setRequestHeader("x-roblox-universe-id",state.universeId);xhr.setRequestHeader("x-roblox-place-id",state.placeId);xhr.setRequestHeader("x-roblox-file-name",name);xhr.setRequestHeader("content-type",/\\.rbxlx$/i.test(name)?"application/xml":"application/octet-stream");
+  xhr.upload.onprogress=e=>{if(e.lengthComputable){const p=Math.round((e.loaded/e.total)*80);progress.update(p,"Enviando arquivo","Transferindo o arquivo completo…",Math.round(e.loaded/1024)+" KB de "+Math.round(e.total/1024)+" KB enviados.");}};
+  xhr.upload.onload=()=>progress.update(82,"Arquivo enviado","Aguardando a resposta oficial da Roblox…","A barra fica em 82% enquanto a Roblox processa a nova versão.");
+  xhr.onerror=()=>reject(new Error("Falha de rede durante o envio do arquivo."));xhr.ontimeout=()=>reject(new Error("Tempo limite excedido durante a publicação do arquivo."));xhr.timeout=180000;
+  xhr.onload=()=>{let data={};try{data=JSON.parse(xhr.responseText||"{}")}catch{};if(xhr.status<200||xhr.status>=300||data.ok===false){reject(new Error(data.message||data.error||data.errors?.[0]?.message||("Roblox HTTP "+xhr.status)));return;}progress.update(96,"Verificando resposta","Conferindo o número da versão publicada…","A publicação só será confirmada se a resposta contiver a versão.");if(data.versionNumber===undefined&&data.version===undefined&&data.id===undefined){reject(new Error("A resposta não trouxe o número da versão publicada; a publicação não pode ser confirmada."));return;}resolve(data);};
+  progress.update(3,"Preparando envio","Conectando à API de publicação…","A chave é enviada somente nesta solicitação e não é salva pelo site.");xhr.send(file);
+ });
+}
+
 async function publishFullPlaceFile(event){
  const input=event?.target||$("#rbxlFullPlaceInput");
  const file=input?.files?.[0];
@@ -601,30 +623,20 @@ async function publishFullPlaceFile(event){
    b.disabled=true;b.textContent="Enviando arquivo…";
    $("#rbxlStatus").textContent="Enviando arquivo completo para a API oficial de publicação da Roblox…";
    $("#rbxlHint").textContent="Não feche esta janela até a resposta.";
+   let progress=null;
    try{
-     const response=await fetch("/api/roblox/publish",{
-       method:"POST",
-       headers:{
-         "x-roblox-api-key":state.apiKey,
-         "x-roblox-universe-id":state.universeId,
-         "x-roblox-place-id":state.placeId,
-         "x-roblox-file-name":name,
-         "content-type":/\.rbxlx$/i.test(name)?"application/xml":"application/octet-stream"
-       },
-       body:file
-     });
-     let data={};try{data=await response.json()}catch{}
-     if(!response.ok||data.ok===false){
-       const detail=data.message||data.error||data.errors?.[0]?.message||("Roblox HTTP "+response.status);
-       throw new Error(detail);
-     }
-     const version=data.versionNumber??data.version??data.id??"confirmada pela Roblox";
+     progress=openPublishProgress(name);
+     progress.update(5,"Preparando arquivo","Validando o arquivo completo…","O arquivo original não será alterado.");
+     const data=await uploadFullPlaceFile(file,name,progress);
+
+     progress?.finish(true,"A Roblox confirmou a publicação da versão "+String(version)+".");
      $("#rbxlStatus").textContent="✓ Arquivo completo enviado e versão publicada";
      $("#rbxlHint").textContent="Método oficial: Place Publishing API";
      status("Arquivo Roblox publicado");
      showDiagnosticPanel("Arquivo completo publicado",true,"A Roblox aceitou o arquivo e respondeu com sucesso. Versão: "+String(version)+".","Esta confirmação corresponde ao arquivo completo enviado. Ela não confirma que rascunhos ainda não incluídos no arquivo tenham sido aplicados. Para publicar novas edições de scripts por este método, exporte um arquivo completo que já contenha essas edições e envie-o aqui.");
    }catch(e){
      const msg=e?.message||String(e);
+     if(progress)progress.finish(false,msg);
      $("#rbxlStatus").textContent="Falha ao publicar arquivo: "+msg;
      $("#rbxlHint").textContent="A resposta não confirmou uma nova versão publicada.";
      status("Falha ao publicar arquivo");
@@ -671,6 +683,7 @@ async function publishAll(){
      // de SavePlaceAsync falhar. Mantemos uma ação explícita para tentar apenas
      // publicar a versão novamente depois que o usuário resolver o bloqueio.
      state.pendingPublish=true;persistDrafts();
+     const fallbackButton=$("#rbxlCollabFallback");if(fallbackButton)fallbackButton.style.display="inline-block";
      $("#rbxlDirty").textContent="";
      $("#rbxlStatus").textContent="Scripts enviados; versão ainda NÃO publicada.";
      $("#rbxlHint").textContent="Resolva o bloqueio e use “Tentar publicar novamente”.";
@@ -682,6 +695,7 @@ async function publishAll(){
      );
    }else if(e.code==="ROBLOX_TEAM_CREATE_ACTIVE"){
      state.pendingPublish=true;persistDrafts();
+     const fallbackButton=$("#rbxlCollabFallback");if(fallbackButton)fallbackButton.style.display="inline-block";
      showDiagnosticPanel("Publicação bloqueada pelo Roblox",false,msg,(e.hint||"A Roblox bloqueou SavePlaceAsync.")+"\n\nDepois de resolver o bloqueio, use “Tentar publicar novamente”. O site não reenviará os scripts nessa tentativa.");
    }else if(e.code==="ROBLOX_FORBIDDEN")showDiagnosticPanel("Roblox recusou a publicação",false,msg,e.hint||"Confira os escopos da chave e se o Place permite salvamento.");
    else if(e.code==="ROBLOX_INVALID_REQUEST")showDiagnosticPanel("Roblox rejeitou a publicação",false,msg,e.hint||"A resposta acima veio diretamente do Roblox.");
