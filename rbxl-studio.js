@@ -635,10 +635,10 @@ function mergeDirtyScriptsIntoRbxlx(xmlText,progress){
  }
  return {text:"<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"+new XMLSerializer().serializeToString(doc),merged};
 }
-function uploadFullPlaceFile(file,name,progress){
+function uploadFullPlaceFile(file,name,progress,target={}){
  return new Promise((resolve,reject)=>{
   const xhr=new XMLHttpRequest();xhr.open("POST","/api/roblox/publish",true);
-  xhr.setRequestHeader("x-roblox-api-key",state.apiKey);xhr.setRequestHeader("x-roblox-universe-id",state.universeId);xhr.setRequestHeader("x-roblox-place-id",state.placeId);xhr.setRequestHeader("x-roblox-file-name",name);xhr.setRequestHeader("content-type",/\.rbxlx$/i.test(name)?"application/xml":"application/octet-stream");
+  xhr.setRequestHeader("x-roblox-api-key",state.apiKey);xhr.setRequestHeader("x-roblox-universe-id",String(target.universeId||state.universeId));xhr.setRequestHeader("x-roblox-place-id",String(target.placeId||state.placeId));xhr.setRequestHeader("x-roblox-file-name",name);xhr.setRequestHeader("content-type",/\.rbxlx$/i.test(name)?"application/xml":"application/octet-stream");
   xhr.upload.onprogress=e=>{if(e.lengthComputable){const p=Math.round((e.loaded/e.total)*80);progress.update(p,"Enviando arquivo","Transferindo o arquivo completo…",Math.round(e.loaded/1024)+" KB de "+Math.round(e.total/1024)+" KB enviados.");}};
   xhr.upload.onload=()=>progress.update(82,"Arquivo enviado","Aguardando a resposta oficial da Roblox…","A barra fica em 82% enquanto a Roblox processa a nova versão.");
   xhr.onerror=()=>reject(new Error("Falha de rede durante o envio do arquivo."));xhr.ontimeout=()=>reject(new Error("Tempo limite excedido durante a publicação do arquivo."));xhr.timeout=180000;
@@ -647,11 +647,25 @@ function uploadFullPlaceFile(file,name,progress){
  });
 }
 
+function choosePublishDestination(){
+ return new Promise(resolve=>{
+  const overlay=document.createElement("div");overlay.className="rbxl-confirm";overlay.style.zIndex="100005";
+  overlay.innerHTML=`<div class="rbxl-confirm-card"><h3>Onde publicar o Place completo?</h3><p>Escolha atualizar o jogo original ou enviar o arquivo completo para um Place de destino independente. Para a cópia, primeiro crie um jogo/Place de destino no Creator Dashboard e informe os IDs dele. Esta API não cria uma experiência Roblox nova automaticamente.</p><div style="display:grid;gap:9px;margin-top:15px"><button class="rbxl-btn primary" id="rbxlDestOriginal">Atualizar jogo original</button><button class="rbxl-btn" id="rbxlDestCopy">Publicar cópia independente</button><div id="rbxlDestFields" style="display:none;gap:9px"><label style="display:grid;gap:5px;color:#aab5c4;font-size:11px">Universe ID do destino<input id="rbxlDestUniverse" inputmode="numeric" placeholder="Universe ID do jogo de destino" style="background:#080c12;border:1px solid #293442;color:#fff;padding:10px;border-radius:8px"></label><label style="display:grid;gap:5px;color:#aab5c4;font-size:11px">Place ID do destino<input id="rbxlDestPlace" inputmode="numeric" placeholder="Place ID do destino" style="background:#080c12;border:1px solid #293442;color:#fff;padding:10px;border-radius:8px"></label><button class="rbxl-btn primary" id="rbxlDestConfirm">Continuar com a cópia</button><div style="color:#778497;font-size:10px;line-height:1.5">Use IDs de um Place que você controla e cuja chave de API tenha permissão universe-places:write. A cópia não altera o jogo original.</div></div></div><div class="rbxl-confirm-actions"><button class="rbxl-btn" id="rbxlDestCancel">Cancelar</button></div></div>`;
+  document.body.appendChild(overlay);
+  const finish=value=>{overlay.remove();resolve(value)};
+  overlay.querySelector("#rbxlDestOriginal").onclick=()=>finish({universeId:state.universeId,placeId:state.placeId,mode:"original"});
+  overlay.querySelector("#rbxlDestCopy").onclick=()=>{overlay.querySelector("#rbxlDestFields").style.display="grid";overlay.querySelector("#rbxlDestUniverse").focus()};
+  overlay.querySelector("#rbxlDestConfirm").onclick=()=>{const universeId=overlay.querySelector("#rbxlDestUniverse").value.trim(),placeId=overlay.querySelector("#rbxlDestPlace").value.trim();if(!/^\\d+$/.test(universeId)||!/^\\d+$/.test(placeId)||(universeId===state.universeId&&placeId===state.placeId)){let note=overlay.querySelector("#rbxlDestError");if(!note){note=document.createElement("div");note.id="rbxlDestError";note.style.cssText="color:#ff9b9b;font-size:11px";overlay.querySelector("#rbxlDestFields").appendChild(note)}note.textContent="Informe IDs numéricos válidos de um destino diferente do jogo original.";return}finish({universeId,placeId,mode:"copy"})};
+  overlay.querySelector("#rbxlDestCancel").onclick=()=>finish(null);
+ });
+}
 async function publishFullPlaceFile(event){
  const input=event?.target||$("#rbxlFullPlaceInput");
  const file=input?.files?.[0];
  if(!file)return;
  input.value="";
+ const target=await choosePublishDestination();
+ if(!target)return;
  const name=String(file.name||"place.rbxl");
  if(!/\.(rbxl|rbxlx)$/i.test(name)){
    showDiagnosticPanel("Formato de arquivo inválido",false,"Selecione um arquivo .rbxl ou .rbxlx.","Exporte o Place completo pelo Roblox Studio e selecione o arquivo exportado. Um JSON ou um arquivo parcial de script não pode ser publicado por esta API.");
@@ -666,7 +680,7 @@ async function publishFullPlaceFile(event){
    showDiagnosticPanel("Para mesclar scripts, selecione .rbxlx",false,"O arquivo .rbxl é binário e não pode ser mesclado com segurança pelo navegador. Nenhuma publicação foi feita.","Exporte o Place completo no formato XML .rbxlx e selecione esse arquivo. O site vai aplicar somente os scripts alterados, validar os caminhos e preservar o restante do Place.");
    return;
  }
- const confirmText="Arquivo completo: "+name+"\nTamanho: "+(file.size/1024/1024).toFixed(2)+" MB\nScripts alterados nesta sessão: "+changed+"\nUniverse: "+state.universeId+"\nPlace: "+state.placeId+"\n\nO site vai usar este arquivo completo como base. Se for .rbxlx, tentará mesclar as alterações dos scripts existentes e abortará sem publicar se houver caminho ausente/ambíguo. O arquivo selecionado no telefone não será modificado. A publicação substitui o Place publicado pelo conteúdo resultante. Continuar?";
+ const confirmText="Destino: "+(target.mode==="copy"?"CÓPIA INDEPENDENTE":"JOGO ORIGINAL")+"\nArquivo completo: "+name+"\nTamanho: "+(file.size/1024/1024).toFixed(2)+" MB\nScripts alterados nesta sessão: "+changed+"\nUniverse: "+target.universeId+"\nPlace: "+target.placeId+"\n\nO site vai usar este arquivo completo como base. Se for .rbxlx, tentará mesclar as alterações dos scripts existentes e abortará sem publicar se houver caminho ausente/ambíguo. O arquivo selecionado no telefone não será modificado. A publicação substitui o Place publicado pelo conteúdo resultante. Continuar?";
  showConfirm("Preparar cópia completa e publicar",confirmText,async()=>{
    const b=$("#rbxlPublishFile");
    b.disabled=true;b.textContent="Preparando…";
@@ -691,16 +705,15 @@ async function publishFullPlaceFile(event){
        throw new Error("Para mesclar alterações de scripts, use um arquivo .rbxlx.");
      }
      progress.update(28,"Cópia pronta","Arquivo completo validado","Scripts mesclados: "+merged+". Iniciando publicação oficial.");
-     const data=await uploadFullPlaceFile(uploadFile,uploadName,progress);
+     const data=await uploadFullPlaceFile(uploadFile,uploadName,progress,target);
      const version=data.versionNumber??data.version??data.id;
      if(version===undefined||version===null||version==="")throw new Error("A resposta não trouxe um número de versão; a publicação não pode ser confirmada.");
-     const ids=[...state.dirty].filter(id=>{const n=state.files.get(String(id))||state.tree.find(x=>String(x.id)===String(id));return n&&!n.local&&!state.removed.has(String(id))}).map(String);
-     clearPublishedDrafts(ids);
-     progress?.finish(true,"A Roblox confirmou a publicação da versão "+String(version)+".");
-     $("#rbxlStatus").textContent="✓ Place completo publicado — versão "+String(version);
-     $("#rbxlHint").textContent="Scripts mesclados: "+merged;
-     status("Place completo publicado");
-     if(progress)progress.update(100,"Concluído","Versão publicada: "+String(version),"A Roblox confirmou a nova versão. Scripts mesclados: "+merged+".");
+     if(target.mode==="original"){const ids=[...state.dirty].filter(id=>{const n=state.files.get(String(id))||state.tree.find(x=>String(x.id)===String(id));return n&&!n.local&&!state.removed.has(String(id))}).map(String);clearPublishedDrafts(ids)}
+     progress?.finish(true,"A Roblox confirmou a publicação da versão "+String(version)+" no "+(target.mode==="copy"?"destino independente":"jogo original")+".");
+     $("#rbxlStatus").textContent="✓ "+(target.mode==="copy"?"Cópia independente publicada":"Place original publicado")+" — versão "+String(version);
+     $("#rbxlHint").textContent="Destino: "+target.universeId+" / "+target.placeId+" • Scripts mesclados: "+merged;
+     status(target.mode==="copy"?"Cópia independente publicada":"Place completo publicado");
+     if(progress)progress.update(100,"Concluído","Versão publicada: "+String(version),"A Roblox confirmou a nova versão no destino "+target.universeId+" / "+target.placeId+". Scripts mesclados: "+merged+".");
    }catch(e){
      const msg=e?.message||String(e);
      if(progress)progress.finish(false,msg);
