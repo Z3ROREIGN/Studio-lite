@@ -589,6 +589,52 @@ function openPublishProgress(fileName){
  const finish=(success,message)=>{update(success?100:(Number($("#rbxlProgressPercent")?.textContent?.replace("%",""))||0),success?"Concluído":"Interrompido",message,success?"A Roblox respondeu com uma versão publicada.":"A publicação não foi confirmada. O arquivo local continua intacto.");if($("#rbxlProgressTitle"))$("#rbxlProgressTitle").textContent=success?"Publicação confirmada":"Publicação não concluída";if($("#rbxlProgressClose"))$("#rbxlProgressClose").style.display="inline-block";};
  return {box,update,finish,close:()=>box.remove()};
 }
+function mergeDirtyScriptsIntoRbxlx(xmlText,progress){
+ const dirty=[...state.dirty].map(id=>({id:String(id),node:state.files.get(String(id))||state.tree.find(n=>String(n.id)===String(id))})).filter(x=>x.node&&!state.removed.has(x.id));
+ const untracked=[...state.dirty].filter(id=>!state.files.has(String(id))&&!state.tree.some(n=>String(n.id)===String(id)));
+ if(untracked.length)throw new Error("Há alterações de scripts que não puderam ser identificadas na árvore. Recarregue o Workspace antes de publicar.");
+ if(state.removed.size)throw new Error("Há itens excluídos nesta sessão. Para evitar publicar um arquivo incompleto ou trazer os itens de volta, não publique automaticamente; primeiro sincronize essas exclusões no arquivo .rbxlx.");
+ if(dirty.some(x=>x.node.local))throw new Error("O arquivo contém alterações de scripts locais/novos que ainda não estão sincronizadas no Place. Envie esses scripts ao Roblox e carregue um .rbxlx atualizado antes de publicar.");
+ if(!dirty.length)return {text:xmlText,merged:0};
+ if(typeof DOMParser==="undefined"||typeof XMLSerializer==="undefined")throw new Error("Este navegador não oferece as ferramentas necessárias para mesclar XML com segurança.");
+ const doc=new DOMParser().parseFromString(xmlText,"application/xml");
+ if(doc.querySelector("parsererror")||doc.documentElement?.tagName!=="roblox")throw new Error("O .rbxlx selecionado não é um XML Roblox válido. O arquivo original não foi alterado.");
+ const directItems=parent=>Array.from(parent?.children||[]).filter(el=>el.tagName==="Item");
+ const itemName=item=>{
+   const props=Array.from(item.children||[]).find(el=>el.tagName==="Properties");
+   if(!props)return "";
+   const prop=Array.from(props.children||[]).find(el=>el.getAttribute("name")==="Name");
+   return prop?.textContent||"";
+ };
+ const itemClass=item=>String(item.getAttribute("class")||"");
+ const root=Array.from(doc.documentElement.children||[]).find(el=>el.tagName==="Item"&&itemClass(el)==="DataModel");
+ if(!root)throw new Error("O arquivo não contém um DataModel Roblox reconhecível.");
+ const locate=segments=>{
+   let current=root;
+   for(const segment of segments){
+     const matches=directItems(current).filter(item=>itemName(item)===segment);
+     if(matches.length!==1)throw new Error(matches.length===0?"Não encontrei no .rbxlx o caminho: "+segments.join(" > "):"O caminho "+segments.join(" > ")+" é ambíguo porque existem itens com o mesmo nome. Nenhuma publicação foi feita.");
+     current=matches[0];
+   }
+   return current;
+ };
+ let merged=0;
+ for(const entry of dirty){
+   const node=entry.node;
+   if(!SCRIPT_TYPES.has(node.type))throw new Error("O item "+node.name+" não é um script suportado.");
+   const segments=nodePathSegments(node);
+   if(!segments.length)throw new Error("Não consegui reconstruir o caminho do script "+node.name+". Nenhuma publicação foi feita.");
+   const target=locate(segments);
+   if(itemClass(target)!==node.type)throw new Error("O tipo do script "+segments.join(" > ")+" não corresponde ao arquivo .rbxlx ("+itemClass(target)+"). Nenhuma publicação foi feita.");
+   const props=Array.from(target.children||[]).find(el=>el.tagName==="Properties");
+   const source=Array.from(props?.children||[]).find(el=>el.getAttribute("name")==="Source"&&(el.tagName==="ProtectedString"||el.tagName==="string"));
+   if(!source)throw new Error("O arquivo não contém a propriedade Source editável de "+segments.join(" > ")+". Nenhuma publicação foi feita.");
+   source.textContent=String(node.source??"");
+   merged++;
+   if(progress)progress.update(Math.min(12+Math.round(merged/dirty.length*12),24),"Mesclando scripts","Aplicando "+merged+" de "+dirty.length+" scripts alterados…","O restante do arquivo XML é preservado; a publicação só continua se todos os caminhos forem encontrados sem ambiguidades.");
+ }
+ return {text:"<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n"+new XMLSerializer().serializeToString(doc),merged};
+}
 function uploadFullPlaceFile(file,name,progress){
  return new Promise((resolve,reject)=>{
   const xhr=new XMLHttpRequest();xhr.open("POST","/api/roblox/publish",true);
@@ -611,36 +657,57 @@ async function publishFullPlaceFile(event){
    showDiagnosticPanel("Formato de arquivo inválido",false,"Selecione um arquivo .rbxl ou .rbxlx.","Exporte o Place completo pelo Roblox Studio e selecione o arquivo exportado. Um JSON ou um arquivo parcial de script não pode ser publicado por esta API.");
    return;
  }
- // Vercel Functions enforce a request-body limit around 4.5 MB. Keep this flow
- // inside that limit instead of pretending large files can be uploaded.
  if(file.size>4*1024*1024){
    showDiagnosticPanel("Arquivo maior que o limite desta rota",false,"O arquivo selecionado tem "+(file.size/1024/1024).toFixed(2)+" MB. Esta rota da Vercel aceita arquivos de até 4 MB para evitar falha por limite de corpo da requisição.","Use um arquivo .rbxl/.rbxlx completo com até 4 MB. Arquivos maiores exigem uma infraestrutura de upload que não passe o binário inteiro pela função da Vercel.");
    return;
  }
- const confirmText="Arquivo completo: "+name+"\nTamanho: "+(file.size/1024/1024).toFixed(2)+" MB\nUniverse: "+state.universeId+"\nPlace: "+state.placeId+"\n\nA Roblox vai publicar este arquivo como uma nova versão do Place. Ele substitui o conteúdo publicado pelo conteúdo que está dentro do arquivo.\n\nIMPORTANTE: esta ação não injeta automaticamente as edições do editor de scripts neste arquivo. Se você editou scripts nesta tela, o arquivo selecionado precisa já conter essas alterações para que elas sejam publicadas. Continuar?";
- showConfirm("Publicar arquivo completo",confirmText,async()=>{
+ const changed=[...state.dirty].length;
+ if(changed&&/\.rbxl$/i.test(name)){
+   showDiagnosticPanel("Para mesclar scripts, selecione .rbxlx",false,"O arquivo .rbxl é binário e não pode ser mesclado com segurança pelo navegador. Nenhuma publicação foi feita.","Exporte o Place completo no formato XML .rbxlx e selecione esse arquivo. O site vai aplicar somente os scripts alterados, validar os caminhos e preservar o restante do Place.");
+   return;
+ }
+ const confirmText="Arquivo completo: "+name+"\nTamanho: "+(file.size/1024/1024).toFixed(2)+" MB\nScripts alterados nesta sessão: "+changed+"\nUniverse: "+state.universeId+"\nPlace: "+state.placeId+"\n\nO site vai usar este arquivo completo como base. Se for .rbxlx, tentará mesclar as alterações dos scripts existentes e abortará sem publicar se houver caminho ausente/ambíguo. O arquivo selecionado no telefone não será modificado. A publicação substitui o Place publicado pelo conteúdo resultante. Continuar?";
+ showConfirm("Preparar cópia completa e publicar",confirmText,async()=>{
    const b=$("#rbxlPublishFile");
-   b.disabled=true;b.textContent="Enviando arquivo…";
-   $("#rbxlStatus").textContent="Enviando arquivo completo para a API oficial de publicação da Roblox…";
+   b.disabled=true;b.textContent="Preparando…";
+   $("#rbxlStatus").textContent="Preparando cópia completa do Place…";
    $("#rbxlHint").textContent="Não feche esta janela até a resposta.";
    let progress=null;
    try{
      progress=openPublishProgress(name);
-     progress.update(5,"Preparando arquivo","Validando o arquivo completo…","O arquivo original não será alterado.");
-     const data=await uploadFullPlaceFile(file,name,progress);
-
+     progress.update(4,"Lendo arquivo completo","Validando o arquivo selecionado…","O arquivo original permanece intacto.");
+     let uploadFile=file;
+     let uploadName=name;
+     let merged=0;
+     if(/\.rbxlx$/i.test(name)){
+       const xml=await file.text();
+       progress.update(8,"Validando XML","Verificando a estrutura do Place…","Nenhum dado será publicado se a validação falhar.");
+       const result=mergeDirtyScriptsIntoRbxlx(xml,progress);
+       merged=result.merged;
+       uploadFile=new Blob([result.text],{type:"application/xml;charset=utf-8"});
+       uploadName=name;
+       if(uploadFile.size>4*1024*1024)throw new Error("A cópia XML resultante ultrapassou o limite de 4 MB desta rota. Nenhuma publicação foi feita.");
+     }else if(changed){
+       throw new Error("Para mesclar alterações de scripts, use um arquivo .rbxlx.");
+     }
+     progress.update(28,"Cópia pronta","Arquivo completo validado","Scripts mesclados: "+merged+". Iniciando publicação oficial.");
+     const data=await uploadFullPlaceFile(uploadFile,uploadName,progress);
+     const version=data.versionNumber??data.version??data.id;
+     if(version===undefined||version===null||version==="")throw new Error("A resposta não trouxe um número de versão; a publicação não pode ser confirmada.");
+     const ids=[...state.dirty].filter(id=>{const n=state.files.get(String(id))||state.tree.find(x=>String(x.id)===String(id));return n&&!n.local&&!state.removed.has(String(id))}).map(String);
+     clearPublishedDrafts(ids);
      progress?.finish(true,"A Roblox confirmou a publicação da versão "+String(version)+".");
-     $("#rbxlStatus").textContent="✓ Arquivo completo enviado e versão publicada";
-     $("#rbxlHint").textContent="Método oficial: Place Publishing API";
-     status("Arquivo Roblox publicado");
-     if(progress)progress.update(100,"Concluído","Versão publicada: "+String(version),"A Roblox confirmou a nova versão. Somente o arquivo selecionado foi publicado.");
+     $("#rbxlStatus").textContent="✓ Place completo publicado — versão "+String(version);
+     $("#rbxlHint").textContent="Scripts mesclados: "+merged;
+     status("Place completo publicado");
+     if(progress)progress.update(100,"Concluído","Versão publicada: "+String(version),"A Roblox confirmou a nova versão. Scripts mesclados: "+merged+".");
    }catch(e){
      const msg=e?.message||String(e);
      if(progress)progress.finish(false,msg);
      $("#rbxlStatus").textContent="Falha ao publicar arquivo: "+msg;
-     $("#rbxlHint").textContent="A resposta não confirmou uma nova versão publicada.";
+     $("#rbxlHint").textContent="Nenhuma publicação foi confirmada.";
      status("Falha ao publicar arquivo");
-     showDiagnosticPanel("Falha ao publicar arquivo completo",false,msg,"Confirme universe-places:write na chave Open Cloud e se Universe ID/Place ID correspondem. A API exige um arquivo completo .rbxl/.rbxlx. Se a mensagem mencionar limite de tamanho, a rota da Vercel não aceita esse arquivo; se for 403, confira o escopo da chave; se for erro Roblox, a resposta acima é a causa reportada.");
+     showDiagnosticPanel("Falha ao preparar/publicar Place",false,msg,"Para mesclar scripts existentes, selecione um .rbxlx completo exportado do Place correto. Caminhos ausentes/duplicados, XML inválido, scripts locais não sincronizados e limites de tamanho interrompem o processo antes do envio. A chave precisa de universe-places:write.");
    }finally{
      b.disabled=false;b.textContent="Publicar arquivo .rbxl/.rbxlx";
    }
