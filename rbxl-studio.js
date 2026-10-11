@@ -544,7 +544,7 @@ async function testLuau(){
  }
 }
 
-async async async function testSavePermission(){
+async function testSavePermission(){
  const b=$("#rbxlTestSave"); if(!b)return;
  b.disabled=true; b.textContent="Testando…";
  $("#rbxlStatus").textContent="Testando permissão de salvamento do Place…";
