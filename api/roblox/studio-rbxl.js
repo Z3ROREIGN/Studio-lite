@@ -544,9 +544,15 @@ export default async function handler(req, res) {
     }
     if (action === "update") {
       const instanceId = clean(body.instanceId);
-      const task = await updateScriptWithInstance(universeId, placeId, instanceId, clean(body.scriptType), body.source, apiKey);
+      const source = String(body.source ?? "");
+      const task = await updateScriptWithInstance(universeId, placeId, instanceId, clean(body.scriptType), source, apiKey);
       await operation(task.path, apiKey);
-      return json(res, 200, { ok: true, saved: true, published: true, method: "instance-api" });
+      const verified = await loadScriptSource(universeId, placeId, instanceId, apiKey);
+      if (String(verified.source ?? "") !== source) return json(res, 409, { ok: false, code: "SOURCE_VERIFICATION_FAILED", error: "O Roblox não devolveu o mesmo Source após salvar. A alteração continua como rascunho; não foi marcada como publicada." });
+      const published = await publishPlaceWithLuau(universeId, placeId, apiKey);
+      const afterPublish = await loadScriptSource(universeId, placeId, instanceId, apiKey);
+      if (String(afterPublish.source ?? "") !== source) return json(res, 409, { ok: false, code: "PUBLISH_VERIFICATION_FAILED", error: "A publicação terminou, mas a verificação do Source não corresponde ao conteúdo enviado. A alteração não foi confirmada." });
+      return json(res, 200, { ok: true, saved: true, published: true, verified: true, method: "instance-api-plus-save-place", taskPath: published.taskPath });
     }
     if (action === "updateMany") {
       const changes = Array.isArray(body.changes) ? body.changes : [];
@@ -580,15 +586,18 @@ export default async function handler(req, res) {
         saved.push({ instanceId: clean(change.instanceId), ok: true });
       }
 
-      // Depois cria uma versão publicada do Place. Assim uma falha no SavePlaceAsync
-      // não desfaz as edições já aplicadas e o usuário pode tentar publicar novamente.
+      // Só declarar sucesso depois de publicar e reler cada Source no Roblox.
       const published = await publishPlaceWithLuau(universeId, placeId, apiKey);
+      for (const change of changes) {
+        const expected = String(change.source ?? "");
+        const actual = await loadScriptSource(universeId, placeId, clean(change.instanceId), apiKey);
+        if (String(actual.source ?? "") !== expected) {
+          return json(res, 409, { ok: false, code: "PUBLISH_VERIFICATION_FAILED", error: "O Roblox não confirmou o conteúdo esperado para o script " + clean(change.instanceId) + ". A publicação não será marcada como concluída; mantenha o rascunho local e tente novamente." });
+        }
+      }
       return json(res, 200, {
-        ok: true,
-        published: true,
-        saved: saved.length,
-        method: "instance-api-plus-save-place",
-        taskPath: published.taskPath
+        ok: true, published: true, verified: true, saved: saved.length,
+        method: "instance-api-plus-save-place-verified", taskPath: published.taskPath
       });
     }
     if (action === "createScript") {
