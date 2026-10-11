@@ -12,7 +12,7 @@ const SCRIPT_TYPES=new Set(["Script","LocalScript","ModuleScript"]);
 const state={apiKey:"",universeId:"",placeId:"",tree:[],files:new Map(),dirty:new Set(),removed:new Set(),current:null,expanded:new Set(["__workspace__"]),loading:new Set(),pendingPublish:false};
 const draftStorageKey=()=> "studio-rbxl-drafts-v1:"+state.universeId+":"+state.placeId;
 function persistDrafts(){
- try{if(!state.universeId||!state.placeId)return;const items=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&!n.local&&!state.removed.has(id)?{id:String(n.id),name:String(n.name||""),type:String(n.type||"Script"),source:String(n.source||""),path:scriptPathSegments(n)}:null}).filter(Boolean);localStorage.setItem(draftStorageKey(),JSON.stringify({version:1,updatedAt:Date.now(),items}))}
+ try{if(!state.universeId||!state.placeId)return;const items=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&!n.local&&!state.removed.has(id)?{id:String(n.id),name:String(n.name||""),type:String(n.type||"Script"),source:String(n.source||"")}:null}).filter(Boolean);localStorage.setItem(draftStorageKey(),JSON.stringify({version:1,updatedAt:Date.now(),items}))}
  catch(e){console.warn("Não foi possível persistir os rascunhos do Studio RBXL",e)}
 }
 function restoreDrafts(){
