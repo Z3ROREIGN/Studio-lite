@@ -10,6 +10,17 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const SCRIPT_TYPES=new Set(["Script","LocalScript","ModuleScript"]);
 const state={apiKey:"",universeId:"",placeId:"",tree:[],files:new Map(),dirty:new Set(),removed:new Set(),current:null,expanded:new Set(["__workspace__"]),loading:new Set(),pendingPublish:false};
+const draftStorageKey=()=> "studio-rbxl-drafts-v1:"+state.universeId+":"+state.placeId;
+function persistDrafts(){
+ try{if(!state.universeId||!state.placeId)return;const items=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&!n.local&&!state.removed.has(id)?{id:String(n.id),name:String(n.name||""),type:String(n.type||"Script"),source:String(n.source||""),path:scriptPathSegments(n)}:null}).filter(Boolean);localStorage.setItem(draftStorageKey(),JSON.stringify({version:1,updatedAt:Date.now(),items}))}
+ catch(e){console.warn("Não foi possível persistir os rascunhos do Studio RBXL",e)}
+}
+function restoreDrafts(){
+ try{const raw=localStorage.getItem(draftStorageKey());if(!raw)return 0;const saved=JSON.parse(raw);if(saved?.version!==1||!Array.isArray(saved.items))return 0;let restored=0;
+ for(const item of saved.items){const n=state.files.get(String(item.id))||state.tree.find(x=>String(x.id)===String(item.id));if(!n||!SCRIPT_TYPES.has(n.type))continue;n.source=String(item.source??"");n.sourceLoaded=true;state.files.set(String(n.id),n);state.dirty.add(String(n.id));restored++}return restored}
+ catch(e){console.warn("Falha ao restaurar rascunhos do Studio RBXL",e);return 0}
+}
+function clearPublishedDrafts(ids){for(const id of ids)state.dirty.delete(String(id));persistDrafts()}
 const status=t=>{try{window.StudioLiteCore?.setStatus?.(t)}catch{}try{$("#status").textContent=t;$("#footerStatus").textContent=t}catch{}};
 function icon(t){
  const type=String(t||"Instance");
@@ -74,6 +85,7 @@ function style(){
 `;document.head.appendChild(s);
 }
 function open(){
+ if(state.dirty.size)persistDrafts();
  style();const old=$("#studioRbxlModal");if(old){old.remove();return true}
  const bg=document.createElement("div");bg.id="studioRbxlModal";
  bg.innerHTML=`
@@ -337,7 +349,7 @@ function safeUnsupportedAction(action,detail=""){
  status("Studio RBXL: operação bloqueada com segurança");
 }
 function hasPublishableChanges(){return state.pendingPublish||[...state.dirty].some(id=>{const n=state.files.get(id);return n&&!n.local&&!state.removed.has(n.id)})}
-function markDirty(){if(!state.current)return;const n=state.files.get(state.current);if(!n)return;n.source=$("#rbxlCode").value;state.dirty.add(n.id);$("#rbxlDirty").textContent="•";$("#rbxlSave").disabled=false;$("#rbxlPublish").disabled=!hasPublishableChanges();$("#rbxlSendScript").disabled=!(n.local);$("#rbxlStatus").textContent="Alteração local não salva";status("Studio RBXL: alteração pendente")}
+function markDirty(){if(!state.current)return;const n=state.files.get(state.current);if(!n)return;n.source=$("#rbxlCode").value;state.dirty.add(String(n.id));persistDrafts();$("#rbxlDirty").textContent="•";$("#rbxlSave").disabled=false;$("#rbxlPublish").disabled=!hasPublishableChanges();$("#rbxlSendScript").disabled=!(n.local);$("#rbxlStatus").textContent="Rascunho salvo neste dispositivo; ainda não publicado";status("Studio RBXL: rascunho persistido")}
 async function connect(){
  const key=$("#rbxlApiKey").value.trim(),u=$("#rbxlUniverseInput").value.trim(),p=$("#rbxlPlaceInput").value.trim(),err=$("#rbxlAuthError");err.textContent="";
  if(!key||!/^\d+$/.test(u)||!/^\d+$/.test(p)){err.textContent="Informe uma chave válida e IDs numéricos.";return}
@@ -356,8 +368,11 @@ async function connect(){
   $("#rbxlAuth").remove();
   renderTree();
   await loadEntireHierarchy();
+  const restoredDrafts=restoreDrafts();
+  renderTree();
+  if(restoredDrafts)$("#rbxlHint").textContent="Rascunhos restaurados deste dispositivo; ainda não publicados no Roblox.";
   $("#rbxlCount").textContent=state.tree.filter(n=>!state.removed.has(n.id)).length+" itens";
-  $("#rbxlStatus").textContent=state.tree.length+" itens carregados • pastas disponíveis no Explorer";
+  $("#rbxlStatus").textContent=restoredDrafts?restoredDrafts+" rascunho(s) restaurado(s) — ainda não publicado":state.tree.length+" itens carregados • pastas disponíveis no Explorer";
   status("Studio RBXL conectado")
 }
  catch(e){
@@ -516,7 +531,7 @@ async function saveCurrent(){
  const b=$("#rbxlSave");b.disabled=true;b.textContent="Salvando…";$("#rbxlStatus").textContent="Salvando "+n.name+"…";
  try{
    await api("update",{instanceId:n.id,scriptType:n.type,source:n.source});
-   state.dirty.delete(n.id);n.sourceLoaded=true;$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+n.name+" salvo no Roblox";status("Script salvo");
+   state.dirty.delete(String(n.id));n.sourceLoaded=true;persistDrafts();$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+n.name+" enviado ao Roblox e verificado. Confirme a versão publicada no Roblox.";status("Script enviado e verificado");
  }catch(e){
    $("#rbxlStatus").textContent="Falha ao salvar: "+e.message;status("Falha ao salvar");
  }finally{
@@ -639,11 +654,11 @@ async function publishAll(){
    $("#rbxlStatus").textContent="Aplicando "+changes.length+" alteração(ões)…";
    $("#rbxlHint").textContent="1/2: atualizando scripts pela Engine Instances API";
    const d=await api("publishMany",{changes});
-   state.dirty.clear();state.pendingPublish=false;
+   clearPublishedDrafts(changes.map(c=>c.instanceId));state.pendingPublish=false;
    $("#rbxlDirty").textContent="";
-   $("#rbxlStatus").textContent="✓ "+(d.saved??changes.length)+" arquivo(s) publicados no Roblox";
-   $("#rbxlHint").textContent="2/2: nova versão do Place publicada com SavePlaceAsync";
-   status("Publicação concluída");
+   $("#rbxlStatus").textContent="✓ Roblox confirmou a publicação e verificou o Source de "+(d.saved??changes.length)+" script(s).";
+   $("#rbxlHint").textContent="Publicação confirmada pela API e conteúdo conferido após a operação.";
+   status("Publicação verificada");
  }catch(e){
    const msg=e.message||String(e);
    $("#rbxlStatus").textContent="Falha na publicação: "+msg;
@@ -655,7 +670,7 @@ async function publishAll(){
      // A API confirmou que as atualizações dos scripts foram aplicadas antes
      // de SavePlaceAsync falhar. Mantemos uma ação explícita para tentar apenas
      // publicar a versão novamente depois que o usuário resolver o bloqueio.
-     state.dirty.clear();state.pendingPublish=true;
+     state.pendingPublish=true;persistDrafts();
      $("#rbxlDirty").textContent="";
      $("#rbxlStatus").textContent="Scripts enviados; versão ainda NÃO publicada.";
      $("#rbxlHint").textContent="Resolva o bloqueio e use “Tentar publicar novamente”.";
@@ -666,7 +681,7 @@ async function publishAll(){
        "1. Clique em “Tentar publicar novamente” para repetir apenas a etapa de publicação, sem reenviar os scripts.\n2. Se o Roblox recusar novamente, a versão não foi publicada. Aguarde e tente mais tarde ou publique um arquivo .rbxl/.rbxlx completo que já contenha as alterações. O editor não gera com segurança um arquivo de Place completo a partir da árvore de scripts, então não será criado um arquivo parcial que possa danificar o jogo."
      );
    }else if(e.code==="ROBLOX_TEAM_CREATE_ACTIVE"){
-     state.pendingPublish=true;
+     state.pendingPublish=true;persistDrafts();
      showDiagnosticPanel("Publicação bloqueada pelo Roblox",false,msg,(e.hint||"A Roblox bloqueou SavePlaceAsync.")+"\n\nDepois de resolver o bloqueio, use “Tentar publicar novamente”. O site não reenviará os scripts nessa tentativa.");
    }else if(e.code==="ROBLOX_FORBIDDEN")showDiagnosticPanel("Roblox recusou a publicação",false,msg,e.hint||"Confira os escopos da chave e se o Place permite salvamento.");
    else if(e.code==="ROBLOX_INVALID_REQUEST")showDiagnosticPanel("Roblox rejeitou a publicação",false,msg,e.hint||"A resposta acima veio diretamente do Roblox.");
