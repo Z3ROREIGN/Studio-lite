@@ -25,15 +25,15 @@ async function readBody(req) {
 }
 
 function validatePlaceFile(body, fileName) {
-  if (/\\.rbxl$/i.test(fileName)) {
+  if (/\.rbxl$/i.test(fileName)) {
     if (body.length < 32 || !body.subarray(0, RBXL_MAGIC.length).equals(RBXL_MAGIC)) {
       return "O arquivo não tem um cabeçalho RBXL binário válido. Nenhuma publicação foi feita.";
     }
     return null;
   }
 
-  const xml = body.toString("utf8").replace(/^\\uFEFF/, "").trimStart();
-  if (!xml || !/^<(?:\\?xml\\b[^>]*>\\s*)?<roblox(?:\\s|>)/i.test(xml)) {
+  const xml = body.toString("utf8").replace(/^\uFEFF/, "").trimStart();
+  if (!xml || !/^<(?:\?xml\b[^>]*>\s*)?<roblox(?:\s|>)/i.test(xml)) {
     return "O arquivo .rbxlx não parece ser um Place XML Roblox válido. Nenhuma publicação foi feita.";
   }
   return null;
