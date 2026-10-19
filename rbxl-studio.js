@@ -522,7 +522,7 @@ async function selectFile(id){
       n.source=String(d.source||"");
       n.enabled=d.enabled!==false;
       n.sourceLoaded=true}$("#rbxlCode").value=n.source||"";$("#rbxlHint").textContent=n.enabled===false?"Desabilitado":"Luau";$("#rbxlStatus").textContent=n.name+" aberto";renderTree($("#rbxlSearch").value);setTimeout(()=>$("#rbxlCode").focus(),0)}
- catch(e){$("#rbxlHint").textContent="Source indisponível";$("#rbxlStatus").textContent="Falha ao carregar Source: "+e.message}
+ catch(e){if(String(state.current)!==String(id))return;$("#rbxlHint").textContent="Source indisponível";$("#rbxlStatus").textContent="Falha ao carregar Source: "+e.message}
 }
 async function saveCurrent(){
  const n=state.current?state.files.get(state.current):null;
