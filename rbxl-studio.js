@@ -9,7 +9,7 @@
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const SCRIPT_TYPES=new Set(["Script","LocalScript","ModuleScript"]);
-const state={apiKey:"",universeId:"",placeId:"",tree:[],files:new Map(),dirty:new Set(),removed:new Set(),current:null,expanded:new Set(["__workspace__"]),loading:new Set(),pendingPublish:false};
+const state={apiKey:"",universeId:"",placeId:"",tree:[],files:new Map(),dirty:new Set(),removed:new Set(),current:null,expanded:new Set(["__workspace__"]),loading:new Set(),pendingPublish:false,pendingPublishChanges:[]};
 const draftStorageKey=()=> "studio-rbxl-drafts-v1:"+state.universeId+":"+state.placeId;
 function persistDrafts(){
  try{if(!state.universeId||!state.placeId)return;const items=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&!n.local&&!state.removed.has(id)?{id:String(n.id),name:String(n.name||""),type:String(n.type||"Script"),source:String(n.source||"")}:null}).filter(Boolean);localStorage.setItem(draftStorageKey(),JSON.stringify({version:1,updatedAt:Date.now(),items}))}
@@ -93,7 +93,7 @@ function open(){
   <header class="rbxl-top">
    <div class="rbxl-brand"><div class="rbxl-logo">S</div><div><b>STUDIO RBXL</b><small>OPEN CLOUD SCRIPT WORKSPACE</small></div></div>
    <div class="rbxl-meta"><div class="rbxl-pill">Universe <strong id="rbxlUniverse">—</strong></div><div class="rbxl-pill">Place <strong id="rbxlPlace">—</strong></div><div class="rbxl-pill">Modo <strong>Edição + criação</strong></div></div>
-   <div class="rbxl-actions"><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button></div><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn" id="rbxlTestLuau">Testar Luau</button><button class="rbxl-btn" id="rbxlTestSave">Testar salvamento</button></div><div class="rbxl-action-group"><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlPublishFile">Publicar Place atual</button><button class="rbxl-btn" id="rbxlCollabFallback" style="display:none">Alternativa sem colaboração</button><input id="rbxlFullPlaceInput" type="file" accept=".rbxl,.rbxlx" hidden><button class="rbxl-btn" id="rbxlClose" aria-label="Fechar">×</button></div></div>
+   <div class="rbxl-actions"><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button></div><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn" id="rbxlTestLuau">Testar Luau</button><button class="rbxl-btn" id="rbxlTestSave">Testar salvamento</button></div><div class="rbxl-action-group"><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlClose" aria-label="Fechar">×</button></div></div>
   </header>
   <div class="rbxl-body">
    <aside class="rbxl-tree"><div class="rbxl-tree-head"><b>WORKSPACE</b><span id="rbxlCount">0 arquivos</span><input id="rbxlSearch" class="rbxl-search" placeholder="⌕ Procurar script..."></div><div id="rbxlTree" class="rbxl-list"><div class="rbxl-loading">Conecte um Place para carregar o Workspace.</div></div></aside>
@@ -116,7 +116,7 @@ function open(){
  $("#rbxlClose").onclick=close;$("#rbxlNewScript").onclick=()=>requestScriptAction("create");$("#rbxlSendScript").onclick=sendCurrentDraftToRoblox;$("#rbxlRemoveScript").onclick=()=>requestScriptAction("remove");document.addEventListener("keydown",key,true);
  $("#rbxlForm").onsubmit=async e=>{e.preventDefault();await connect()};
  $("#rbxlSearch").oninput=()=>renderTree($("#rbxlSearch").value);
- $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;$("#rbxlPublishFile").onclick=publishCurrentPlaceDestination;$("#rbxlCollabFallback").onclick=()=>$("#rbxlFullPlaceInput").click();$("#rbxlFullPlaceInput").onchange=publishFullPlaceFile;$("#rbxlTestLuau").onclick=testLuau;$("#rbxlTestSave").onclick=testSavePermission;
+ $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;$("#rbxlTestLuau").onclick=testLuau;$("#rbxlTestSave").onclick=testSavePermission;
  return true;
 }
 function nodePathSegments(node){
@@ -771,15 +771,24 @@ async function publishAll(){
  const b=$("#rbxlPublish");if(!b)return;
  b.disabled=true;b.textContent="Publicando…";
  try{
-   if(state.pendingPublish&&!changes.length){
+   if(state.pendingPublish){
      $("#rbxlStatus").textContent="Tentando publicar a versão salva no Roblox…";
-     $("#rbxlHint").textContent="Repetindo somente SavePlaceAsync; os scripts não serão reenviados.";
+     $("#rbxlHint").textContent="Repetindo somente a publicação; os scripts não serão reenviados.";
      const d=await api("publishOnly");
+     const verified=[];
+     for(const sent of state.pendingPublishChanges){
+       const check=await api("source",{instanceId:String(sent.instanceId)});
+       if(String(check.source??"")===String(sent.source??""))verified.push(String(sent.instanceId));
+     }
+     for(const id of verified)state.dirty.delete(id);
      state.pendingPublish=false;
-     $("#rbxlStatus").textContent="✓ Nova versão publicada no Roblox";
-     $("#rbxlHint").textContent="O Roblox confirmou a publicação.";
-     status("Publicação concluída");
-     showDiagnosticPanel("Publicação concluída",true,"O Roblox confirmou que a nova versão do Place foi publicada.","Os scripts já enviados anteriormente foram publicados nesta versão.");
+     state.pendingPublishChanges=[];
+     persistDrafts();
+     $("#rbxlDirty").textContent=state.current&&state.dirty.has(String(state.current))?"•":"";
+     $("#rbxlStatus").textContent="✓ Roblox confirmou a publicação"+(verified.length?" e a conferência de "+verified.length+" script(s)":"")+".";
+     $("#rbxlHint").textContent=state.dirty.size?"Alguns rascunhos continuam pendentes porque o Source mudou ou não pôde ser conferido.":"Nenhuma alteração enviada permanece pendente.";
+     status("Publicação concluída e verificada");
+     showDiagnosticPanel("Publicação concluída",true,"O Roblox confirmou uma nova versão publicada.", "A publicação foi confirmada pelo Roblox. Os scripts conferidos foram comparados com os Sources enviados.");
      return;
    }
    if(!changes.length){$("#rbxlStatus").textContent="Nenhuma alteração pendente para publicar.";return}
@@ -815,9 +824,10 @@ async function publishAll(){
      // A API confirmou que as atualizações dos scripts foram aplicadas antes
      // de SavePlaceAsync falhar. Mantemos uma ação explícita para tentar apenas
      // publicar a versão novamente depois que o usuário resolver o bloqueio.
-     state.pendingPublish=true;persistDrafts();
-     const fallbackButton=$("#rbxlCollabFallback");if(fallbackButton)fallbackButton.style.display="inline-block";
-     $("#rbxlDirty").textContent="";
+     state.pendingPublish=true;
+     state.pendingPublishChanges=changes.map(x=>({instanceId:String(x.instanceId),source:String(x.source??"")}));
+     persistDrafts();
+     $("#rbxlDirty").textContent=state.current&&state.dirty.has(String(state.current))?"•":"";
      $("#rbxlStatus").textContent="Scripts enviados; versão ainda NÃO publicada.";
      $("#rbxlHint").textContent="Resolva o bloqueio e use “Tentar publicar novamente”.";
      showDiagnosticPanel(
@@ -828,12 +838,11 @@ async function publishAll(){
      );
    }else if(e.code==="ROBLOX_TEAM_CREATE_ACTIVE"){
      state.pendingPublish=true;persistDrafts();
-     const fallbackButton=$("#rbxlCollabFallback");if(fallbackButton)fallbackButton.style.display="inline-block";
-     showDiagnosticPanel("Publicação bloqueada pelo Roblox",false,msg,(e.hint||"A Roblox bloqueou SavePlaceAsync.")+"\n\nDepois de resolver o bloqueio, use “Tentar publicar novamente”. O site não reenviará os scripts nessa tentativa.");
+     showDiagnosticPanel("Publicação bloqueada pelo Roblox",false,msg,(e.hint||"A Roblox bloqueou SavePlaceAsync.")+"\n\nUse o único botão “Publicar alterações” depois que o bloqueio tiver sido resolvido. O site tentará novamente apenas a publicação, sem reenviar os scripts.");
    }else if(e.code==="ROBLOX_FORBIDDEN")showDiagnosticPanel("Roblox recusou a publicação",false,msg,e.hint||"Confira os escopos da chave e se o Place permite salvamento.");
    else if(e.code==="ROBLOX_INVALID_REQUEST")showDiagnosticPanel("Roblox rejeitou a publicação",false,msg,e.hint||"A resposta acima veio diretamente do Roblox.");
  }
- finally{b.textContent=state.pendingPublish?"Tentar publicar novamente":"Publicar alterações";b.disabled=!hasPublishableChanges()}
+ finally{b.textContent=state.pendingPublish?"Tentar publicar novamente":"Publicar alterações";b.disabled=state.pendingPublish?false:!hasPublishableChanges()}
 }
 function install(){
  window.StudioLiteRBXL={open};const bind=()=>{const b=$("#studioRbxlBtn");if(!b)return;b.type="button";b.dataset.studioRbxl="true";b.onclick=e=>{e.preventDefault();e.stopPropagation();open()}};bind();
