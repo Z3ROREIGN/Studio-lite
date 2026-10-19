@@ -93,7 +93,7 @@ function open(){
   <header class="rbxl-top">
    <div class="rbxl-brand"><div class="rbxl-logo">S</div><div><b>STUDIO RBXL</b><small>OPEN CLOUD SCRIPT WORKSPACE</small></div></div>
    <div class="rbxl-meta"><div class="rbxl-pill">Universe <strong id="rbxlUniverse">—</strong></div><div class="rbxl-pill">Place <strong id="rbxlPlace">—</strong></div><div class="rbxl-pill">Modo <strong>Edição + criação</strong></div></div>
-   <div class="rbxl-actions"><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button></div><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn" id="rbxlTestLuau">Testar Luau</button><button class="rbxl-btn" id="rbxlTestSave">Testar salvamento</button></div><div class="rbxl-action-group"><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlPublishFile">Publicar arquivo .rbxl/.rbxlx</button><button class="rbxl-btn" id="rbxlCollabFallback" style="display:none">Alternativa sem colaboração</button><input id="rbxlFullPlaceInput" type="file" accept=".rbxl,.rbxlx" hidden><button class="rbxl-btn" id="rbxlClose" aria-label="Fechar">×</button></div></div>
+   <div class="rbxl-actions"><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlNewScript">+ Script</button><button class="rbxl-btn" id="rbxlSendScript" disabled>Enviar ao Roblox</button><button class="rbxl-btn danger" id="rbxlRemoveScript">Excluir</button></div><div class="rbxl-action-group"><button class="rbxl-btn" id="rbxlSave" disabled>Salvar</button><button class="rbxl-btn" id="rbxlTestLuau">Testar Luau</button><button class="rbxl-btn" id="rbxlTestSave">Testar salvamento</button></div><div class="rbxl-action-group"><button class="rbxl-btn primary" id="rbxlPublish" disabled>Publicar alterações</button><button class="rbxl-btn" id="rbxlPublishFile">Publicar Place atual</button><button class="rbxl-btn" id="rbxlCollabFallback" style="display:none">Alternativa sem colaboração</button><input id="rbxlFullPlaceInput" type="file" accept=".rbxl,.rbxlx" hidden><button class="rbxl-btn" id="rbxlClose" aria-label="Fechar">×</button></div></div>
   </header>
   <div class="rbxl-body">
    <aside class="rbxl-tree"><div class="rbxl-tree-head"><b>WORKSPACE</b><span id="rbxlCount">0 arquivos</span><input id="rbxlSearch" class="rbxl-search" placeholder="⌕ Procurar script..."></div><div id="rbxlTree" class="rbxl-list"><div class="rbxl-loading">Conecte um Place para carregar o Workspace.</div></div></aside>
@@ -116,7 +116,7 @@ function open(){
  $("#rbxlClose").onclick=close;$("#rbxlNewScript").onclick=()=>requestScriptAction("create");$("#rbxlSendScript").onclick=sendCurrentDraftToRoblox;$("#rbxlRemoveScript").onclick=()=>requestScriptAction("remove");document.addEventListener("keydown",key,true);
  $("#rbxlForm").onsubmit=async e=>{e.preventDefault();await connect()};
  $("#rbxlSearch").oninput=()=>renderTree($("#rbxlSearch").value);
- $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;$("#rbxlPublishFile").onclick=()=>$("#rbxlFullPlaceInput").click();$("#rbxlCollabFallback").onclick=()=>$("#rbxlFullPlaceInput").click();$("#rbxlFullPlaceInput").onchange=publishFullPlaceFile;$("#rbxlTestLuau").onclick=testLuau;$("#rbxlTestSave").onclick=testSavePermission;
+ $("#rbxlCode").oninput=markDirty;$("#rbxlSave").onclick=saveCurrent;$("#rbxlPublish").onclick=publishAll;$("#rbxlPublishFile").onclick=publishCurrentPlaceDestination;$("#rbxlCollabFallback").onclick=()=>$("#rbxlFullPlaceInput").click();$("#rbxlFullPlaceInput").onchange=publishFullPlaceFile;$("#rbxlTestLuau").onclick=testLuau;$("#rbxlTestSave").onclick=testSavePermission;
  return true;
 }
 function nodePathSegments(node){
@@ -665,7 +665,7 @@ function uploadFullPlaceFile(file,name,progress,target={}){
 function choosePublishDestination(){
  return new Promise(resolve=>{
   const overlay=document.createElement("div");overlay.className="rbxl-confirm";overlay.style.zIndex="100005";
-  overlay.innerHTML=`<div class="rbxl-confirm-card"><h3>Onde publicar o Place completo?</h3><p>Escolha atualizar o jogo original ou enviar o arquivo completo para um Place de destino independente. Para a cópia, primeiro crie um jogo/Place de destino no Creator Dashboard e informe os IDs dele. Esta API não cria uma experiência Roblox nova automaticamente.</p><div style="display:grid;gap:9px;margin-top:15px"><button class="rbxl-btn primary" id="rbxlDestOriginal">Atualizar jogo original</button><button class="rbxl-btn" id="rbxlDestCopy">Publicar cópia independente</button><div id="rbxlDestFields" style="display:none;gap:9px"><label style="display:grid;gap:5px;color:#aab5c4;font-size:11px">Universe ID do destino<input id="rbxlDestUniverse" inputmode="numeric" placeholder="Universe ID do jogo de destino" style="background:#080c12;border:1px solid #293442;color:#fff;padding:10px;border-radius:8px"></label><label style="display:grid;gap:5px;color:#aab5c4;font-size:11px">Place ID do destino<input id="rbxlDestPlace" inputmode="numeric" placeholder="Place ID do destino" style="background:#080c12;border:1px solid #293442;color:#fff;padding:10px;border-radius:8px"></label><button class="rbxl-btn primary" id="rbxlDestConfirm">Continuar com a cópia</button><div style="color:#778497;font-size:10px;line-height:1.5">Use IDs de um Place que você controla e cuja chave de API tenha permissão universe-places:write. A cópia não altera o jogo original.</div></div></div><div class="rbxl-confirm-actions"><button class="rbxl-btn" id="rbxlDestCancel">Cancelar</button></div></div>`;
+  overlay.innerHTML=`<div class="rbxl-confirm-card"><h3>Onde publicar as alterações?</h3><p>O Studio RBXL usará o Place já conectado e os scripts carregados no Explorer. Não é necessário selecionar ou enviar outro arquivo .rbxl/.rbxlx. Para uma cópia independente, informe um Place de destino existente; a publicação só pode continuar quando os scripts forem mapeados com segurança.</p><div style="display:grid;gap:9px;margin-top:15px"><button class="rbxl-btn primary" id="rbxlDestOriginal">Atualizar jogo original</button><button class="rbxl-btn" id="rbxlDestCopy">Publicar cópia independente</button><div id="rbxlDestFields" style="display:none;gap:9px"><label style="display:grid;gap:5px;color:#aab5c4;font-size:11px">Universe ID do destino<input id="rbxlDestUniverse" inputmode="numeric" placeholder="Universe ID do jogo de destino" style="background:#080c12;border:1px solid #293442;color:#fff;padding:10px;border-radius:8px"></label><label style="display:grid;gap:5px;color:#aab5c4;font-size:11px">Place ID do destino<input id="rbxlDestPlace" inputmode="numeric" placeholder="Place ID do destino" style="background:#080c12;border:1px solid #293442;color:#fff;padding:10px;border-radius:8px"></label><button class="rbxl-btn primary" id="rbxlDestConfirm">Continuar com a cópia</button><div style="color:#778497;font-size:10px;line-height:1.5">Use IDs de um Place que você controla e cuja chave de API tenha permissão universe-places:write. A cópia não altera o jogo original.</div></div></div><div class="rbxl-confirm-actions"><button class="rbxl-btn" id="rbxlDestCancel">Cancelar</button></div></div>`;
   document.body.appendChild(overlay);
   const finish=value=>{overlay.remove();resolve(value)};
   overlay.querySelector("#rbxlDestOriginal").onclick=()=>finish({universeId:state.universeId,placeId:state.placeId,mode:"original"});
@@ -752,6 +752,19 @@ async function publishFullPlaceFile(event){
      b.disabled=false;b.textContent="Publicar arquivo .rbxl/.rbxlx";
    }
  });
+}
+async function publishCurrentPlaceDestination(){
+ if(!state.apiKey||!state.universeId||!state.placeId){
+   showDiagnosticPanel("Conecte o jogo primeiro",false,"Nenhum Place está conectado nesta sessão.","Informe a chave Open Cloud e os IDs do jogo para carregar o Workspace antes de publicar.");
+   return;
+ }
+ const target=await choosePublishDestination();
+ if(!target)return;
+ if(target.mode==="copy"){
+   showDiagnosticPanel("Cópia independente ainda não publicada",false,"O destino foi selecionado, mas os IDs das instâncias do jogo original não podem ser reutilizados com segurança em outro Place.","Para evitar publicar scripts nos objetos errados, esta ação só atualiza o Place conectado. A criação de uma cópia completa precisa de uma operação de clonagem suportada pela Roblox e de mapeamento verificado dos scripts. Nenhuma publicação foi feita na cópia.");
+   return;
+ }
+ await publishAll();
 }
 async function publishAll(){
  const changes=[...state.dirty].map(id=>{const n=state.files.get(id);return n&&!n.local&&!state.removed.has(n.id)?{instanceId:n.id,scriptType:n.type,source:n.source}:null}).filter(Boolean);
