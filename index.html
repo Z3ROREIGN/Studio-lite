@@ -62,7 +62,7 @@
  }
  function removeOldGlyph(b){
   // Remove only legacy decorative symbols at the start of button labels.
-  const legacy=/^\s*(?:(?:[↶↷⚙▶＋●◉◢⌂▱◇◆▰⧉⌫◎⛶▦✓⌘⇧⇩☁▣☷☰←⌄▾▸▹◌✚✕×]|[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]|\p{Extended_Pictographic})\uFE0F?\s*)+/u;
+  const legacy=/^\s*(?:(?:[↶↷⚙▶＋●◉◢⌂▱◇◆▰⧉⌫◎⛶▦✓⌘⇧⇩☁▣☷☰←⌄▾▸▹◌✚✕×⌕♧♢♙♟▤▥▧▨▩◈◉◍◐◑◒◓◔◕]|[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]|\p{Extended_Pictographic})\uFE0F?\s*)+/u;
   const walk=node=>{
    for(const child of Array.from(node.childNodes||[])){
     if(child.nodeType===1 && child.tagName.toLowerCase()==='svg') continue;
@@ -79,7 +79,7 @@
  function enhance(root){
   (root.matches&&root.matches('button')?[root]:[]).concat(root.querySelectorAll?Array.from(root.querySelectorAll('button')):[]).forEach(b=>{
    removeOldGlyph(b);
-   if(b.querySelector('svg'))return;
+   if(b.querySelector('svg')){b.classList.add('svg-icon-button');b.querySelector('svg').setAttribute('aria-hidden','true');return;}
    const k=iconFor(b);
    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
    svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('width','16');svg.setAttribute('height','16');
@@ -91,7 +91,7 @@
    b.style.setProperty('--svg-icon-size','16px');
   });
  }
- const start=()=>{enhance(document);new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>{if(n.nodeType===1)enhance(n)}))).observe(document.body,{childList:true,subtree:true})};
+ const start=()=>{enhance(document);new MutationObserver(ms=>ms.forEach(m=>{if(m.type==='characterData'){const b=m.target.parentElement?.closest('button');if(b)enhance(b)}m.addedNodes?.forEach(n=>{if(n.nodeType===1)enhance(n);else if(n.nodeType===3){const b=n.parentElement?.closest('button');if(b)enhance(b)}})})).observe(document.body,{childList:true,characterData:true,subtree:true})};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
 </script>
