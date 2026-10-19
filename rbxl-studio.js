@@ -683,16 +683,28 @@ async function publishFullPlaceFile(event){
  if(!target)return;
  const name=String(file.name||"place.rbxl");
  if(!/\.(rbxl|rbxlx)$/i.test(name)){
-   showDiagnosticPanel("Formato de arquivo inválido",false,"Selecione um arquivo .rbxl ou .rbxlx.","Exporte o Place completo pelo Roblox Studio e selecione o arquivo exportado. Um JSON ou um arquivo parcial de script não pode ser publicado por esta API.");
-   return;
- }
- if(file.size>4*1024*1024){
-   showDiagnosticPanel("Arquivo maior que o limite desta rota",false,"O arquivo selecionado tem "+(file.size/1024/1024).toFixed(2)+" MB. Esta rota da Vercel aceita arquivos de até 4 MB para evitar falha por limite de corpo da requisição.","Use um arquivo .rbxl/.rbxlx completo com até 4 MB. Arquivos maiores exigem uma infraestrutura de upload que não passe o binário inteiro pela função da Vercel.");
+   showDiagnosticPanel("Formato de arquivo inválido",false,"Selecione um arquivo .rbxl ou .rbxlx.","O Studio RBXL trabalha com o Place conectado e não deve pedir outro arquivo para publicar alterações de scripts.");
    return;
  }
  const changed=[...state.dirty].length;
  if(changed&&/\.rbxl$/i.test(name)){
-   showDiagnosticPanel("Para mesclar scripts, selecione .rbxlx",false,"O arquivo .rbxl é binário e não pode ser mesclado com segurança pelo navegador. Nenhuma publicação foi feita.","Exporte o Place completo no formato XML .rbxlx e selecione esse arquivo. O site vai aplicar somente os scripts alterados, validar os caminhos e preservar o restante do Place.");
+   if(target.mode==="copy"){
+     showDiagnosticPanel("Cópia independente não publicada",false,"As alterações estão ligadas às instâncias do jogo original. Não é seguro aplicar os mesmos IDs de scripts em outro Place.","Para atualizar o jogo atual, escolha “Atualizar jogo original”: o Studio RBXL enviará os Sources alterados pela API e verificará a resposta da Roblox. A cópia independente exige mapeamento seguro dos scripts no Place de destino. Nenhuma publicação foi feita nesta tentativa.");
+     return;
+   }
+   const b=$("#rbxlPublishFile");
+   if(b){b.disabled=true;b.textContent="Publicando scripts…";}
+   try{
+     $("#rbxlStatus").textContent="Usando o Place atual conectado — sem solicitar outro arquivo";
+     $("#rbxlHint").textContent="Enviando apenas os scripts alterados e verificando a resposta oficial da Roblox.";
+     await publishAll();
+   }finally{
+     if(b){b.disabled=false;b.textContent="Publicar arquivo .rbxl/.rbxlx";}
+   }
+   return;
+ }
+ if(file.size>4*1024*1024){
+   showDiagnosticPanel("Arquivo maior que o limite desta rota",false,"O arquivo selecionado tem "+(file.size/1024/1024).toFixed(2)+" MB. Esta rota da Vercel aceita arquivos de até 4 MB para publicação de um Place completo.","Para publicar alterações de scripts no jogo atual, use “Publicar alterações”; isso usa o Place já conectado e não exige reenviar o arquivo completo.");
    return;
  }
  const confirmText="Destino: "+(target.mode==="copy"?"CÓPIA INDEPENDENTE":"JOGO ORIGINAL")+"\nArquivo completo: "+name+"\nTamanho: "+(file.size/1024/1024).toFixed(2)+" MB\nScripts alterados nesta sessão: "+changed+"\nUniverse: "+target.universeId+"\nPlace: "+target.placeId+"\n\nO site vai usar este arquivo completo como base. Se for .rbxlx, tentará mesclar as alterações dos scripts existentes e abortará sem publicar se houver caminho ausente/ambíguo. O arquivo selecionado no telefone não será modificado. A publicação substitui o Place publicado pelo conteúdo resultante. Continuar?";
