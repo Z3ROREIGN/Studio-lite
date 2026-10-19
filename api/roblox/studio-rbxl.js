@@ -612,6 +612,24 @@ export default async function handler(req, res) {
       if (!changes.length) return json(res, 400, { ok: false, error: "Nenhuma alteração foi enviada para publicação." });
       if (changes.length > 100) return json(res, 400, { ok: false, error: "Limite de 100 arquivos por publicação." });
 
+      // Validate every change before applying any of them.
+      const seenPublishIds = new Set();
+      for (const change of changes) {
+        const instanceId = clean(change?.instanceId);
+        const scriptType = clean(change?.scriptType);
+        if (!instanceId) return json(res, 400, { ok: false, error: "Instance ID inválido em uma das alterações." });
+        if (!SCRIPT_TYPES.includes(scriptType)) {
+          return json(res, 400, { ok: false, error: "Tipo de script inválido para a instância " + instanceId + "." });
+        }
+        if (seenPublishIds.has(instanceId)) {
+          return json(res, 400, { ok: false, error: "A lista contém a instância " + instanceId + " mais de uma vez." });
+        }
+        seenPublishIds.add(instanceId);
+        if (String(change.source ?? "").length > 190000) {
+          return json(res, 400, { ok: false, error: "O código da instância " + instanceId + " ultrapassa o limite permitido." });
+        }
+      }
+
       // Primeiro aplica somente o Source dos scripts pela Engine Instances API,
       // que é o endpoint oficial para editar Script/LocalScript/ModuleScript.
       const saved = [];
