@@ -61,7 +61,19 @@ export default async function handler(req, res) {
     return;
   }
 
+  res.setHeader("Cache-Control", "no-store, max-age=0");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+
   try {
+    const declaredLength = Number(req.headers["content-length"] || 0);
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_PLACE_BYTES) {
+      res.status(413).json({
+        error: "O arquivo excede o limite seguro de 4 MiB desta rota da Vercel.",
+        code: "PLACE_FILE_TOO_LARGE",
+      });
+      return;
+    }
+
     const universeId = String(req.headers["x-roblox-universe-id"] || "").trim();
     const placeId = String(req.headers["x-roblox-place-id"] || "").trim();
     const fileName = String(req.headers["x-roblox-file-name"] || "place.rbxl").trim();
