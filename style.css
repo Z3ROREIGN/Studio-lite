@@ -635,3 +635,23 @@ button.svg-icon-button.primary,button.svg-icon-button.accent{
   .actions button.svg-icon-button{width:36px;min-width:36px;height:36px;padding:0}
   .actions button.svg-icon-button>svg{width:18px;height:18px;flex-basis:18px}
 }
+
+
+/* ===== FIX: KEEP MOBILE CONTROLS ACCESSIBLE ===== */
+@media(max-width:850px){
+  /* Do not hide actions merely because the viewport is narrow. */
+  .actions #publishBtn{display:inline-flex!important}
+  .actions #saveBtn{display:inline-flex!important}
+  .view-actions{display:flex!important}
+  .mobile-fab{display:none!important}
+  .toolbar{overflow-x:auto!important;overflow-y:hidden!important}
+  .toolbar .tool-group{overflow-x:hidden;overflow-y:auto}
+}
+@media(max-width:600px){
+  .actions #publishBtn{display:inline-flex!important;width:36px;min-width:36px;padding:0!important}
+  .actions #publishBtn>svg{width:17px;height:17px}
+  .view-actions{display:flex!important;max-width:100%;gap:3px}
+  .view-actions button{display:inline-flex!important;min-width:30px;padding:0 5px!important}
+  /* Keep all creation tools available; use the group's own scroll instead of hiding one. */
+  .tool-group:nth-of-type(3) button:nth-of-type(1){display:inline-flex!important}
+}
