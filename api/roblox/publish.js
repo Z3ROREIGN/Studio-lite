@@ -5,10 +5,38 @@ export const config = {
   },
 };
 
+const MAX_PLACE_BYTES = 4 * 1024 * 1024;
+const RBXL_MAGIC = Buffer.from([0x3c,0x72,0x6f,0x62,0x6c,0x6f,0x78,0x21,0x89,0xff,0x0d,0x0a,0x1a,0x0a]);
+
 async function readBody(req) {
   const chunks = [];
-  for await (const chunk of req) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  return Buffer.concat(chunks);
+  let size = 0;
+  for await (const chunk of req) {
+    const part = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    size += part.length;
+    if (size > MAX_PLACE_BYTES) {
+      const error = new Error("O arquivo excede o limite seguro de 4 MiB desta rota da Vercel.");
+      error.statusCode = 413;
+      throw error;
+    }
+    chunks.push(part);
+  }
+  return Buffer.concat(chunks, size);
+}
+
+function validatePlaceFile(body, fileName) {
+  if (/\\.rbxl$/i.test(fileName)) {
+    if (body.length < 32 || !body.subarray(0, RBXL_MAGIC.length).equals(RBXL_MAGIC)) {
+      return "O arquivo não tem um cabeçalho RBXL binário válido. Nenhuma publicação foi feita.";
+    }
+    return null;
+  }
+
+  const xml = body.toString("utf8").replace(/^\\uFEFF/, "").trimStart();
+  if (!xml || !/^<(?:\\?xml\\b[^>]*>\\s*)?<roblox(?:\\s|>)/i.test(xml)) {
+    return "O arquivo .rbxlx não parece ser um Place XML Roblox válido. Nenhuma publicação foi feita.";
+  }
+  return null;
 }
 
 export default async function handler(req, res) {
@@ -72,6 +100,12 @@ export default async function handler(req, res) {
       return;
     }
 
+    const fileValidationError = validatePlaceFile(body, fileName);
+    if (fileValidationError) {
+      res.status(400).json({ error: fileValidationError, code: "INVALID_PLACE_FILE" });
+      return;
+    }
+
     const upstream = await fetch(
       `https://apis.roblox.com/universes/v1/${universeId}/places/${placeId}/versions?versionType=Published`,
       {
@@ -99,6 +133,11 @@ export default async function handler(req, res) {
       ...payload,
     });
   } catch (error) {
+    const statusCode = Number(error?.statusCode);
+    if (statusCode === 413) {
+      res.status(413).json({ error: error.message, code: "PLACE_FILE_TOO_LARGE" });
+      return;
+    }
     console.error("Roblox publish proxy error:", error);
     res.status(500).json({
       error: "Falha ao comunicar com Roblox Open Cloud.",
