@@ -556,14 +556,56 @@ export default async function handler(req, res) {
     }
     if (action === "updateMany") {
       const changes = Array.isArray(body.changes) ? body.changes : [];
+      if (!changes.length) return json(res, 400, { ok: false, error: "Nenhuma alteração foi enviada para salvar." });
       if (changes.length > 100) return json(res, 400, { ok: false, error: "Limite de 100 arquivos por salvamento." });
-      const results = [];
+
+      // Validate the whole batch before mutating any script, to avoid a
+      // predictable validation error halfway through a multi-script save.
+      const seen = new Set();
       for (const change of changes) {
-        const task = await updateScriptWithInstance(universeId, placeId, clean(change.instanceId), clean(change.scriptType), change.source, apiKey);
-        await operation(task.path, apiKey);
-        results.push({ instanceId: clean(change.instanceId), ok: true });
+        const instanceId = clean(change?.instanceId);
+        const scriptType = clean(change?.scriptType);
+        if (!instanceId) return json(res, 400, { ok: false, error: "Instance ID inválido em uma das alterações." });
+        if (!SCRIPT_TYPES.includes(scriptType)) {
+          return json(res, 400, { ok: false, error: "Tipo de script inválido para a instância " + instanceId + "." });
+        }
+        if (seen.has(instanceId)) {
+          return json(res, 400, { ok: false, error: "A lista contém a instância " + instanceId + " mais de uma vez." });
+        }
+        seen.add(instanceId);
+        if (String(change.source ?? "").length > 190000) {
+          return json(res, 400, { ok: false, error: "O código da instância " + instanceId + " ultrapassa o limite permitido." });
+        }
       }
-      return json(res, 200, { ok: true, saved: results.length, published: true, method: "instance-api" });
+
+      const saved = [];
+      for (const change of changes) {
+        const instanceId = clean(change.instanceId);
+        const task = await updateScriptWithInstance(
+          universeId, placeId, instanceId, clean(change.scriptType), change.source, apiKey
+        );
+        await operation(task.path, apiKey);
+        saved.push({ instanceId, ok: true });
+      }
+
+      // An update is not the same as a published Place. Publish and read
+      // back every Source before returning a success response.
+      const published = await publishPlaceWithLuau(universeId, placeId, apiKey);
+      for (const change of changes) {
+        const instanceId = clean(change.instanceId);
+        const actual = await loadScriptSource(universeId, placeId, instanceId, apiKey);
+        if (String(actual.source ?? "") !== String(change.source ?? "")) {
+          return json(res, 409, {
+            ok: false,
+            code: "PUBLISH_VERIFICATION_FAILED",
+            error: "O Roblox não confirmou o Source esperado para " + instanceId + ". A operação não será marcada como publicada; mantenha o rascunho local."
+          });
+        }
+      }
+      return json(res, 200, {
+        ok: true, saved: saved.length, published: true, verified: true,
+        method: "instance-api-plus-save-place-verified", taskPath: published.taskPath
+      });
     }
     if (action === "publishMany") {
       const changes = Array.isArray(body.changes) ? body.changes : [];
