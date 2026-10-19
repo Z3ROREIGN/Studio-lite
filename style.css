@@ -596,3 +596,42 @@ button.svg-icon-button>svg{display:inline-block;flex:0 0 auto;width:var(--svg-ic
  .actions button.svg-icon-button{gap:0}
  .actions button.svg-icon-button>svg{width:17px;height:17px}
 }
+
+
+/* BUTTON POLISH — consistent, compact and readable on mobile */
+button.svg-icon-button{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  line-height:1.15;letter-spacing:.01em;white-space:nowrap;
+  transition:background .16s ease,border-color .16s ease,transform .16s ease,box-shadow .16s ease;
+}
+button.svg-icon-button>svg{
+  display:block;flex:0 0 16px;width:16px;height:16px;
+  fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;
+}
+button.svg-icon-button:focus-visible{
+  outline:2px solid #fff;outline-offset:2px;
+}
+button.svg-icon-button:active{transform:translateY(1px)}
+/* Icon-only controls get a balanced square shape */
+button.svg-icon-button:has(>svg):not(:has(svg~span)):not(:has(svg~strong)){
+  min-width:34px;min-height:32px;padding:0 9px;
+}
+.toolbar button.svg-icon-button{min-height:32px;border-radius:8px}
+.toolbar .tool-group button.svg-icon-button:hover{background:#202020;border-color:#505050;color:#fff}
+.actions button.svg-icon-button{border-radius:9px}
+.side-head button.svg-icon-button,.view-actions button.svg-icon-button,.mobile-fab button.svg-icon-button{
+  width:34px;min-width:34px;height:34px;padding:0;border-radius:9px;
+  background:#121212;border:1px solid #303030;color:#ddd;
+}
+.side-head button.svg-icon-button:hover,.view-actions button.svg-icon-button:hover,.mobile-fab button.svg-icon-button:hover{
+  background:#222;border-color:#666;color:#fff;
+}
+button.svg-icon-button.primary,button.svg-icon-button.accent{
+  font-weight:750;
+}
+@media(max-width:800px){
+  button.svg-icon-button{gap:6px}
+  .toolbar button.svg-icon-button{min-height:34px;padding:0 10px}
+  .actions button.svg-icon-button{width:36px;min-width:36px;height:36px;padding:0}
+  .actions button.svg-icon-button>svg{width:18px;height:18px;flex-basis:18px}
+}
