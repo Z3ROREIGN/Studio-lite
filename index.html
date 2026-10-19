@@ -60,8 +60,25 @@
   if(/back|voltar/.test(s))return 'back';
   return 'default';
  }
+ function removeOldGlyph(b){
+  // Remove only legacy decorative symbols at the start of button labels.
+  const legacy=/^\\s*(?:(?:↶|↷|⚙|▶|＋|●|◉|◢|⌂|▱|◇|◆|▰|⧉|⌫|◎|⛶|▦|✓|⌘|⇧|⇩|☁|▣|☷|☰|←|⌄|▾|▸|▹|◌|✚|✕|×|\u{1F300}-\u{1FAFF}|\u{2600}-\u{27BF})\\s*)+/u;
+  const walk=node=>{
+   for(const child of Array.from(node.childNodes||[])){
+    if(child.nodeType===1 && child.tagName.toLowerCase()==='svg') continue;
+    if(child.nodeType===3 && child.nodeValue.trim()){
+     child.nodeValue=child.nodeValue.replace(legacy,'');
+     return true;
+    }
+    if(child.nodeType===1 && walk(child)) return true;
+   }
+   return false;
+  };
+  walk(b);
+ }
  function enhance(root){
   (root.matches&&root.matches('button')?[root]:[]).concat(root.querySelectorAll?Array.from(root.querySelectorAll('button')):[]).forEach(b=>{
+   removeOldGlyph(b);
    if(b.querySelector('svg'))return;
    const k=iconFor(b);
    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
