@@ -530,13 +530,27 @@ async function saveCurrent(){
  if(!n){$("#rbxlStatus").textContent="Nenhum script aberto.";return}
  if(!state.dirty.has(n.id)){$("#rbxlStatus").textContent="Nenhuma alteração pendente neste script.";return}
  const b=$("#rbxlSave");b.disabled=true;b.textContent="Salvando…";$("#rbxlStatus").textContent="Salvando "+n.name+"…";
+ const submittedSource=String(n.source??"");
  try{
-   await api("update",{instanceId:n.id,scriptType:n.type,source:n.source});
-   state.dirty.delete(String(n.id));n.sourceLoaded=true;persistDrafts();$("#rbxlDirty").textContent="";$("#rbxlStatus").textContent="✓ "+n.name+" enviado ao Roblox e verificado. Confirme a versão publicada no Roblox.";status("Script enviado e verificado");
+   await api("update",{instanceId:n.id,scriptType:n.type,source:submittedSource});
+   n.sourceLoaded=true;
+   if(String(n.source??"")===submittedSource){
+     state.dirty.delete(String(n.id));
+     $("#rbxlDirty").textContent="";
+     $("#rbxlStatus").textContent="✓ "+n.name+" enviado, publicado e verificado pelo Roblox.";
+     status("Script publicado e verificado");
+   }else{
+     state.dirty.add(String(n.id));
+     $("#rbxlDirty").textContent="•";
+     $("#rbxlStatus").textContent="A versão enviada foi confirmada, mas há novas edições locais ainda não publicadas.";
+     status("Há novas alterações pendentes");
+   }
+   persistDrafts();
  }catch(e){
-   $("#rbxlStatus").textContent="Falha ao salvar: "+e.message;status("Falha ao salvar");
+   $("#rbxlStatus").textContent="Falha ao salvar/publicar: "+e.message;
+   status("Falha ao salvar");
  }finally{
-   b.textContent="Salvar";b.disabled=!state.dirty.has(n.id);
+   b.textContent="Salvar";b.disabled=!state.dirty.has(String(n.id));
  }
 }
 async function testLuau(){
@@ -747,11 +761,24 @@ async function publishAll(){
    $("#rbxlStatus").textContent="Aplicando "+changes.length+" alteração(ões)…";
    $("#rbxlHint").textContent="1/2: atualizando scripts pela Engine Instances API";
    const d=await api("publishMany",{changes});
-   clearPublishedDrafts(changes.map(c=>c.instanceId));state.pendingPublish=false;
-   $("#rbxlDirty").textContent="";
-   $("#rbxlStatus").textContent="✓ Roblox confirmou a publicação e verificou o Source de "+(d.saved??changes.length)+" script(s).";
-   $("#rbxlHint").textContent="Publicação confirmada pela API e conteúdo conferido após a operação.";
-   status("Publicação verificada");
+   const stillChanged=[];
+   for(const sent of changes){
+     const id=String(sent.instanceId);
+     const current=state.files.get(id);
+     if(current&&String(current.source??"")===String(sent.source??""))state.dirty.delete(id);
+     else if(current)state.dirty.add(id);
+     if(current&&state.dirty.has(id))stillChanged.push(id);
+   }
+   state.pendingPublish=false;
+   persistDrafts();
+   $("#rbxlDirty").textContent=state.current&&state.dirty.has(String(state.current))?"•":"";
+   $("#rbxlStatus").textContent=stillChanged.length
+     ?"✓ A versão enviada foi confirmada; "+stillChanged.length+" script(s) receberam novas edições durante a publicação e continuam pendentes."
+     :"✓ Roblox confirmou a publicação e verificou o Source de "+(d.saved??changes.length)+" script(s).";
+   $("#rbxlHint").textContent=stillChanged.length
+     ?"As edições mais recentes foram preservadas como rascunho e ainda precisam ser publicadas."
+     :"Publicação confirmada pela API e conteúdo conferido após a operação.";
+   status(stillChanged.length?"Há novas alterações pendentes":"Publicação verificada");
  }catch(e){
    const msg=e.message||String(e);
    $("#rbxlStatus").textContent="Falha na publicação: "+msg;
