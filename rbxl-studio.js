@@ -86,7 +86,7 @@ function style(){
 }
 function open(){
  if(state.dirty.size)persistDrafts();
- style();const old=$("#studioRbxlModal");if(old){old.remove();return true}
+ style();const old=$("#studioRbxlModal");if(old){old.querySelector("#rbxlApiKey")?.focus();return true}
  const bg=document.createElement("div");bg.id="studioRbxlModal";
  bg.innerHTML=`
  <div class="rbxl-app" role="dialog" aria-modal="true" aria-label="Studio RBXL">
